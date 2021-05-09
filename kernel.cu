@@ -79,6 +79,7 @@ __device__ Tracer::Object* traceScene(int count, Tracer::Object** world, const T
     return hitObject;
 }
 
+
 #define RANDVEC3 vec3(curand_uniform(local_rand_state),curand_uniform(local_rand_state),curand_uniform(local_rand_state))
 
 __device__ Tracer::vec3 random_in_unit_sphere(curandState* local_rand_state) {
