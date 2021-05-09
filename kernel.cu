@@ -186,8 +186,8 @@ __global__ void DXHook::render(float* frameBuffer, Tracer::Object** world, float
     HitResult result;
     Tracer::Object* hitObject = traceScene(count, world, ourRay, result);
 
-    int samples = 5;
-    int max_depth = 15;
+    int samples = 2;
+    int max_depth = 5;
 
     if (hitObject != NULL) {
         Ray newRay = ourRay;
