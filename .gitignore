@@ -4,3 +4,4 @@ CudaTracer.sln
 CudaTracer.vcxproj
 CudaTracer.vcxproj.filters
 CudaTracer.vcxproj.user
+glmSource/glm/doc/*
