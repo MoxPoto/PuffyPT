@@ -1,5 +1,4 @@
 ﻿#include "mesh.cuh"
-
 #include "triangle.cuh"
 #include "vec3.cuh"
 #include "object.cuh"
