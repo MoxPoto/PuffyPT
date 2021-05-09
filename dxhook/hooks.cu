@@ -93,6 +93,7 @@ namespace DXHook {
 	IDirect3DTexture9* pathtraceOutput = NULL;
 	IDirect3DVertexBuffer9* quadVertexBuffer = NULL;
 	ID3DXSprite* pathtraceObject = NULL;
+	ID3DXFont* msgFont = NULL;
 	float fov = 60.f;
 
 	Tracer::vec3* origin;
@@ -118,6 +119,28 @@ namespace DXHook {
 			if (!pathtraceObject) {
 
 				std::cout << "Failed to create sprite for the pathtracer.. Code: " << failCode2 << "\nD3DERR_INVALIDCALL: " <<
+					D3DERR_INVALIDCALL << std::endl;
+			}
+
+
+			HRESULT failCode3 = D3DXCreateFont(
+				pDevice,
+				42,
+				0,
+				FW_NORMAL,
+				1,
+				FALSE,
+				DEFAULT_CHARSET,
+				OUT_DEFAULT_PRECIS,
+				ANTIALIASED_QUALITY,
+				DEFAULT_PITCH | FF_DONTCARE,
+				"Terminal",
+				&msgFont
+			);
+
+			if (!msgFont) {
+
+				std::cout << "Failed to create font for the pathtracer.. Code: " << failCode3 << "\nD3DERR_INVALIDCALL: " <<
 					D3DERR_INVALIDCALL << std::endl;
 			}
 
@@ -247,10 +270,17 @@ namespace DXHook {
 				D3DXMatrixIdentity(&transformation);
 				D3DXMatrixScaling(&transformation, 4, 4, 1);
 
-				pathtraceObject->Begin(0);
+				pathtraceObject->Begin(D3DXSPRITE_SORT_DEPTH_FRONTTOBACK);
 				pathtraceObject->SetTransform(&transformation);
-				pathtraceObject->Draw(pathtraceOutput, NULL, NULL, &D3DXVECTOR3(0.5, 0.5, 1), D3DCOLOR_RGBA(255, 255, 255, 255));
+				pathtraceObject->Draw(pathtraceOutput, NULL, NULL, &D3DXVECTOR3(0.3, 0.3, 1), D3DCOLOR_RGBA(255, 255, 255, 255));
 				pathtraceObject->End();
+
+				if (msgFont) {
+					RECT msgRect;
+					SetRect(&msgRect, 0, 25, 1920, 140);
+
+					msgFont->DrawText(NULL, "Puffy PT", -1, &msgRect, DT_CENTER | DT_NOCLIP, D3DCOLOR_ARGB(255, 0, 0, 0));
+				}
 
 				pDevice->SetRenderState(D3DRS_ZENABLE, FALSE);
 				pDevice->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);

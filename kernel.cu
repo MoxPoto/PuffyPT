@@ -296,6 +296,11 @@ GMOD_MODULE_CLOSE()
     checkCudaErrors(cudaFree(DXHook::d_rand_state));
     checkCudaErrors(cudaFree(DXHook::origin));
 
+    DXHook::quadVertexBuffer->Release();
+    DXHook::msgFont->Release();
+    DXHook::pathtraceObject->Release();
+    DXHook::pathtraceOutput->Release();
+
     cudaDeviceReset();
 
     return 0;

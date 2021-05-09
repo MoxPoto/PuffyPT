@@ -29,6 +29,7 @@ namespace DXHook {
 	extern Tracer::vec3* origin;
 	extern float curX, curY, curZ;
 	extern float curPitch, curYaw, curRoll;
+	extern ID3DXFont* msgFont;
 
 	extern HWND window;
 	extern bool gotDevice;
