@@ -20,6 +20,7 @@
 #include "triangle.cuh"
 
 #include "brdfs/lambert.cuh"
+#include "brdfs/specular.cuh"
 
 #include "dxhook/mainHook.h"
 
@@ -103,6 +104,9 @@ __device__ Tracer::vec3 depthColor(int count, const Tracer::Ray& ray, Tracer::Ob
             switch (target->matType) {
                 case (BRDF::Lambertian):
                     LambertBRDF::SampleWorld(rec, local_rand_state, attenuation, new_ray, target);
+                    break;
+                case (BRDF::Specular):
+                    SpecularBRDF::SampleWorld(rec, cur_ray, attenuation, new_ray, target);
                     break;
                 default:
                     break;
@@ -221,8 +225,9 @@ __global__ void DXHook::initMem(Tracer::Object** world, Tracer::vec3* origin) {
 
     *(world) = (new Tracer::Sphere(vec3(10, 0, 0), .2f));
     Tracer::Object* objOne = *(world);
-    objOne->color = vec3(0, 1, 0);
+    objOne->color = vec3(1, 1, 1);
     objOne->emission = 1.f;
+    objOne->matType = BRDF::Specular;
 
     *(world + 1) = (new Tracer::Sphere(vec3(10, 0, -3.2), 3.f));
     Tracer::Object* objTwo = *(world + 1);

@@ -17,7 +17,7 @@ namespace Tracer {
 			} while (p.squared_length() >= 1.0f);
 			return p;
 		}
-
+		
 		__device__ void SampleWorld(const HitResult& rec, curandState* local_rand_state, vec3& attenuation, Ray& targetRay, Object* target) {
 			vec3 newDirPos = rec.HitPos + rec.HitNormal + random_in_unit_sphere(local_rand_state);
 			targetRay.origin = rec.HitPos;

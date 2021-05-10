@@ -9,7 +9,8 @@
 
 namespace Tracer {
 	enum BRDF {
-		Lambertian
+		Lambertian,
+		Specular
 	};
 
 	class Object {
@@ -24,3 +25,4 @@ namespace Tracer {
 	};
 }
 #endif
+
