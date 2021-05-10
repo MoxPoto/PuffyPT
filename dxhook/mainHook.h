@@ -42,7 +42,7 @@ namespace DXHook {
 	extern std::vector<int> keyCodes;
 	extern ImFont* ourFont;
 
-	extern __global__ void render(float* frameBuffer, Tracer::Object** world, float x, float y, float z, curandState* rand_state, int count, float fov, int max_x, int max_y);
+	extern __global__ void render(float* frameBuffer, Tracer::Object** world, float x, float y, float z, float pitch, float yaw, float roll, curandState* rand_state, int count, float fov, int max_x, int max_y);
 	extern __global__ void initMem(Tracer::Object** world, Tracer::vec3* origin);
 	extern __global__ void registerRands(int max_x, int max_y, curandState* rand_state);
 	extern void check_cuda(cudaError_t result, char const* const func, const char* const file, int const line);

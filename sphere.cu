@@ -11,8 +11,8 @@
 constexpr float FLOATE_MAX = 100000.f;
 
 namespace Tracer {
-    __host__ __device__ Sphere::Sphere(vec3 position, float radius) {
-        radius = radius;
+    __host__ __device__ Sphere::Sphere(vec3 position, float radiuss) {
+        radius = radiuss;
         center = position;
     }
 

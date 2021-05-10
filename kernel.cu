@@ -19,6 +19,8 @@
 #include "object.cuh"
 #include "triangle.cuh"
 
+#include "brdfs/lambert.cuh"
+
 #include "dxhook/mainHook.h"
 
 #define GLM_FORCE_CUDA
@@ -80,18 +82,6 @@ __device__ Tracer::Object* traceScene(int count, Tracer::Object** world, const T
 }
 
 
-#define RANDVEC3 vec3(curand_uniform(local_rand_state),curand_uniform(local_rand_state),curand_uniform(local_rand_state))
-
-__device__ Tracer::vec3 random_in_unit_sphere(curandState* local_rand_state) {
-    using namespace Tracer;
-
-    vec3 p;
-    do {
-        p = 2.0f * RANDVEC3 - vec3(1, 1, 1);
-    } while (p.squared_length() >= 1.0f);
-    return p;
-}
-
 __device__ Tracer::vec3 depthColor(int count, const Tracer::Ray& ray, Tracer::Object** world, curandState* local_rand_state, int max_depth) {
     using namespace Tracer;
 
@@ -107,9 +97,18 @@ __device__ Tracer::vec3 depthColor(int count, const Tracer::Ray& ray, Tracer::Ob
         if (target != NULL) {
             // set our current ray to the new formulated one (this being perfect diffuse)
             // and attenuate our color by the albedo we hit, but we also should multiply our albedo by the objects emission
-            vec3 newDirPos = rec.HitPos + rec.HitNormal + random_in_unit_sphere(local_rand_state);
-            Ray new_ray(rec.HitPos, unit_vector(newDirPos - rec.HitPos));
-            currentLight *= ((target->color * target->emission));
+            Ray new_ray(vec3(0, 0, 0), vec3(0, 0, 0));
+            vec3 attenuation(0, 0, 0);
+
+            switch (target->matType) {
+                case (BRDF::Lambertian):
+                    LambertBRDF::SampleWorld(rec, local_rand_state, attenuation, new_ray, target);
+                    break;
+                default:
+                    break;
+            }
+
+            currentLight *= attenuation;
 
             cur_ray = new_ray;
             
@@ -118,7 +117,7 @@ __device__ Tracer::vec3 depthColor(int count, const Tracer::Ray& ray, Tracer::Ob
             // didnt hit, finish our depth trace by attenuating our final hit color by the sky color
             vec3 skyColor = genSkyColor(cur_ray.direction);
             
-            return currentLight * (skyColor * 0.5f);
+            return (currentLight * (skyColor * 0.04f)) / pdf;
         }
     }
     return vec3(0.0, 0.0, 0.0); // exceeded recursion
@@ -142,7 +141,7 @@ __device__ Tracer::vec3 pathtrace(int count, Tracer::Object** world, const Trace
     return indirectLighting;
 }
 
-__global__ void DXHook::render(float* frameBuffer, Tracer::Object** world, float x, float y, float z, curandState* rand_state, int count, float fov, int max_x, int max_y) {
+__global__ void DXHook::render(float* frameBuffer, Tracer::Object** world, float x, float y, float z, float pitch, float yaw, float roll, curandState* rand_state, int count, float fov, int max_x, int max_y) {
     using namespace Tracer;
 
     int i = threadIdx.x + blockIdx.x * blockDim.x;
@@ -173,7 +172,9 @@ __global__ void DXHook::render(float* frameBuffer, Tracer::Object** world, float
     // Z is yaw
     // so Y is pitch!! YAY!! SOMETHING SORT OF SENSIBLE!!
 
-    rotationMat = glm::rotate(rotationMat, glm::radians(0.f), glm::vec3(0, 1, 0));
+    rotationMat = glm::rotate(rotationMat, glm::radians(pitch), glm::vec3(0, 1, 0));
+    rotationMat = glm::rotate(rotationMat, glm::radians(yaw), glm::vec3(0, 0, 1));
+    rotationMat = glm::rotate(rotationMat, glm::radians(roll), glm::vec3(1, 0, 0));
 
     glm::vec4 preVec = rotationMat * glm::vec4(dir.x(), dir.y(), dir.z(), 0);
     
@@ -186,8 +187,8 @@ __global__ void DXHook::render(float* frameBuffer, Tracer::Object** world, float
     HitResult result;
     Tracer::Object* hitObject = traceScene(count, world, ourRay, result);
 
-    int samples = 2;
-    int max_depth = 5;
+    int samples = 12;
+    int max_depth = 3;
 
     if (hitObject != NULL) {
         Ray newRay = ourRay;
@@ -208,9 +209,9 @@ __global__ void DXHook::render(float* frameBuffer, Tracer::Object** world, float
         b = skyColor.b();
     }
 
-    frameBuffer[pixel_index + 0] = r;
-    frameBuffer[pixel_index + 1] = g;
-    frameBuffer[pixel_index + 2] = b;
+    frameBuffer[pixel_index + 0] = (frameBuffer[pixel_index + 0] + r) / 2.f;
+    frameBuffer[pixel_index + 1] = (frameBuffer[pixel_index + 1] + g) / 2.f;
+    frameBuffer[pixel_index + 2] = (frameBuffer[pixel_index + 2] + b) / 2.f;
 }
 
 __global__ void DXHook::initMem(Tracer::Object** world, Tracer::vec3* origin) {
@@ -228,8 +229,10 @@ __global__ void DXHook::initMem(Tracer::Object** world, Tracer::vec3* origin) {
     objTwo->color = vec3(1.f, 0.5f, 0.5f);
     objTwo->emission = 1.f;
 
-    ((Tracer::Sphere*)objTwo)->radius = 3.f; // sigh.. initialization doesnt work
-
+    *(world + 2) = (new Tracer::Sphere(vec3(11, 3, 1), 0.7f));
+    Tracer::Object* objThree = *(world + 2);
+    objThree->color = vec3(1.f, 1.f, 1.f);
+    objThree->emission = 50.f;
 
 }
 

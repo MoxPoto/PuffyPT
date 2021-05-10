@@ -71,6 +71,8 @@
 #define PUFF_INCREMENT(name, variable) ImGui::Button(name); if (ImGui::IsItemActive()) { variable += 0.1f; }
 #define PUFF_DECREMENT(name, variable) ImGui::Button(name); if (ImGui::IsItemActive()) { variable -= 0.1f; }
 
+#define VERSION "PUFFY PT - 0.01"
+
 struct Vertex
 {
 	float _x, _y, _z;
@@ -125,7 +127,7 @@ namespace DXHook {
 
 			HRESULT failCode3 = D3DXCreateFont(
 				pDevice,
-				42,
+				18,
 				0,
 				FW_NORMAL,
 				1,
@@ -177,7 +179,7 @@ namespace DXHook {
 
 		ImGui::SetNextWindowFocus();
 
-
+	
 		// test panel
 		ImGui::Begin("Shader Modifier");
 
@@ -218,6 +220,38 @@ namespace DXHook {
 
 		ImGui::EndFrame();
 
+		float movementSpeed = 0.04f;
+
+		if (((GetKeyState(0x57) & 0x8000) != 0)) { // W
+			curX += movementSpeed;
+		}
+
+		if (((GetKeyState(0x53) & 0x8000) != 0)) { // S
+			curX -= movementSpeed;
+		}
+
+		if (((GetKeyState(0x41) & 0x8000) != 0)) { // A
+			curY += movementSpeed;
+		}
+
+		if (((GetKeyState(0x44) & 0x8000) != 0)) { // D
+			curY -= movementSpeed;
+		}
+
+		if (((GetKeyState(VK_SPACE) & 0x8000) != 0)) { // Space
+			curZ += movementSpeed;
+		}
+
+		if (((GetKeyState(VK_LSHIFT) & 0x8000) != 0)) { // Left Shift
+			curZ -= movementSpeed;
+		}
+
+		ImVec2 mouseDelta = ImGui::GetIO().MouseDelta;
+		float lookSpeed = 0.2f;
+
+		curPitch += (mouseDelta.y * lookSpeed);
+		curYaw -= (mouseDelta.x * lookSpeed);
+
 		int warpX = 16;
 		int warpY = 16; // technically can be ruled out as tiled rendering
 
@@ -227,10 +261,10 @@ namespace DXHook {
 
 		// std::chrono::steady_clock::time_point startTime = std::chrono::high_resolution_clock::now();
 
-		render<<<blocks, threads>>>(fb, world, curX, curY, curZ, d_rand_state, 2, fov, WIDTH, HEIGHT);
+		render<<<blocks, threads>>>(fb, world, curX, curY, curZ, curPitch, curYaw, curRoll, d_rand_state, 3, fov, WIDTH, HEIGHT);
 		checkCudaErrors(cudaGetLastError());
 		checkCudaErrors(cudaDeviceSynchronize());
-
+		 
 		// std::chrono::steady_clock::time_point endTime = std::chrono::high_resolution_clock::now();
 		// double timeSpent = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
 
@@ -277,9 +311,9 @@ namespace DXHook {
 
 				if (msgFont) {
 					RECT msgRect;
-					SetRect(&msgRect, 0, 25, 1920, 140);
+					SetRect(&msgRect, 0, 15, 1920, 120);
 
-					msgFont->DrawText(NULL, "Puffy PT", -1, &msgRect, DT_CENTER | DT_NOCLIP, D3DCOLOR_ARGB(255, 0, 0, 0));
+					msgFont->DrawText(NULL, VERSION, -1, &msgRect, DT_CENTER | DT_NOCLIP, D3DCOLOR_ARGB(255, 10, 10, 10));
 				}
 
 				pDevice->SetRenderState(D3DRS_ZENABLE, FALSE);
