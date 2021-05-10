@@ -41,8 +41,27 @@ namespace DXHook {
 	extern bool GetD3D9Device(void** pTable, size_t Size);
 	extern std::vector<int> keyCodes;
 	extern ImFont* ourFont;
+	extern int samples, max_depth;
 
-	extern __global__ void render(float* frameBuffer, Tracer::Object** world, float x, float y, float z, float pitch, float yaw, float roll, curandState* rand_state, int count, float fov, int max_x, int max_y);
+	struct RenderOptions {
+		float* frameBuffer;
+		Tracer::Object** world;
+		float x;
+		float y;
+		float z; 
+		float pitch;
+		float yaw;
+		float roll;
+		curandState* rand_state;
+		int count;
+		float fov;
+		int max_x;
+		int max_y;
+		int samples;
+		int max_depth;
+	};
+
+	extern __global__ void render(RenderOptions options);
 	extern __global__ void initMem(Tracer::Object** world, Tracer::vec3* origin);
 	extern __global__ void registerRands(int max_x, int max_y, curandState* rand_state);
 	extern void check_cuda(cudaError_t result, char const* const func, const char* const file, int const line);

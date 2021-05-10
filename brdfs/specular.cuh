@@ -11,7 +11,7 @@
 namespace Tracer {
 	namespace SpecularBRDF {
 		__device__ vec3 reflect(const vec3& direction, const vec3& normal);
-		__device__ void SampleWorld(const HitResult& res, const Ray& previousRay, vec3& attenuation, Ray& targetRay, Object* target);
+		__device__ void SampleWorld(const HitResult& res, curandState* local_rand_state, const Ray& previousRay, vec3& attenuation, Ray& targetRay, Object* target);
 	}
 }
 

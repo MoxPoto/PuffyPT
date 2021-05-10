@@ -13,11 +13,16 @@ namespace Tracer {
 		Specular
 	};
 
+	struct LightingOptions {
+		float roughness = 0;
+	};
+
 	class Object {
 	public:
 		vec3 color = vec3(1, 1, 1);
 		float emission = 1.f;
 		BRDF matType = BRDF::Lambertian;
+		LightingOptions lighting;
 
 		__host__ __device__ Object();
 

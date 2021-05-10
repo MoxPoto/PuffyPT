@@ -83,6 +83,7 @@ struct Vertex
 
 const DWORD Vertex::FVF = D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_TEX1;
 
+
 namespace DXHook {
 	EndScene oldFunc;
 	void* d3d9Device[119];
@@ -102,6 +103,9 @@ namespace DXHook {
 	float curX, curY, curZ;
 	float curPitch, curYaw, curRoll;
 
+	int samples = 4;
+	int max_depth = 6; // less than 4 results in really, really bad reflections
+ 
 	HRESULT __stdcall EndSceneHook(LPDIRECT3DDEVICE9 pDevice) {
 		if (!gotDevice) {
 			gotDevice = true;
@@ -186,6 +190,7 @@ namespace DXHook {
 		ImGui::PushFont(ourFont);
 
 		float x, y, z;
+		
 
 		ImGui::SliderFloat("Camera X", &x, -85.0f, 85.0f, "%.2f");
 		ImGui::SliderFloat("Camera Y", &y, -85.0f, 85.0f, "%.2f");
@@ -204,15 +209,25 @@ namespace DXHook {
 		}
 		
 		ImGui::Text("Current FOV: %.2f", fov);
+
+		ImGui::Text("Current Samples: %d", samples);
+		ImGui::Text("Current Max Depth: %d", max_depth);
 		
-		PUFF_INCREMENT("Move Forward", curX);
-		PUFF_DECREMENT("Move Backward", curX);
+		if (ImGui::Button("Increase Samples")) {
+			samples += 5;
+		}
+		
+		if (ImGui::Button("Decrease Samples")) {
+			samples -= 5;
+		}
 
-		PUFF_INCREMENT("Move Left", curY);
-		PUFF_DECREMENT("Move Right", curY);
+		if (ImGui::Button("Increase Depth")) {
+			max_depth += 1;
+		}
 
-		PUFF_INCREMENT("Move Up", curZ);
-		PUFF_DECREMENT("Move Down", curZ);
+		if (ImGui::Button("Decrease Depth")) {
+			max_depth -= 1;
+		}
 
 		ImGui::End();
 
@@ -261,10 +276,27 @@ namespace DXHook {
 
 		// std::chrono::steady_clock::time_point startTime = std::chrono::high_resolution_clock::now();
 
-		render<<<blocks, threads>>>(fb, world, curX, curY, curZ, curPitch, curYaw, curRoll, d_rand_state, 3, fov, WIDTH, HEIGHT);
+		RenderOptions options;
+		options.count = 3;
+		options.fov = fov;
+		options.x = curX;
+		options.y = curY;
+		options.z = curZ;
+		options.pitch = curPitch;
+		options.yaw = curYaw;
+		options.roll = curRoll;
+		options.frameBuffer = fb;
+		options.world = world;
+		options.max_x = WIDTH;
+		options.max_y = HEIGHT;
+		options.rand_state = d_rand_state;
+		options.samples = samples;
+		options.max_depth = max_depth;
+
+		render << <blocks, threads >> > (options);
 		checkCudaErrors(cudaGetLastError());
 		checkCudaErrors(cudaDeviceSynchronize());
-		 
+
 		// std::chrono::steady_clock::time_point endTime = std::chrono::high_resolution_clock::now();
 		// double timeSpent = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
 

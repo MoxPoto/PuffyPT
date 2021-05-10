@@ -106,7 +106,7 @@ __device__ Tracer::vec3 depthColor(int count, const Tracer::Ray& ray, Tracer::Ob
                     LambertBRDF::SampleWorld(rec, local_rand_state, attenuation, new_ray, target);
                     break;
                 case (BRDF::Specular):
-                    SpecularBRDF::SampleWorld(rec, cur_ray, attenuation, new_ray, target);
+                    SpecularBRDF::SampleWorld(rec, local_rand_state, cur_ray, attenuation, new_ray, target);
                     break;
                 default:
                     break;
@@ -121,7 +121,7 @@ __device__ Tracer::vec3 depthColor(int count, const Tracer::Ray& ray, Tracer::Ob
             // didnt hit, finish our depth trace by attenuating our final hit color by the sky color
             vec3 skyColor = genSkyColor(cur_ray.direction);
             
-            return (currentLight * (skyColor * 0.04f)) / pdf;
+            return (currentLight * (skyColor * 0.10f)) / pdf;
         }
     }
     return vec3(0.0, 0.0, 0.0); // exceeded recursion
@@ -145,16 +145,16 @@ __device__ Tracer::vec3 pathtrace(int count, Tracer::Object** world, const Trace
     return indirectLighting;
 }
 
-__global__ void DXHook::render(float* frameBuffer, Tracer::Object** world, float x, float y, float z, float pitch, float yaw, float roll, curandState* rand_state, int count, float fov, int max_x, int max_y) {
+__global__ void DXHook::render(DXHook::RenderOptions options) {
     using namespace Tracer;
 
     int i = threadIdx.x + blockIdx.x * blockDim.x;
     int j = threadIdx.y + blockIdx.y * blockDim.y;
-    if ((i >= max_x) || (j >= max_y)) return;
-    int pixel_index = j * max_x * 3 + i * 3;
-    int random_idx = j * max_x + i;
+    if ((i >= options.max_x) || (j >= options.max_y)) return;
+    int pixel_index = j * options.max_x * 3 + i * 3;
+    int random_idx = j * options.max_x + i;
 
-    curandState local_rand_state = rand_state[random_idx];
+    curandState local_rand_state = options.rand_state[random_idx];
 
     float r = 0.f;
     float g = 0.f;
@@ -162,11 +162,11 @@ __global__ void DXHook::render(float* frameBuffer, Tracer::Object** world, float
 
     float DISTANCE = 1.f;
 
-    float coeff = DISTANCE * tan((fov / 2) * (M_PI / 180)) * 2;
+    float coeff = DISTANCE * tan((options.fov / 2) * (M_PI / 180)) * 2;
     vec3 camOrigin = vec3(
         DISTANCE,
-        (static_cast<float>(max_x - i) / static_cast<float>(max_x - 1) - 0.5) * coeff,
-        (coeff / static_cast<float>(max_x)) * static_cast<float>(max_y - j) - 0.5 * (coeff / static_cast<double>(max_x)) * static_cast<double>(max_y - 1)
+        (static_cast<float>(options.max_x - i) / static_cast<float>(options.max_x - 1) - 0.5) * coeff,
+        (coeff / static_cast<float>(options.max_x)) * static_cast<float>(options.max_y - j) - 0.5 * (coeff / static_cast<double>(options.max_x)) * static_cast<double>(options.max_y - 1)
     );
     vec3 dir = unit_vector(camOrigin);
     // NOT MY CODE!! https://github.com/100PXSquared/public-starfalls/tree/master/raytracer
@@ -176,29 +176,29 @@ __global__ void DXHook::render(float* frameBuffer, Tracer::Object** world, float
     // Z is yaw
     // so Y is pitch!! YAY!! SOMETHING SORT OF SENSIBLE!!
 
-    rotationMat = glm::rotate(rotationMat, glm::radians(pitch), glm::vec3(0, 1, 0));
-    rotationMat = glm::rotate(rotationMat, glm::radians(yaw), glm::vec3(0, 0, 1));
-    rotationMat = glm::rotate(rotationMat, glm::radians(roll), glm::vec3(1, 0, 0));
+    rotationMat = glm::rotate(rotationMat, glm::radians(options.pitch), glm::vec3(0, 1, 0));
+    rotationMat = glm::rotate(rotationMat, glm::radians(options.yaw), glm::vec3(0, 0, 1));
+    rotationMat = glm::rotate(rotationMat, glm::radians(options.roll), glm::vec3(1, 0, 0));
 
     glm::vec4 preVec = rotationMat * glm::vec4(dir.x(), dir.y(), dir.z(), 0);
     
     dir = vec3(preVec.x, preVec.y, preVec.z);
 
-    vec3 origin(x, y, z);
+    vec3 origin(options.x, options.y, options.z);
 
     Ray ourRay(origin, dir);
 
     HitResult result;
-    Tracer::Object* hitObject = traceScene(count, world, ourRay, result);
+    Tracer::Object* hitObject = traceScene(options.count, options.world, ourRay, result);
 
-    int samples = 12;
-    int max_depth = 3;
+    int samples = options.samples;
+    int max_depth = options.max_depth;
 
     if (hitObject != NULL) {
         Ray newRay = ourRay;
         newRay.origin = newRay.origin + (result.HitNormal * 0.001f);
 
-        vec3 indirect = pathtrace(count, world, newRay, &local_rand_state, samples, max_depth);
+        vec3 indirect = pathtrace(options.count, options.world, newRay, &local_rand_state, samples, max_depth);
         indirect.clamp();
 
         r = sqrt(indirect.r());
@@ -213,9 +213,9 @@ __global__ void DXHook::render(float* frameBuffer, Tracer::Object** world, float
         b = skyColor.b();
     }
 
-    frameBuffer[pixel_index + 0] = (frameBuffer[pixel_index + 0] + r) / 2.f;
-    frameBuffer[pixel_index + 1] = (frameBuffer[pixel_index + 1] + g) / 2.f;
-    frameBuffer[pixel_index + 2] = (frameBuffer[pixel_index + 2] + b) / 2.f;
+    options.frameBuffer[pixel_index + 0] = (options.frameBuffer[pixel_index + 0] + r) / 2.f;
+    options.frameBuffer[pixel_index + 1] = (options.frameBuffer[pixel_index + 1] + g) / 2.f;
+    options.frameBuffer[pixel_index + 2] = (options.frameBuffer[pixel_index + 2] + b) / 2.f;
 }
 
 __global__ void DXHook::initMem(Tracer::Object** world, Tracer::vec3* origin) {
@@ -228,6 +228,7 @@ __global__ void DXHook::initMem(Tracer::Object** world, Tracer::vec3* origin) {
     objOne->color = vec3(1, 1, 1);
     objOne->emission = 1.f;
     objOne->matType = BRDF::Specular;
+    objOne->lighting.roughness = 0.4f;
 
     *(world + 1) = (new Tracer::Sphere(vec3(10, 0, -3.2), 3.f));
     Tracer::Object* objTwo = *(world + 1);
