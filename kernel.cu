@@ -23,6 +23,7 @@
 #include "brdfs/specular.cuh"
 
 #include "dxhook/mainHook.h"
+#include "denoiser/mainDenoiser.cuh"
 
 #define GLM_FORCE_CUDA
 #include <glm/glm.hpp>
@@ -76,6 +77,7 @@ __device__ Tracer::Object* traceScene(int count, Tracer::Object** world, const T
         if (target->tryHit(ray, t_max, output) && output.t > minDistance && output.t < t_max) {
             t_max = output.t;
             hitObject = target;
+            output.objId = i;
         }
     }
 
@@ -155,6 +157,7 @@ __global__ void DXHook::render(DXHook::RenderOptions options) {
     int random_idx = j * options.max_x + i;
 
     curandState local_rand_state = options.rand_state[random_idx];
+    Denoising::GBuffer* gbuffer = options.gbufferPtr[random_idx]; // serves as a gbuffer access index too!!
 
     float r = 0.f;
     float g = 0.f;
@@ -213,9 +216,20 @@ __global__ void DXHook::render(DXHook::RenderOptions options) {
         b = skyColor.b();
     }
 
-    options.frameBuffer[pixel_index + 0] = (options.frameBuffer[pixel_index + 0] + r) / 2.f;
-    options.frameBuffer[pixel_index + 1] = (options.frameBuffer[pixel_index + 1] + g) / 2.f;
-    options.frameBuffer[pixel_index + 2] = (options.frameBuffer[pixel_index + 2] + b) / 2.f;
+    if (hitObject != NULL) {
+        gbuffer->albedo = hitObject->color;
+        gbuffer->normal = result.HitNormal;
+        gbuffer->objectID = result.objId;
+        gbuffer->position = result.HitPos;
+        gbuffer->depth = result.t;
+    }
+
+    gbuffer->diffuse = vec3(r, g, b);
+    gbuffer->isSky = (hitObject == NULL);
+
+    options.frameBuffer[pixel_index + 0] = (options.frameBuffer[pixel_index + 0] + r) / 2.0f;
+    options.frameBuffer[pixel_index + 1] = (options.frameBuffer[pixel_index + 1] + g) / 2.0f;
+    options.frameBuffer[pixel_index + 2] = (options.frameBuffer[pixel_index + 2] + b) / 2.0f;
 }
 
 __global__ void DXHook::initMem(Tracer::Object** world, Tracer::vec3* origin) {
@@ -228,7 +242,6 @@ __global__ void DXHook::initMem(Tracer::Object** world, Tracer::vec3* origin) {
     objOne->color = vec3(1, 1, 1);
     objOne->emission = 1.f;
     objOne->matType = BRDF::Specular;
-    objOne->lighting.roughness = 0.4f;
 
     *(world + 1) = (new Tracer::Sphere(vec3(10, 0, -3.2), 3.f));
     Tracer::Object* objTwo = *(world + 1);
@@ -242,14 +255,15 @@ __global__ void DXHook::initMem(Tracer::Object** world, Tracer::vec3* origin) {
 
 }
 
-__global__ void DXHook::registerRands(int max_x, int max_y, curandState* rand_state) {
+__global__ void DXHook::registerRands(int max_x, int max_y, curandState* rand_state, Tracer::Denoising::GBuffer** gbufferData) {
     int i = threadIdx.x + blockIdx.x * blockDim.x;
     int j = threadIdx.y + blockIdx.y * blockDim.y;
     if ((i >= max_x) || (j >= max_y)) return;
     int pixel_index = j * max_x + i;
     //Each thread gets same seed, a different sequence number, no offset
     curand_init(1984 + pixel_index, pixel_index, 0, &rand_state[pixel_index]);
-    
+    // lets also initialize our GBuffers
+    gbufferData[pixel_index] = new Tracer::Denoising::GBuffer();
 }
 
 __global__ void freeMem(Tracer::Object** world, Tracer::vec3* origin) {
@@ -263,10 +277,12 @@ GMOD_MODULE_OPEN()
     size_t fb_size = 3 * num_pixels * sizeof(float);
     size_t world_size = 3 * sizeof(Tracer::Object*);
     size_t origin_size = sizeof(Tracer::vec3*);
+    size_t gbuffer_size = num_pixels * sizeof(Tracer::Denoising::GBuffer*);
 
     checkCudaErrors(cudaMallocManaged((void**)&DXHook::fb, fb_size));
     checkCudaErrors(cudaMallocManaged((void**)&DXHook::world, world_size));
     checkCudaErrors(cudaMallocManaged((void**)&DXHook::origin, origin_size));
+    checkCudaErrors(cudaMallocManaged((void**)&DXHook::gbufferData, gbuffer_size));
 
     checkCudaErrors(cudaMalloc((void**)&DXHook::d_rand_state, num_pixels * sizeof(curandState)));
 
@@ -280,7 +296,7 @@ GMOD_MODULE_OPEN()
     dim3 blocks(WIDTH / warpX + 1, HEIGHT / warpY + 1);
     dim3 threads(warpX, warpY);
 
-    DXHook::registerRands << < blocks, threads >> > (WIDTH, HEIGHT, DXHook::d_rand_state);
+    DXHook::registerRands << < blocks, threads >> > (WIDTH, HEIGHT, DXHook::d_rand_state, DXHook::gbufferData);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
 
@@ -304,6 +320,7 @@ GMOD_MODULE_CLOSE()
     checkCudaErrors(cudaFree(DXHook::world));
     checkCudaErrors(cudaFree(DXHook::d_rand_state));
     checkCudaErrors(cudaFree(DXHook::origin));
+    checkCudaErrors(cudaFree(DXHook::gbufferData));
 
     DXHook::quadVertexBuffer->Release();
     DXHook::msgFont->Release();

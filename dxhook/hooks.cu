@@ -17,6 +17,7 @@
 #include "../vec3.cuh"
 #include "../object.cuh"
 #include "../triangle.cuh"
+#include "../denoiser/mainDenoiser.cuh"
 
 #define WIDTH 480
 #define HEIGHT 270
@@ -102,6 +103,7 @@ namespace DXHook {
 	Tracer::vec3* origin;
 	float curX, curY, curZ;
 	float curPitch, curYaw, curRoll;
+	Tracer::Denoising::GBuffer** gbufferData;
 
 	int samples = 4;
 	int max_depth = 6; // less than 4 results in really, really bad reflections
@@ -292,8 +294,13 @@ namespace DXHook {
 		options.rand_state = d_rand_state;
 		options.samples = samples;
 		options.max_depth = max_depth;
+		options.gbufferPtr = gbufferData;
 
 		render << <blocks, threads >> > (options);
+		checkCudaErrors(cudaGetLastError());
+		checkCudaErrors(cudaDeviceSynchronize());
+
+		Tracer::Denoising::denoise << <blocks, threads >> > (gbufferData, fb, WIDTH, HEIGHT);
 		checkCudaErrors(cudaGetLastError());
 		checkCudaErrors(cudaDeviceSynchronize());
 
