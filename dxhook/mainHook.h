@@ -32,7 +32,8 @@ namespace DXHook {
 	extern float curX, curY, curZ;
 	extern float curPitch, curYaw, curRoll;
 	extern ID3DXFont* msgFont;
-	extern Tracer::Denoising::GBuffer** gbufferData;
+	extern Tracer::Denoising::GBuffer* gbufferData;
+	extern bool denoiserEnabled;
 
 	extern HWND window;
 	extern bool gotDevice;
@@ -62,12 +63,12 @@ namespace DXHook {
 		int max_y;
 		int samples;
 		int max_depth;
-		Tracer::Denoising::GBuffer** gbufferPtr;
+		Tracer::Denoising::GBuffer* gbufferPtr;
 	};
 
 	extern __global__ void render(RenderOptions options);
 	extern __global__ void initMem(Tracer::Object** world, Tracer::vec3* origin);
-	extern __global__ void registerRands(int max_x, int max_y, curandState* rand_state, Tracer::Denoising::GBuffer** gbufferData);
+	extern __global__ void registerRands(int max_x, int max_y, curandState* rand_state, Tracer::Denoising::GBuffer* gbufferData);
 	extern void check_cuda(cudaError_t result, char const* const func, const char* const file, int const line);
 
 	extern inline void error(GarrysMod::Lua::ILuaBase* LUA, const char* str);

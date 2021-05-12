@@ -14,6 +14,12 @@ namespace Tracer {
 			return direction - 2.0f * dot(direction, normal) * normal;
 		}
 
+		__device__ float schlick(float cosine, float ref_idx) {
+			float r0 = (1.0f - ref_idx) / (1.0f + ref_idx);
+			r0 = r0 * r0;
+			return r0 + (1.0f - r0) * powf((1.0f - cosine), 5.0f);
+		}
+
 		__device__ void SampleWorld(const HitResult& res, curandState* local_rand_state, const Ray& previousRay, vec3& attenuation, Ray& targetRay, Object* target) {
 			targetRay.origin = res.HitPos;
 			targetRay.direction = reflect(previousRay.direction, res.HitNormal);

@@ -103,9 +103,10 @@ namespace DXHook {
 	Tracer::vec3* origin;
 	float curX, curY, curZ;
 	float curPitch, curYaw, curRoll;
-	Tracer::Denoising::GBuffer** gbufferData;
+	Tracer::Denoising::GBuffer* gbufferData;
+	bool denoiserEnabled = true;
 
-	int samples = 4;
+	int samples = 2;
 	int max_depth = 6; // less than 4 results in really, really bad reflections
  
 	HRESULT __stdcall EndSceneHook(LPDIRECT3DDEVICE9 pDevice) {
@@ -230,6 +231,8 @@ namespace DXHook {
 		if (ImGui::Button("Decrease Depth")) {
 			max_depth -= 1;
 		}
+		
+		ImGui::Checkbox("Enable Denoiser?", &denoiserEnabled);
 
 		ImGui::End();
 
@@ -300,9 +303,11 @@ namespace DXHook {
 		checkCudaErrors(cudaGetLastError());
 		checkCudaErrors(cudaDeviceSynchronize());
 
-		Tracer::Denoising::denoise << <blocks, threads >> > (gbufferData, fb, WIDTH, HEIGHT);
-		checkCudaErrors(cudaGetLastError());
-		checkCudaErrors(cudaDeviceSynchronize());
+		if (denoiserEnabled) {
+			Tracer::Denoising::denoise << <blocks, threads >> > (gbufferData, fb, WIDTH, HEIGHT);
+			checkCudaErrors(cudaGetLastError());
+			checkCudaErrors(cudaDeviceSynchronize());
+		}
 
 		// std::chrono::steady_clock::time_point endTime = std::chrono::high_resolution_clock::now();
 		// double timeSpent = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();

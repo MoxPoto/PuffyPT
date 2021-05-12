@@ -38,7 +38,8 @@
 void DXHook::check_cuda(cudaError_t result, char const* const func, const char* const file, int const line) {
     if (result) {
         std::cout << "CUDA error = " << static_cast<unsigned int>(result) << " at " <<
-            file << ":" << line << " '" << func << "' \n";
+            file << ":" << line << " '" << func << "' \n" << "CUDA_ERROR_STRING: " << cudaGetErrorString(result) << "\n" <<
+            cudaGetErrorName(result) << "\n";
 
     }
 }
@@ -157,7 +158,7 @@ __global__ void DXHook::render(DXHook::RenderOptions options) {
     int random_idx = j * options.max_x + i;
 
     curandState local_rand_state = options.rand_state[random_idx];
-    Denoising::GBuffer* gbuffer = options.gbufferPtr[random_idx]; // serves as a gbuffer access index too!!
+    Denoising::GBuffer* gbuffer = ((options.gbufferPtr + random_idx)); // serves as a gbuffer access index too!!
 
     float r = 0.f;
     float g = 0.f;
@@ -220,10 +221,11 @@ __global__ void DXHook::render(DXHook::RenderOptions options) {
         gbuffer->albedo = hitObject->color;
         gbuffer->normal = result.HitNormal;
         gbuffer->objectID = result.objId;
-        gbuffer->position = result.HitPos;
-        gbuffer->depth = result.t;
+        gbuffer->brdfType = hitObject->matType;
     }
 
+    gbuffer->position = result.HitPos;
+    gbuffer->depth = result.t;
     gbuffer->diffuse = vec3(r, g, b);
     gbuffer->isSky = (hitObject == NULL);
 
@@ -242,6 +244,7 @@ __global__ void DXHook::initMem(Tracer::Object** world, Tracer::vec3* origin) {
     objOne->color = vec3(1, 1, 1);
     objOne->emission = 1.f;
     objOne->matType = BRDF::Specular;
+    objOne->lighting.ior = 1.2f;
 
     *(world + 1) = (new Tracer::Sphere(vec3(10, 0, -3.2), 3.f));
     Tracer::Object* objTwo = *(world + 1);
@@ -255,7 +258,7 @@ __global__ void DXHook::initMem(Tracer::Object** world, Tracer::vec3* origin) {
 
 }
 
-__global__ void DXHook::registerRands(int max_x, int max_y, curandState* rand_state, Tracer::Denoising::GBuffer** gbufferData) {
+__global__ void DXHook::registerRands(int max_x, int max_y, curandState* rand_state, Tracer::Denoising::GBuffer* gbufferData) {
     int i = threadIdx.x + blockIdx.x * blockDim.x;
     int j = threadIdx.y + blockIdx.y * blockDim.y;
     if ((i >= max_x) || (j >= max_y)) return;
@@ -263,7 +266,9 @@ __global__ void DXHook::registerRands(int max_x, int max_y, curandState* rand_st
     //Each thread gets same seed, a different sequence number, no offset
     curand_init(1984 + pixel_index, pixel_index, 0, &rand_state[pixel_index]);
     // lets also initialize our GBuffers
-    gbufferData[pixel_index] = new Tracer::Denoising::GBuffer();
+    Tracer::Denoising::GBuffer myBuffer;
+
+    *(gbufferData + pixel_index) = myBuffer;
 }
 
 __global__ void freeMem(Tracer::Object** world, Tracer::vec3* origin) {
@@ -277,13 +282,13 @@ GMOD_MODULE_OPEN()
     size_t fb_size = 3 * num_pixels * sizeof(float);
     size_t world_size = 3 * sizeof(Tracer::Object*);
     size_t origin_size = sizeof(Tracer::vec3*);
-    size_t gbuffer_size = num_pixels * sizeof(Tracer::Denoising::GBuffer*);
+    size_t gbuffer_size = num_pixels * sizeof(Tracer::Denoising::GBuffer);
 
     checkCudaErrors(cudaMallocManaged((void**)&DXHook::fb, fb_size));
     checkCudaErrors(cudaMallocManaged((void**)&DXHook::world, world_size));
     checkCudaErrors(cudaMallocManaged((void**)&DXHook::origin, origin_size));
-    checkCudaErrors(cudaMallocManaged((void**)&DXHook::gbufferData, gbuffer_size));
 
+    checkCudaErrors(cudaMalloc((void**)&DXHook::gbufferData, gbuffer_size));
     checkCudaErrors(cudaMalloc((void**)&DXHook::d_rand_state, num_pixels * sizeof(curandState)));
 
     DXHook::initMem << <1, 1 >> > (DXHook::world, DXHook::origin);
