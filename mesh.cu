@@ -7,7 +7,7 @@
 
 #include "cuda_runtime.h"
 #include "stdio.h"
-
+#include "dxhook/mainHook.h"
 constexpr float kEpsilon = 1e-8;
 constexpr float MAX_FLOAT = 1000000.0f;
 
@@ -98,15 +98,27 @@ __host__ __device__ static bool rayTriangleIntersect(
 #endif 
 }
 
+#define MAX_TRIANGLES 9000
+#define checkCudaErrors(val) DXHook::check_cuda( (val), #val, __FILE__, __LINE__ )
+
 namespace Tracer {
 	__host__ __device__ Mesh::Mesh() {
 		size = 0;
+        checkCudaErrors(cudaMalloc((void**)&triBuffer, MAX_TRIANGLES * sizeof(Triangle)));
 	}
 
+    __host__ __device__ Mesh::~Mesh() {
+        checkCudaErrors(cudaFree(triBuffer));
+    }
 	__host__ __device__ void Mesh::InsertTri(vec3 v1, vec3 v2, vec3 v3) {
 		Triangle theTri(v1, v2, v3);
 
-		triBuffer[size++] = theTri;
+        if ((size + 1) >= MAX_TRIANGLES) {
+            printf("MAX TRIANGLES LIMIT REACHED!!!!");
+            return;
+        }
+
+        *(triBuffer + size++) = theTri;
 	}
 
     __host__ __device__ bool Mesh::tryHit(const Ray& ray, float closest, HitResult& result) {
@@ -114,11 +126,11 @@ namespace Tracer {
         result.u = 0;
         result.v = 0;
 
-        float tMax = MAX_FLOAT;
+        float tMax = closest;
         bool didHit = false;
 
         for (int i = 0; i < size; i++) {
-            Triangle triHere = triBuffer[i];
+            Triangle triHere = *(triBuffer + i);
    
 
             if (rayTriangleIntersect(ray.origin, ray.direction, triHere.v1, triHere.v2, triHere.v3, result.t, result.u, result.v) && result.t < tMax) {

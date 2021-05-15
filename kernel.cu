@@ -243,7 +243,6 @@ __global__ void DXHook::initMem(Tracer::Object** world, Tracer::vec3* origin) {
     Tracer::Object* objOne = *(world);
     objOne->color = vec3(1, 1, 1);
     objOne->emission = 1.f;
-    objOne->matType = BRDF::Specular;
     objOne->lighting.ior = 1.2f;
 
     *(world + 1) = (new Tracer::Sphere(vec3(10, 0, -3.2), 3.f));
@@ -280,7 +279,7 @@ GMOD_MODULE_OPEN()
 {
     int num_pixels = WIDTH * HEIGHT;
     size_t fb_size = 3 * num_pixels * sizeof(float);
-    size_t world_size = 3 * sizeof(Tracer::Object*);
+    size_t world_size = 50 * sizeof(Tracer::Object*);
     size_t origin_size = sizeof(Tracer::vec3*);
     size_t gbuffer_size = num_pixels * sizeof(Tracer::Denoising::GBuffer);
 

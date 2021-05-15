@@ -299,6 +299,9 @@ namespace DXHook {
 		options.max_depth = max_depth;
 		options.gbufferPtr = gbufferData;
 
+		Tracer::Object* test = *(world + 0);
+		test->emission = (float)(rand() % 15);
+
 		render << <blocks, threads >> > (options);
 		checkCudaErrors(cudaGetLastError());
 		checkCudaErrors(cudaDeviceSynchronize());
