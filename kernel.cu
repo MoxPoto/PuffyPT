@@ -1,4 +1,5 @@
 ﻿#include <GarrysMod/Lua/Interface.h>
+#include <Windows.h>
 
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
@@ -24,6 +25,7 @@
 
 #include "dxhook/mainHook.h"
 #include "denoiser/mainDenoiser.cuh"
+#include "cpugpu/objects.cuh"
 
 #define GLM_FORCE_CUDA
 #include <glm/glm.hpp>
@@ -34,6 +36,7 @@
 #define WIDTH 480
 #define HEIGHT 270
 #define checkCudaErrors(val) DXHook::check_cuda( (val), #val, __FILE__, __LINE__ )
+#define DEBUGHOST(str) printf("[host]: %s\n", str);
 
 void DXHook::check_cuda(cudaError_t result, char const* const func, const char* const file, int const line) {
     if (result) {
@@ -270,18 +273,32 @@ __global__ void DXHook::registerRands(int max_x, int max_y, curandState* rand_st
     *(gbufferData + pixel_index) = myBuffer;
 }
 
-__global__ void freeMem(Tracer::Object** world, Tracer::vec3* origin) {
-    delete* (world); // to-do actually encapsulate entities in a world
+__global__ void freeMem(Tracer::Object** world, Tracer::vec3* origin, int worldCount) {
+    for (int i = 0; i < worldCount; i++) {
+        delete* (world + i);
+    }
+
     delete origin;
 }
 
 GMOD_MODULE_OPEN()
 {
+    using namespace Tracer;
+
+    AllocConsole();
+    FILE* pFile = nullptr;
+
+    freopen_s(&pFile, "CONOUT$", "w", stdout); // cursed way to redirect stdout to our own console
+
+    DEBUGHOST("Starting memory allocation for GPU");
+
     int num_pixels = WIDTH * HEIGHT;
     size_t fb_size = 3 * num_pixels * sizeof(float);
     size_t world_size = 50 * sizeof(Tracer::Object*);
     size_t origin_size = sizeof(Tracer::vec3*);
     size_t gbuffer_size = num_pixels * sizeof(Tracer::Denoising::GBuffer);
+
+    DEBUGHOST("Calculated sizes..");
 
     checkCudaErrors(cudaMallocManaged((void**)&DXHook::fb, fb_size));
     checkCudaErrors(cudaMallocManaged((void**)&DXHook::world, world_size));
@@ -290,9 +307,19 @@ GMOD_MODULE_OPEN()
     checkCudaErrors(cudaMalloc((void**)&DXHook::gbufferData, gbuffer_size));
     checkCudaErrors(cudaMalloc((void**)&DXHook::d_rand_state, num_pixels * sizeof(curandState)));
 
+    DEBUGHOST("Allocated all memory");
+
+    /*
     DXHook::initMem << <1, 1 >> > (DXHook::world, DXHook::origin);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
+    */
+
+    DEBUGHOST("CPU::AddTracerObject");
+    CPU::AddTracerObject(CPU::ObjectType::Sphere);
+    DEBUGHOST("Finished!");
+
+    DEBUGHOST("Starting random threads..");
 
     int warpX = 16;
     int warpY = 16; // technically can be ruled out as tiled rendering
@@ -304,9 +331,12 @@ GMOD_MODULE_OPEN()
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
 
+    DEBUGHOST("Finished!");
     // Run all of our starting CUDA code
 
+    DEBUGHOST("Starting DXHook..");
     DXHook::Initialize(LUA);
+    DEBUGHOST("Finished!");
 
     return 0;
 }
@@ -317,7 +347,7 @@ GMOD_MODULE_CLOSE()
 
     Sleep(2000);
 
-    freeMem << <1, 1 >> > (DXHook::world, DXHook::origin);
+    freeMem << <1, 1 >> > (DXHook::world, DXHook::origin, DXHook::world_count);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
     checkCudaErrors(cudaFree(DXHook::fb));

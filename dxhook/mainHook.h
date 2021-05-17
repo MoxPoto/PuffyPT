@@ -34,6 +34,7 @@ namespace DXHook {
 	extern ID3DXFont* msgFont;
 	extern Tracer::Denoising::GBuffer* gbufferData;
 	extern bool denoiserEnabled;
+	extern int world_count;
 
 	extern HWND window;
 	extern bool gotDevice;

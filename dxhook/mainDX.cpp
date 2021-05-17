@@ -46,11 +46,6 @@ namespace DXHook {
 	}
 
 	int Initialize(GarrysMod::Lua::ILuaBase* LUA) { // Used for setting up dummy device, and endscene hook
-        AllocConsole();
-        FILE* pFile = nullptr;
-
-        freopen_s(&pFile, "CONOUT$", "w", stdout); // cursed way to redirect stdout to our own console
-
         HMODULE hDLL;
         hDLL = GetModuleHandleA("d3d9.dll"); // Attempt to locate the d3d9 dll that gmod loaded
 

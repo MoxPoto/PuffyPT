@@ -105,6 +105,7 @@ namespace DXHook {
 	float curPitch, curYaw, curRoll;
 	Tracer::Denoising::GBuffer* gbufferData;
 	bool denoiserEnabled = true;
+	int world_count = 0;
 
 	int samples = 2;
 	int max_depth = 6; // less than 4 results in really, really bad reflections
@@ -282,7 +283,7 @@ namespace DXHook {
 		// std::chrono::steady_clock::time_point startTime = std::chrono::high_resolution_clock::now();
 
 		RenderOptions options;
-		options.count = 3;
+		options.count = world_count;
 		options.fov = fov;
 		options.x = curX;
 		options.y = curY;
@@ -299,8 +300,6 @@ namespace DXHook {
 		options.max_depth = max_depth;
 		options.gbufferPtr = gbufferData;
 
-		Tracer::Object* test = *(world + 0);
-		test->emission = (float)(rand() % 15);
 
 		render << <blocks, threads >> > (options);
 		checkCudaErrors(cudaGetLastError());
