@@ -109,7 +109,8 @@ namespace DXHook {
 
 	int samples = 2;
 	int max_depth = 6; // less than 4 results in really, really bad reflections
- 
+	bool showPathtracer = true;
+
 	HRESULT __stdcall EndSceneHook(LPDIRECT3DDEVICE9 pDevice) {
 		if (!gotDevice) {
 			gotDevice = true;
@@ -193,13 +194,6 @@ namespace DXHook {
 
 		ImGui::PushFont(ourFont);
 
-		float x, y, z;
-		
-
-		ImGui::SliderFloat("Camera X", &x, -85.0f, 85.0f, "%.2f");
-		ImGui::SliderFloat("Camera Y", &y, -85.0f, 85.0f, "%.2f");
-		ImGui::SliderFloat("Camera Z", &z, -85.0f, 85.0f, "%.2f");
-
 		ImGui::Button("Increase FOV");
 
 		if (ImGui::IsItemActive()) {
@@ -234,13 +228,14 @@ namespace DXHook {
 		}
 		
 		ImGui::Checkbox("Enable Denoiser?", &denoiserEnabled);
+		ImGui::Checkbox("Show Output?", &showPathtracer);
 
 		ImGui::End();
 
 		ImGui::PopFont();
 
 		ImGui::EndFrame();
-
+		/*
 		float movementSpeed = 0.04f;
 
 		if (((GetKeyState(0x57) & 0x8000) != 0)) { // W
@@ -272,6 +267,8 @@ namespace DXHook {
 
 		curPitch += (mouseDelta.y * lookSpeed);
 		curYaw -= (mouseDelta.x * lookSpeed);
+
+		*/
 
 		int warpX = 16;
 		int warpY = 16; // technically can be ruled out as tiled rendering
@@ -306,9 +303,9 @@ namespace DXHook {
 		checkCudaErrors(cudaDeviceSynchronize());
 
 		if (denoiserEnabled) {
-			Tracer::Denoising::denoise << <blocks, threads >> > (gbufferData, fb, WIDTH, HEIGHT);
-			checkCudaErrors(cudaGetLastError());
-			checkCudaErrors(cudaDeviceSynchronize());
+			//Tracer::Denoising::denoise << <blocks, threads >> > (gbufferData, fb, WIDTH, HEIGHT);
+			//checkCudaErrors(cudaGetLastError());
+			//checkCudaErrors(cudaDeviceSynchronize());
 		}
 
 		// std::chrono::steady_clock::time_point endTime = std::chrono::high_resolution_clock::now();
@@ -350,10 +347,12 @@ namespace DXHook {
 				D3DXMatrixIdentity(&transformation);
 				D3DXMatrixScaling(&transformation, 4, 4, 1);
 
-				pathtraceObject->Begin(D3DXSPRITE_SORT_DEPTH_FRONTTOBACK);
-				pathtraceObject->SetTransform(&transformation);
-				pathtraceObject->Draw(pathtraceOutput, NULL, NULL, &D3DXVECTOR3(0.3, 0.3, 1), D3DCOLOR_RGBA(255, 255, 255, 255));
-				pathtraceObject->End();
+				if (showPathtracer) {
+					pathtraceObject->Begin(D3DXSPRITE_SORT_DEPTH_FRONTTOBACK);
+					pathtraceObject->SetTransform(&transformation);
+					pathtraceObject->Draw(pathtraceOutput, NULL, NULL, &D3DXVECTOR3(0.3, 0.3, 1), D3DCOLOR_RGBA(255, 255, 255, 255));
+					pathtraceObject->End();
+				}
 
 				if (msgFont) {
 					RECT msgRect;

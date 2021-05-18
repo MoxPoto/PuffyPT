@@ -26,6 +26,7 @@
 #include "dxhook/mainHook.h"
 #include "denoiser/mainDenoiser.cuh"
 #include "cpugpu/objects.cuh"
+#include "synchronization/syncMain.cuh"
 
 #define GLM_FORCE_CUDA
 #include <glm/glm.hpp>
@@ -151,7 +152,7 @@ __device__ Tracer::vec3 pathtrace(int count, Tracer::Object** world, const Trace
     return indirectLighting;
 }
 
-__global__ void DXHook::render(DXHook::RenderOptions options) {
+__global__ void  DXHook::render(DXHook::RenderOptions options) {
     using namespace Tracer;
 
     int i = threadIdx.x + blockIdx.x * blockDim.x;
@@ -161,7 +162,7 @@ __global__ void DXHook::render(DXHook::RenderOptions options) {
     int random_idx = j * options.max_x + i;
 
     curandState local_rand_state = options.rand_state[random_idx];
-    Denoising::GBuffer* gbuffer = ((options.gbufferPtr + random_idx)); // serves as a gbuffer access index too!!
+    //Denoising::GBuffer* gbuffer = ((options.gbufferPtr + random_idx)); // serves as a gbuffer access index too!!
 
     float r = 0.f;
     float g = 0.f;
@@ -221,17 +222,20 @@ __global__ void DXHook::render(DXHook::RenderOptions options) {
     }
 
     if (hitObject != NULL) {
+        /*
         gbuffer->albedo = hitObject->color;
         gbuffer->normal = result.HitNormal;
         gbuffer->objectID = result.objId;
         gbuffer->brdfType = hitObject->matType;
+        */
     }
 
+    /*
     gbuffer->position = result.HitPos;
     gbuffer->depth = result.t;
     gbuffer->diffuse = vec3(r, g, b);
     gbuffer->isSky = (hitObject == NULL);
-
+    */
     options.frameBuffer[pixel_index + 0] = (options.frameBuffer[pixel_index + 0] + r) / 2.0f;
     options.frameBuffer[pixel_index + 1] = (options.frameBuffer[pixel_index + 1] + g) / 2.0f;
     options.frameBuffer[pixel_index + 2] = (options.frameBuffer[pixel_index + 2] + b) / 2.0f;
@@ -290,6 +294,23 @@ GMOD_MODULE_OPEN()
 
     freopen_s(&pFile, "CONOUT$", "w", stdout); // cursed way to redirect stdout to our own console
 
+    DEBUGHOST("Querying device..");
+    int ourDeviceID;
+    checkCudaErrors(cudaGetDevice(&ourDeviceID));
+
+    DEBUGHOST("Got device!");
+    cudaDeviceProp properties;
+
+    checkCudaErrors(cudaGetDeviceProperties(&properties, ourDeviceID));
+
+    DEBUGHOST("Got properties..");
+
+    printf("[host]: Using GPU %s\n", properties.name);
+    printf("[host]: Is integrated: %d\n", properties.integrated);
+    printf("[host]: Max threads per block: %d\n", properties.maxThreadsPerBlock);
+    printf("[host]: GPU's MP count: %d\n", properties.multiProcessorCount);
+    printf("[host]: Major: %d, Minor: %d", properties.major, properties.minor);
+
     DEBUGHOST("Starting memory allocation for GPU");
 
     int num_pixels = WIDTH * HEIGHT;
@@ -315,9 +336,6 @@ GMOD_MODULE_OPEN()
     checkCudaErrors(cudaDeviceSynchronize());
     */
 
-    DEBUGHOST("CPU::AddTracerObject");
-    CPU::AddTracerObject(CPU::ObjectType::Sphere);
-    DEBUGHOST("Finished!");
 
     DEBUGHOST("Starting random threads..");
 
@@ -338,13 +356,27 @@ GMOD_MODULE_OPEN()
     DXHook::Initialize(LUA);
     DEBUGHOST("Finished!");
 
+    DEBUGHOST("Starting Synchronization Service..");
+    Sync::Initialize(LUA);
+    DEBUGHOST("Finished!");
+
     return 0;
 }
 
 GMOD_MODULE_CLOSE() 
 {
-    DXHook::Cleanup(LUA);
+    using namespace Tracer;
 
+    DEBUGHOST("Closing module!");
+    DEBUGHOST("Closing DXHook..");
+    DXHook::Cleanup(LUA);
+    DEBUGHOST("Finished!");
+
+    Sync::Deinitialize(LUA);
+    DEBUGHOST("Closed Sync..");
+
+    DEBUGHOST("Freeing GPU memory, closing CUDA context..");
+   
     Sleep(2000);
 
     freeMem << <1, 1 >> > (DXHook::world, DXHook::origin, DXHook::world_count);
@@ -356,12 +388,18 @@ GMOD_MODULE_CLOSE()
     checkCudaErrors(cudaFree(DXHook::origin));
     checkCudaErrors(cudaFree(DXHook::gbufferData));
 
+    DEBUGHOST("Freeing DirectX Resources..");
     DXHook::quadVertexBuffer->Release();
     DXHook::msgFont->Release();
     DXHook::pathtraceObject->Release();
     DXHook::pathtraceOutput->Release();
+    DEBUGHOST("Done!");
 
     cudaDeviceReset();
 
+    DEBUGHOST("Cuda context freed, module down!");
+
+    FreeConsole();
+        
     return 0;
 }

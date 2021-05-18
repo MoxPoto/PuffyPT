@@ -35,6 +35,7 @@ namespace DXHook {
 	extern Tracer::Denoising::GBuffer* gbufferData;
 	extern bool denoiserEnabled;
 	extern int world_count;
+	extern bool showPathtracer;
 
 	extern HWND window;
 	extern bool gotDevice;

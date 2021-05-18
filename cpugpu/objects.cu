@@ -134,7 +134,39 @@ namespace Tracer {
 		}
 
 		__global__ void insertCPUTri(Tracer::Object** world, int id, vec3 v1, vec3 v2, vec3 v3) {
+			DEBUGGPU("Starting insertCPUTri");
+			Tracer::Mesh* theMesh = static_cast<Tracer::Mesh*>(*(world + id));
+			theMesh->InsertTri(v1, v2, v3);
+			DEBUGGPU("Inserted triangle (from what I see)");
+		}
 
+		CommandError InsertObjectTri(int id, vec3 v1, vec3 v2, vec3 v3) {
+			CommandError err = CommandError::Success;
+
+			if (id >= DXHook::world_count) {
+				err = CommandError::NonexistantObject;
+				return err;
+			}
+
+			insertCPUTri << <1, 1 >> > (DXHook::world, id, v1, v2, v3);
+			checkCudaErrors(cudaGetLastError());
+			checkCudaErrors(cudaDeviceSynchronize());
+
+			DEBUGHOST("[InsertObjectTri]: Called!");
+
+			return err;
+		}
+
+		void SetCameraPos(float x, float y, float z) {
+			DXHook::curX = x;
+			DXHook::curY = y;
+			DXHook::curZ = z;
+		}
+
+		void SetCameraAngles(float pitch, float yaw, float roll) {
+			DXHook::curPitch = pitch;
+			DXHook::curYaw = yaw;
+			DXHook::curRoll = roll;
 		}
 	}
 }

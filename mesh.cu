@@ -117,6 +117,9 @@ namespace Tracer {
             printf("MAX TRIANGLES LIMIT REACHED!!!!");
             return;
         }
+        else {
+            printf("[gpu]: Triangle inserted on GPU!");
+        }
 
         *(triBuffer + size++) = theTri;
 	}

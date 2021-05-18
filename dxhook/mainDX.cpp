@@ -140,8 +140,6 @@ namespace DXHook {
 	} 
 
     int Cleanup(GarrysMod::Lua::ILuaBase* LUA) {
-        FreeConsole();
-
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
         DetourDetach(&(PVOID&)oldFunc, EndSceneHook);
