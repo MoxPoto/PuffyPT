@@ -279,35 +279,37 @@ namespace DXHook {
 
 		// std::chrono::steady_clock::time_point startTime = std::chrono::high_resolution_clock::now();
 
-		RenderOptions options;
-		options.count = world_count;
-		options.fov = fov;
-		options.x = curX;
-		options.y = curY;
-		options.z = curZ;
-		options.pitch = curPitch;
-		options.yaw = curYaw;
-		options.roll = curRoll;
-		options.frameBuffer = fb;
-		options.world = world;
-		options.max_x = WIDTH;
-		options.max_y = HEIGHT;
-		options.rand_state = d_rand_state;
-		options.samples = samples;
-		options.max_depth = max_depth;
-		options.gbufferPtr = gbufferData;
+		if (showPathtracer) {
+			RenderOptions options;
+			options.count = world_count;
+			options.fov = fov;
+			options.x = curX;
+			options.y = curY;
+			options.z = curZ;
+			options.pitch = curPitch;
+			options.yaw = curYaw;
+			options.roll = curRoll;
+			options.frameBuffer = fb;
+			options.world = world;
+			options.max_x = WIDTH;
+			options.max_y = HEIGHT;
+			options.rand_state = d_rand_state;
+			options.samples = samples;
+			options.max_depth = max_depth;
+			options.gbufferPtr = gbufferData;
 
 
-		render << <blocks, threads >> > (options);
-		checkCudaErrors(cudaGetLastError());
-		checkCudaErrors(cudaDeviceSynchronize());
+			render << <blocks, threads >> > (options);
+			checkCudaErrors(cudaGetLastError());
+			checkCudaErrors(cudaDeviceSynchronize());
 
-		if (denoiserEnabled) {
-			//Tracer::Denoising::denoise << <blocks, threads >> > (gbufferData, fb, WIDTH, HEIGHT);
-			//checkCudaErrors(cudaGetLastError());
-			//checkCudaErrors(cudaDeviceSynchronize());
+			if (denoiserEnabled) {
+				//Tracer::Denoising::denoise << <blocks, threads >> > (gbufferData, fb, WIDTH, HEIGHT);
+				//checkCudaErrors(cudaGetLastError());
+				//checkCudaErrors(cudaDeviceSynchronize());
+			}
+
 		}
-
 		// std::chrono::steady_clock::time_point endTime = std::chrono::high_resolution_clock::now();
 		// double timeSpent = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
 

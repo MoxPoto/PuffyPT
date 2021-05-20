@@ -104,21 +104,21 @@ __host__ __device__ static bool rayTriangleIntersect(
 namespace Tracer {
 	__host__ __device__ Mesh::Mesh() {
 		size = 0;
-        checkCudaErrors(cudaMalloc((void**)&triBuffer, MAX_TRIANGLES * sizeof(Triangle)));
+        triBuffer = new Triangle[MAX_TRIANGLES];
 	}
 
     __host__ __device__ Mesh::~Mesh() {
-        checkCudaErrors(cudaFree(triBuffer));
+        delete[] triBuffer;
     }
 	__host__ __device__ void Mesh::InsertTri(vec3 v1, vec3 v2, vec3 v3) {
-		Triangle theTri(v1, v2, v3);
+        Triangle theTri(v1, v2, v3);
 
         if ((size + 1) >= MAX_TRIANGLES) {
             printf("MAX TRIANGLES LIMIT REACHED!!!!");
             return;
         }
         else {
-            printf("[gpu]: Triangle inserted on GPU!");
+            printf("[gpu]: Triangle inserted on GPU!.. i think\n");
         }
 
         *(triBuffer + size++) = theTri;

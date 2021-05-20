@@ -4,11 +4,14 @@
 
 #include "syncMain.cuh"
 #include "../cpugpu/objects.cuh"
+#include <string>
 
 #define SYNC_NAME "tracerSync"
 #define TABLE_FUNC(name, cfuncName) LUA->PushString(name); LUA->PushCFunction(cfuncName); LUA->SetTable(-3);
 
 using namespace GarrysMod;
+
+
 
 LUA_FUNCTION(SYNC_SetCameraPos) {
 	using namespace Tracer;
@@ -37,23 +40,11 @@ LUA_FUNCTION(SYNC_UploadMesh) {
 	LUA->CheckType(-2, Lua::Type::Number); // Game Id
 	LUA->CheckType(-1, Lua::Type::Table); // Vertices
 
-	Vector color = LUA->GetVector(-4);
-	float emission = static_cast<float>(LUA->GetNumber(-3));
-	int gameID = static_cast<int>(LUA->GetNumber(-2));
 	int ourID = CPU::AddTracerObject(CPU::TriangleMesh);
 
-	std::cout << "Got Tracer ID: " << ourID << "\n";
 
-	Sync::Prop newProp;
-	newProp.gameID = gameID;
-	newProp.tracerID = ourID;
-
-	Sync::props.push_back(newProp);
-
-	LUA->Pop(3);
-	
 	size_t len = LUA->ObjLen();
-
+	printf("[host] Received table with length: %s\n", std::to_string(len).c_str());
 	std::vector<Vector> verts;
 
 	for (int index = 0; index <= len; index++) {
@@ -71,16 +62,34 @@ LUA_FUNCTION(SYNC_UploadMesh) {
 		LUA->Pop(1);
 	}
 
-	for (int i = 0; i < verts.size(); i += 3) {
+	printf("[host] Pushed %d triangles\n", verts.size());
+
+	for (size_t i = 0; i < verts.size(); i += 3) {
 		vec3 v1(verts[i].x, verts[i].y, verts[i].z);
 		vec3 v2(verts[i + 1].x, verts[i + 1].y, verts[i + 1].z);
 		vec3 v3(verts[i + 2].x, verts[i + 2].y, verts[i + 2].z);
 
+		printf("[host] v1: %.2f, %.2f, %.2f\n", v1.x(), v1.y(), v1.z());
+		printf("[host] v1 - verts : %.2f, %.2f, %.2f\n", verts[i].x, verts[i].y, verts[i].z);
+		
 		CPU::CommandError err = CPU::InsertObjectTri(ourID, v1, v2, v3);
 		if (err != CPU::CommandError::Success) {
 			std::cout << "Command error hit on line " << __LINE__ << "!!!\n";
 		}
+		
 	}
+
+	LUA->Pop(2);
+
+	Vector color = LUA->GetVector(-3);
+	float emission = static_cast<float>(LUA->GetNumber(-2));
+	int gameID = static_cast<int>(LUA->GetNumber(-1));
+
+	Sync::Prop newProp;
+	newProp.gameID = gameID;
+	newProp.tracerID = ourID;
+
+	Sync::props.push_back(newProp);
 
 	return 0;
 }

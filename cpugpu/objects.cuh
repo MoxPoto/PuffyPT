@@ -49,7 +49,7 @@ namespace Tracer {
 
 		// Object-specific functions
 
-		extern __global__ void insertCPUTri(Tracer::Object** world, int id, vec3 v1, vec3 v2, vec3 v3);
+		extern __global__ void insertCPUTri(Tracer::Object** world, int id, float x1, float y1, float z1, float x2, float y2, float z2, float x3, float y3, float z3);
 		extern CommandError InsertObjectTri(int id, vec3 v1, vec3 v2, vec3 v3);
 
 		extern void SetCameraPos(float x, float y, float z);

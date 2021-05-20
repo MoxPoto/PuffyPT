@@ -133,9 +133,13 @@ namespace Tracer {
 			return err;
 		}
 
-		__global__ void insertCPUTri(Tracer::Object** world, int id, vec3 v1, vec3 v2, vec3 v3) {
+		__global__ void insertCPUTri(Tracer::Object** world, int id, float x1, float y1, float z1, float x2, float y2, float z2, float x3, float y3, float z3) {
 			DEBUGGPU("Starting insertCPUTri");
-			Tracer::Mesh* theMesh = static_cast<Tracer::Mesh*>(*(world + id));
+			Tracer::Mesh* theMesh = (Tracer::Mesh*)(*(world + id));
+			vec3 v1(x1, y1, z1);
+			vec3 v2(x2, y2, z2);
+			vec3 v3(x3, y3, z3);
+
 			theMesh->InsertTri(v1, v2, v3);
 			DEBUGGPU("Inserted triangle (from what I see)");
 		}
@@ -148,9 +152,10 @@ namespace Tracer {
 				return err;
 			}
 
-			insertCPUTri << <1, 1 >> > (DXHook::world, id, v1, v2, v3);
-			checkCudaErrors(cudaGetLastError());
+			insertCPUTri << <1, 1 >> > (DXHook::world, id, v1.x(), v1.y(), v1.z(), v2.x(), v2.y(), v2.z(), v3.x(), v3.y(), v3.z());
 			checkCudaErrors(cudaDeviceSynchronize());
+			checkCudaErrors(cudaGetLastError());
+			
 
 			DEBUGHOST("[InsertObjectTri]: Called!");
 
