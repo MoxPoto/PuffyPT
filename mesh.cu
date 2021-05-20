@@ -104,24 +104,28 @@ __host__ __device__ static bool rayTriangleIntersect(
 namespace Tracer {
 	__host__ __device__ Mesh::Mesh() {
 		size = 0;
-        triBuffer = new Triangle[MAX_TRIANGLES];
+        triBuffer = new Triangle*[MAX_TRIANGLES];
 	}
 
     __host__ __device__ Mesh::~Mesh() {
-        delete[] triBuffer;
+        for (int i = 0; i < size; i++) {
+            delete triBuffer[i];
+        }
+
+        delete triBuffer;
     }
 	__host__ __device__ void Mesh::InsertTri(vec3 v1, vec3 v2, vec3 v3) {
-        Triangle theTri(v1, v2, v3);
+        Triangle* theTri = new Triangle(v1, v2, v3);
 
         if ((size + 1) >= MAX_TRIANGLES) {
             printf("MAX TRIANGLES LIMIT REACHED!!!!");
             return;
         }
         else {
-            printf("[gpu]: Triangle inserted on GPU!.. i think\n");
+            printf("[gpu]: Triangle inserted on GPU!.. i think v1: %.2f, %.2f, %2.f\n", v1.x(), v1.y(), v1.z());
         }
 
-        *(triBuffer + size++) = theTri;
+        triBuffer[size++] = theTri;
 	}
 
     __host__ __device__ bool Mesh::tryHit(const Ray& ray, float closest, HitResult& result) {
@@ -133,13 +137,14 @@ namespace Tracer {
         bool didHit = false;
 
         for (int i = 0; i < size; i++) {
-            Triangle triHere = *(triBuffer + i);
+            Triangle* triHere = triBuffer[i];
    
+            // printf("[gpu]: triangle v1: %.2f, %.2f, %.2f\n", triHere->v1.x(), triHere->v1.y(), triHere->v1.z());
 
-            if (rayTriangleIntersect(ray.origin, ray.direction, triHere.v1, triHere.v2, triHere.v3, result.t, result.u, result.v) && result.t < tMax) {
+            if (rayTriangleIntersect(ray.origin, ray.direction, triHere->v1, triHere->v2, triHere->v3, result.t, result.u, result.v) && result.t < tMax) {
                 tMax = result.t;
                 result.HitPos = ray.origin + (ray.direction * result.t);
-                result.HitNormal = triHere.normal;
+                result.HitNormal = triHere->normal;
                 
                 didHit = true;
             }

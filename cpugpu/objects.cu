@@ -135,7 +135,7 @@ namespace Tracer {
 
 		__global__ void insertCPUTri(Tracer::Object** world, int id, float x1, float y1, float z1, float x2, float y2, float z2, float x3, float y3, float z3) {
 			DEBUGGPU("Starting insertCPUTri");
-			Tracer::Mesh* theMesh = (Tracer::Mesh*)(*(world + id));
+			Tracer::Mesh* theMesh = reinterpret_cast<Tracer::Mesh*>(*(world + id));
 			vec3 v1(x1, y1, z1);
 			vec3 v2(x2, y2, z2);
 			vec3 v3(x3, y3, z3);

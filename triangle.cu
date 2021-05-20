@@ -4,10 +4,10 @@
 #include "vec3.cuh"
 
 namespace Tracer {
-	__host__ __device__ Triangle::Triangle(vec3 v1, vec3 v2, vec3 v3) {
-		v1 = v1;
-		v2 = v2;
-		v3 = v3;
+	__host__ __device__ Triangle::Triangle(vec3 v1q, vec3 v2q, vec3 v3q) {
+		v1 = v1q;
+		v2 = v2q;
+		v3 = v3q;
 		
 		vec3 theU = (v2 - v1);
 		vec3 theV = (v3 - v1);

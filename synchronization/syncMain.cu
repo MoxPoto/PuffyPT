@@ -42,7 +42,6 @@ LUA_FUNCTION(SYNC_UploadMesh) {
 
 	int ourID = CPU::AddTracerObject(CPU::TriangleMesh);
 
-
 	size_t len = LUA->ObjLen();
 	printf("[host] Received table with length: %s\n", std::to_string(len).c_str());
 	std::vector<Vector> verts;
@@ -69,8 +68,8 @@ LUA_FUNCTION(SYNC_UploadMesh) {
 		vec3 v2(verts[i + 1].x, verts[i + 1].y, verts[i + 1].z);
 		vec3 v3(verts[i + 2].x, verts[i + 2].y, verts[i + 2].z);
 
-		printf("[host] v1: %.2f, %.2f, %.2f\n", v1.x(), v1.y(), v1.z());
-		printf("[host] v1 - verts : %.2f, %.2f, %.2f\n", verts[i].x, verts[i].y, verts[i].z);
+		// printf("[host] v1: %.2f, %.2f, %.2f\n", v1.x(), v1.y(), v1.z());
+		// printf("[host] v1 - verts : %.2f, %.2f, %.2f\n", verts[i].x, verts[i].y, verts[i].z);
 		
 		CPU::CommandError err = CPU::InsertObjectTri(ourID, v1, v2, v3);
 		if (err != CPU::CommandError::Success) {
@@ -84,6 +83,8 @@ LUA_FUNCTION(SYNC_UploadMesh) {
 	Vector color = LUA->GetVector(-3);
 	float emission = static_cast<float>(LUA->GetNumber(-2));
 	int gameID = static_cast<int>(LUA->GetNumber(-1));
+
+	CPU::CommandError cmdErr = CPU::SetColorEmission(ourID, vec3(color.x, color.y, color.z), emission);
 
 	Sync::Prop newProp;
 	newProp.gameID = gameID;

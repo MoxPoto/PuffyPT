@@ -107,7 +107,7 @@ namespace DXHook {
 	bool denoiserEnabled = true;
 	int world_count = 0;
 
-	int samples = 2;
+	int samples = 1;
 	int max_depth = 6; // less than 4 results in really, really bad reflections
 	bool showPathtracer = true;
 

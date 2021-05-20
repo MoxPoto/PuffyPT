@@ -11,7 +11,7 @@
 namespace Tracer {
 	class Mesh : public Object {
 	public:
-		Triangle *triBuffer;
+		Triangle **triBuffer;
 		int size;
 
 		__host__ __device__ Mesh();
