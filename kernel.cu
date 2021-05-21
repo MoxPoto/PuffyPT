@@ -90,7 +90,7 @@ __device__ Tracer::Object* traceScene(int count, Tracer::Object** world, const T
 }
 
 
-__device__ Tracer::vec3 depthColor(int count, const Tracer::Ray& ray, Tracer::Object** world, curandState* local_rand_state, int max_depth) {
+__device__ Tracer::vec3 depthColor(int count, float extraRand, const Tracer::Ray& ray, Tracer::Object** world, curandState* local_rand_state, int max_depth) {
     using namespace Tracer;
 
     Ray cur_ray = ray;
@@ -110,10 +110,10 @@ __device__ Tracer::vec3 depthColor(int count, const Tracer::Ray& ray, Tracer::Ob
 
             switch (target->matType) {
                 case (BRDF::Lambertian):
-                    LambertBRDF::SampleWorld(rec, local_rand_state, attenuation, new_ray, target);
+                    LambertBRDF::SampleWorld(rec, local_rand_state, extraRand, attenuation, new_ray, target);
                     break;
                 case (BRDF::Specular):
-                    SpecularBRDF::SampleWorld(rec, local_rand_state, cur_ray, attenuation, new_ray, target);
+                    SpecularBRDF::SampleWorld(rec, local_rand_state, extraRand, cur_ray, attenuation, new_ray, target);
                     break;
                 default:
                     break;
@@ -134,7 +134,7 @@ __device__ Tracer::vec3 depthColor(int count, const Tracer::Ray& ray, Tracer::Ob
     return vec3(0.0, 0.0, 0.0); // exceeded recursion
 }
 
-__device__ Tracer::vec3 pathtrace(int count, Tracer::Object** world, const Tracer::Ray& ray, curandState* local_rand_state, int samples, int max_depth) {
+__device__ Tracer::vec3 pathtrace(int count, float extraRand, Tracer::Object** world, const Tracer::Ray& ray, curandState* local_rand_state, int samples, int max_depth) {
     using namespace Tracer;
     vec3 indirectLighting(0, 0, 0);
     vec3 directLighting(0, 0, 0); // to be done soon
@@ -143,7 +143,7 @@ __device__ Tracer::vec3 pathtrace(int count, Tracer::Object** world, const Trace
     Tracer::Object* hitObject = traceScene(count, world, ray, result);
 
     for (int i = 0; i < samples; i++) {
-        indirectLighting += depthColor(count, ray, world, local_rand_state, max_depth);
+        indirectLighting += depthColor(count, extraRand, ray, world, local_rand_state, max_depth);
     }
 
     indirectLighting /= (float)samples;
@@ -184,9 +184,9 @@ __global__ void  DXHook::render(DXHook::RenderOptions options) {
     // Z is yaw
     // so Y is pitch!! YAY!! SOMETHING SORT OF SENSIBLE!!
 
-    rotationMat = glm::rotate(rotationMat, glm::radians(options.pitch), glm::vec3(0, 1, 0));
+    rotationMat = glm::rotate(rotationMat, glm::radians(-options.pitch), glm::vec3(0, 1, 0));
     rotationMat = glm::rotate(rotationMat, glm::radians(options.yaw), glm::vec3(0, 0, 1));
-    rotationMat = glm::rotate(rotationMat, glm::radians(options.roll), glm::vec3(1, 0, 0));
+//    rotationMat = glm::rotate(rotationMat, glm::radians(options.roll), glm::vec3(1, 0, 0));
 
     glm::vec4 preVec = rotationMat * glm::vec4(dir.x(), dir.y(), dir.z(), 0);
     
@@ -206,7 +206,7 @@ __global__ void  DXHook::render(DXHook::RenderOptions options) {
         Ray newRay = ourRay;
         newRay.origin = newRay.origin + (result.HitNormal * 0.001f);
 
-        vec3 indirect = pathtrace(options.count, options.world, newRay, &local_rand_state, samples, max_depth);
+        vec3 indirect = pathtrace(options.count, options.curtime, options.world, newRay, &local_rand_state, samples, max_depth);
         indirect.clamp();
 
         r = sqrt(indirect.r());
@@ -236,9 +236,15 @@ __global__ void  DXHook::render(DXHook::RenderOptions options) {
     gbuffer->diffuse = vec3(r, g, b);
     gbuffer->isSky = (hitObject == NULL);
     */
-    options.frameBuffer[pixel_index + 0] = (options.frameBuffer[pixel_index + 0] + r) / 2.0f;
-    options.frameBuffer[pixel_index + 1] = (options.frameBuffer[pixel_index + 1] + g) / 2.0f;
-    options.frameBuffer[pixel_index + 2] = (options.frameBuffer[pixel_index + 2] + b) / 2.0f;
+
+    vec3 previousFrame = vec3(options.frameBuffer[pixel_index + 0], options.frameBuffer[pixel_index + 1], options.frameBuffer[pixel_index + 2]);
+    vec3 curFrame = vec3(r, g, b);
+
+    vec3 accumulated = (curFrame + previousFrame * options.frameCount) / (options.frameCount + 1);
+
+    options.frameBuffer[pixel_index + 0] = accumulated.r();
+    options.frameBuffer[pixel_index + 1] = accumulated.g();
+    options.frameBuffer[pixel_index + 2] = accumulated.b();
 }
 
 __global__ void DXHook::initMem(Tracer::Object** world, Tracer::vec3* origin) {
@@ -293,6 +299,8 @@ GMOD_MODULE_OPEN()
     FILE* pFile = nullptr;
 
     freopen_s(&pFile, "CONOUT$", "w", stdout); // cursed way to redirect stdout to our own console
+
+    DXHook::lastTime = std::chrono::high_resolution_clock::now();
 
     DEBUGHOST("Querying device..");
     int ourDeviceID;

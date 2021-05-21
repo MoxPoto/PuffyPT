@@ -18,56 +18,12 @@
 #include "../object.cuh"
 #include "../triangle.cuh"
 #include "../denoiser/mainDenoiser.cuh"
+#include <chrono>
+#include <random>
 
 #define WIDTH 480
 #define HEIGHT 270
 #define checkCudaErrors(val) DXHook::check_cuda( (val), #val, __FILE__, __LINE__ )
-
-/*
-
-	int num_pixels = WIDTH * HEIGHT;
-	size_t fb_size = 3 * num_pixels * sizeof(float);
-	size_t world_size = 2 * sizeof(Tracer::Mesh*);
-
-	// allocate FB
-	float* fb;
-	Tracer::Mesh** world;
-
-	checkCudaErrors(cudaMallocManaged((void**)&fb, fb_size));
-	checkCudaErrors(cudaMallocManaged((void**)&world, world_size));
-
-	curandState* d_rand_state;
-	checkCudaErrors(cudaMalloc((void**)&d_rand_state, num_pixels * sizeof(curandState)));
-
-	initMem << <1, 1 >> > (world);
-	checkCudaErrors(cudaGetLastError());
-	checkCudaErrors(cudaDeviceSynchronize());
-
-
-	int warpX = 32;
-	int warpY = 32; // technically can be ruled out as tiled rendering
-
-	dim3 blocks(WIDTH / warpX + 1, HEIGHT / warpY + 1);
-	dim3 threads(warpX, warpY);
-
-	registerRands << < blocks, threads >> > (WIDTH, HEIGHT, d_rand_state);
-	checkCudaErrors(cudaGetLastError());
-	checkCudaErrors(cudaDeviceSynchronize());
-
-	std::chrono::steady_clock::time_point startTime = std::chrono::high_resolution_clock::now();
-
-	render << <blocks, threads >> > (fb, world, d_rand_state, WIDTH, HEIGHT);
-	checkCudaErrors(cudaGetLastError());
-	checkCudaErrors(cudaDeviceSynchronize());
-
-	std::chrono::steady_clock::time_point endTime = std::chrono::high_resolution_clock::now();
-	double timeSpent = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
-
-	std::cout << "Finished rendering in " << timeSpent << " milliseconds, saving to render.ppm\n";
-
-	checkCudaErrors(cudaFree(fb));
-	checkCudaErrors(cudaFree(world));
-*/
 
 #define PUFF_INCREMENT(name, variable) ImGui::Button(name); if (ImGui::IsItemActive()) { variable += 0.1f; }
 #define PUFF_DECREMENT(name, variable) ImGui::Button(name); if (ImGui::IsItemActive()) { variable -= 0.1f; }
@@ -84,6 +40,8 @@ struct Vertex
 
 const DWORD Vertex::FVF = D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_TEX1;
 
+std::default_random_engine randEngine;
+std::uniform_real_distribution<float> unif(0.0, 1.0);
 
 namespace DXHook {
 	EndScene oldFunc;
@@ -106,10 +64,13 @@ namespace DXHook {
 	Tracer::Denoising::GBuffer* gbufferData;
 	bool denoiserEnabled = true;
 	int world_count = 0;
+	int frameCount = 0;
 
 	int samples = 1;
 	int max_depth = 6; // less than 4 results in really, really bad reflections
 	bool showPathtracer = true;
+	std::chrono::steady_clock::time_point lastTime;
+	float curTime = 0.f;
 
 	HRESULT __stdcall EndSceneHook(LPDIRECT3DDEVICE9 pDevice) {
 		if (!gotDevice) {
@@ -235,40 +196,9 @@ namespace DXHook {
 		ImGui::PopFont();
 
 		ImGui::EndFrame();
-		/*
-		float movementSpeed = 0.04f;
 
-		if (((GetKeyState(0x57) & 0x8000) != 0)) { // W
-			curX += movementSpeed;
-		}
+		curTime = unif(randEngine); // hel p
 
-		if (((GetKeyState(0x53) & 0x8000) != 0)) { // S
-			curX -= movementSpeed;
-		}
-
-		if (((GetKeyState(0x41) & 0x8000) != 0)) { // A
-			curY += movementSpeed;
-		}
-
-		if (((GetKeyState(0x44) & 0x8000) != 0)) { // D
-			curY -= movementSpeed;
-		}
-
-		if (((GetKeyState(VK_SPACE) & 0x8000) != 0)) { // Space
-			curZ += movementSpeed;
-		}
-
-		if (((GetKeyState(VK_LSHIFT) & 0x8000) != 0)) { // Left Shift
-			curZ -= movementSpeed;
-		}
-
-		ImVec2 mouseDelta = ImGui::GetIO().MouseDelta;
-		float lookSpeed = 0.2f;
-
-		curPitch += (mouseDelta.y * lookSpeed);
-		curYaw -= (mouseDelta.x * lookSpeed);
-
-		*/
 
 		int warpX = 16;
 		int warpY = 16; // technically can be ruled out as tiled rendering
@@ -297,11 +227,14 @@ namespace DXHook {
 			options.samples = samples;
 			options.max_depth = max_depth;
 			options.gbufferPtr = gbufferData;
-
+			options.frameCount = frameCount;
+			options.curtime = curTime;
 
 			render << <blocks, threads >> > (options);
 			checkCudaErrors(cudaGetLastError());
 			checkCudaErrors(cudaDeviceSynchronize());
+
+			frameCount++;
 
 			if (denoiserEnabled) {
 				//Tracer::Denoising::denoise << <blocks, threads >> > (gbufferData, fb, WIDTH, HEIGHT);
@@ -361,6 +294,13 @@ namespace DXHook {
 					SetRect(&msgRect, 0, 15, 1920, 120);
 
 					msgFont->DrawText(NULL, VERSION, -1, &msgRect, DT_CENTER | DT_NOCLIP, D3DCOLOR_ARGB(255, 10, 10, 10));
+
+					RECT frcMsg;
+					SetRect(&frcMsg, 0, 50, 1920, 120);
+
+					std::string msg = "Frames rendered: " + std::to_string(frameCount);
+
+					msgFont->DrawText(NULL, msg.c_str(), -1, &frcMsg, DT_CENTER | DT_NOCLIP, D3DCOLOR_ARGB(255, 10, 10, 10));
 				}
 
 				pDevice->SetRenderState(D3DRS_ZENABLE, FALSE);

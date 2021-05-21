@@ -163,12 +163,20 @@ namespace Tracer {
 		}
 
 		void SetCameraPos(float x, float y, float z) {
+			if (DXHook::curX != x || DXHook::curY != y || DXHook::curZ != z) {
+				DXHook::frameCount = 0;
+			}
+
 			DXHook::curX = x;
 			DXHook::curY = y;
 			DXHook::curZ = z;
 		}
 
 		void SetCameraAngles(float pitch, float yaw, float roll) {
+			if (DXHook::curPitch != pitch || DXHook::curYaw != yaw || DXHook::curRoll != roll) {
+				DXHook::frameCount = 0;
+			}
+
 			DXHook::curPitch = pitch;
 			DXHook::curYaw = yaw;
 			DXHook::curRoll = roll;

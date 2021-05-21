@@ -20,14 +20,14 @@ namespace Tracer {
 			return r0 + (1.0f - r0) * powf((1.0f - cosine), 5.0f);
 		}
 
-		__device__ void SampleWorld(const HitResult& res, curandState* local_rand_state, const Ray& previousRay, vec3& attenuation, Ray& targetRay, Object* target) {
+		__device__ void SampleWorld(const HitResult& res, curandState* local_rand_state, float extraRand, const Ray& previousRay, vec3& attenuation, Ray& targetRay, Object* target) {
 			targetRay.origin = res.HitPos;
 			targetRay.direction = reflect(previousRay.direction, res.HitNormal);
 
 			attenuation = (target->color * target->emission);
 
 			if (target->lighting.roughness > 0.05f) {
-				vec3 sampleDir = target->lighting.roughness * LambertBRDF::random_in_unit_sphere(local_rand_state);
+				vec3 sampleDir = target->lighting.roughness * LambertBRDF::random_in_unit_sphere(local_rand_state, extraRand);
 
 				targetRay.direction = unit_vector(targetRay.direction + sampleDir);
 			}

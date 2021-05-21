@@ -7,6 +7,7 @@
 #include <imgui.h>
 #include <Windows.h>
 #include <vector>
+#include <chrono>
 
 #include "cuda_runtime.h"
 #include "curand_kernel.h"
@@ -36,6 +37,9 @@ namespace DXHook {
 	extern bool denoiserEnabled;
 	extern int world_count;
 	extern bool showPathtracer;
+	extern int frameCount;
+	extern std::chrono::steady_clock::time_point lastTime;
+	extern float curTime;
 
 	extern HWND window;
 	extern bool gotDevice;
@@ -65,6 +69,8 @@ namespace DXHook {
 		int max_y;
 		int samples;
 		int max_depth;
+		int frameCount;
+		float curtime;
 		Tracer::Denoising::GBuffer* gbufferPtr;
 	};
 
