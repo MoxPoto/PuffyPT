@@ -59,8 +59,8 @@ namespace DXHook {
 	float fov = 60.f;
 
 	Tracer::vec3* origin;
-	float curX, curY, curZ;
-	float curPitch, curYaw, curRoll;
+	float curX = 0, curY = 0, curZ = 0;
+	float curPitch = 0, curYaw = 0, curRoll = 0;
 	Tracer::Denoising::GBuffer* gbufferData;
 	bool denoiserEnabled = true;
 	int world_count = 0;
@@ -295,12 +295,7 @@ namespace DXHook {
 
 					msgFont->DrawText(NULL, VERSION, -1, &msgRect, DT_CENTER | DT_NOCLIP, D3DCOLOR_ARGB(255, 10, 10, 10));
 
-					RECT frcMsg;
-					SetRect(&frcMsg, 0, 50, 1920, 120);
 
-					std::string msg = "Frames rendered: " + std::to_string(frameCount);
-
-					msgFont->DrawText(NULL, msg.c_str(), -1, &frcMsg, DT_CENTER | DT_NOCLIP, D3DCOLOR_ARGB(255, 10, 10, 10));
 				}
 
 				pDevice->SetRenderState(D3DRS_ZENABLE, FALSE);

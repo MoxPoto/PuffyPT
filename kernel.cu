@@ -162,6 +162,9 @@ __global__ void  DXHook::render(DXHook::RenderOptions options) {
     int random_idx = j * options.max_x + i;
 
     curandState local_rand_state = options.rand_state[random_idx];
+    
+    curand_init(options.frameCount * options.max_x * options.max_y + j * options.max_x + i, 1, 0, &local_rand_state);
+
     //Denoising::GBuffer* gbuffer = ((options.gbufferPtr + random_idx)); // serves as a gbuffer access index too!!
 
     float r = 0.f;

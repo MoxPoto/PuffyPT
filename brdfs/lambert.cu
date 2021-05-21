@@ -7,6 +7,7 @@
 #include "curand_kernel.h"
 
 #define RANDVEC3 vec3(fmodf(curand_uniform(local_rand_state) + extraRand, 1.f),fmodf(curand_uniform(local_rand_state) + extraRand, 1.f),fmodf(curand_uniform(local_rand_state) + extraRand, 1.f))
+//#define RANDVEC3 vec3(curand_uniform(local_rand_state),curand_uniform(local_rand_state),curand_uniform(local_rand_state))
 
 namespace Tracer {
 	namespace LambertBRDF {
