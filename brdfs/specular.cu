@@ -8,6 +8,11 @@
 
 #include "curand_kernel.h"
 
+__device__ static inline float lerp(float a, float b, float f)
+{
+	return (a * (1.0f - f)) + (b * f);
+}
+
 namespace Tracer {
 	namespace SpecularBRDF {
 		__device__ vec3 reflect(const vec3& direction, const vec3& normal) {
@@ -26,8 +31,12 @@ namespace Tracer {
 
 			attenuation = (target->color * target->emission);
 
+
 			if (target->lighting.roughness > 0.05f) {
-				vec3 sampleDir = target->lighting.roughness * LambertBRDF::random_in_unit_sphere(local_rand_state, extraRand);
+				float fresnelApprox = schlick(dot(targetRay.direction, previousRay.direction), target->lighting.ior);
+				fresnelApprox = lerp(fresnelApprox, 0.f, 1.f - target->lighting.roughness); // Weight fresnel approximation by the roughness to pure specular
+
+				vec3 sampleDir = fresnelApprox * LambertBRDF::random_in_unit_sphere(local_rand_state, extraRand);
 
 				targetRay.direction = unit_vector(targetRay.direction + sampleDir);
 			}

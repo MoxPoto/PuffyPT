@@ -40,6 +40,7 @@ namespace DXHook {
 	extern int frameCount;
 	extern std::chrono::steady_clock::time_point lastTime;
 	extern float curTime;
+	extern bool showSky;
 
 	extern HWND window;
 	extern bool gotDevice;
@@ -71,6 +72,7 @@ namespace DXHook {
 		int max_depth;
 		int frameCount;
 		float curtime;
+		bool doSky;
 		Tracer::Denoising::GBuffer* gbufferPtr;
 	};
 

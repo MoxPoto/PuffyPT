@@ -66,7 +66,7 @@ __device__ Tracer::Object* traceScene(int count, Tracer::Object** world, const T
     using namespace Tracer;
 
     float t_max = FLT_MAX;
-    float minDistance = 0.001f;
+    float minDistance = FLT_MIN;
 
     Object* hitObject = NULL;
    
@@ -95,7 +95,7 @@ __device__ Tracer::Object* traceScene(int count, Tracer::Object** world, const T
 }
 
 
-__device__ Tracer::vec3 depthColor(int count, float extraRand, const Tracer::Ray& ray, Tracer::Object** world, curandState* local_rand_state, int max_depth) {
+__device__ Tracer::vec3 depthColor(int count, bool doSky, float extraRand, const Tracer::Ray& ray, Tracer::Object** world, curandState* local_rand_state, int max_depth) {
     using namespace Tracer;
 
     Ray cur_ray = ray;
@@ -131,15 +131,21 @@ __device__ Tracer::vec3 depthColor(int count, float extraRand, const Tracer::Ray
         }
         else {
             // didnt hit, finish our depth trace by attenuating our final hit color by the sky color
-            vec3 skyColor = genSkyColor(cur_ray.direction);
-            
-            return (currentLight * (skyColor * 0.10f)) / pdf;
+
+            if (doSky) {
+                vec3 skyColor = genSkyColor(cur_ray.direction);
+
+                return (currentLight * (skyColor * 0.10f));
+            }
+            else {
+                return (currentLight * vec3(0.01, 0.01, 0.01));
+            }
         }
     }
     return vec3(0.0, 0.0, 0.0); // exceeded recursion
 }
 
-__device__ Tracer::vec3 pathtrace(int count, float extraRand, Tracer::Object** world, const Tracer::Ray& ray, curandState* local_rand_state, int samples, int max_depth) {
+__device__ Tracer::vec3 pathtrace(int count, bool doSky, float extraRand, Tracer::Object** world, const Tracer::Ray& ray, curandState* local_rand_state, int samples, int max_depth) {
     using namespace Tracer;
     vec3 indirectLighting(0, 0, 0);
     vec3 directLighting(0, 0, 0); // to be done soon
@@ -148,7 +154,7 @@ __device__ Tracer::vec3 pathtrace(int count, float extraRand, Tracer::Object** w
     Tracer::Object* hitObject = traceScene(count, world, ray, result);
 
     for (int i = 0; i < samples; i++) {
-        indirectLighting += depthColor(count, extraRand, ray, world, local_rand_state, max_depth);
+        indirectLighting += depthColor(count, doSky, extraRand, ray, world, local_rand_state, max_depth);
     }
 
     indirectLighting /= (float)samples;
@@ -214,7 +220,7 @@ __global__ void  DXHook::render(DXHook::RenderOptions options) {
         Ray newRay = ourRay;
         newRay.origin = newRay.origin + (result.HitNormal * 0.001f);
 
-        vec3 indirect = pathtrace(options.count, options.curtime, options.world, newRay, &local_rand_state, samples, max_depth);
+        vec3 indirect = pathtrace(options.count, options.doSky, options.curtime, options.world, newRay, &local_rand_state, samples, max_depth);
         indirect.clamp();
 
         r = sqrt(indirect.r());
@@ -222,11 +228,13 @@ __global__ void  DXHook::render(DXHook::RenderOptions options) {
         b = sqrt(indirect.b());
     }
     else {
-        vec3 skyColor = genSkyColor(dir);
-        
-        r = skyColor.r();
-        g = skyColor.g();
-        b = skyColor.b();
+        if (options.doSky) {
+            vec3 skyColor = genSkyColor(dir);
+
+            r = skyColor.r();
+            g = skyColor.g();
+            b = skyColor.b();
+        }
     }
 
     if (hitObject != NULL) {
@@ -331,7 +339,7 @@ GMOD_MODULE_OPEN()
 
     int num_pixels = WIDTH * HEIGHT;
     size_t fb_size = 3 * num_pixels * sizeof(float);
-    size_t world_size = 50 * sizeof(Tracer::Object*);
+    size_t world_size = 90 * sizeof(Tracer::Object*);
     size_t origin_size = sizeof(Tracer::vec3*);
     size_t gbuffer_size = num_pixels * sizeof(Tracer::Denoising::GBuffer);
 

@@ -14,7 +14,7 @@ namespace Tracer {
 	};
 
 	struct LightingOptions {
-		float roughness = 0;
+		float roughness = 0.1f;
 		float ior = 1.1f;
 	};
 

@@ -105,6 +105,14 @@ __host__ __device__ static bool rayTriangleIntersect(
 #define min(a,b) ((a)<(b)?(a):(b))
 #define max(a,b) ((a)>(b)?(a):(b))
 
+__device__ bool done = false;
+
+static inline void swap(float a, float b) {
+    float temp = a;
+    a = b;
+    b = temp;
+}
+
 namespace Tracer {
 	__host__ __device__ Mesh::Mesh() {
 		size = 0;
@@ -149,29 +157,19 @@ namespace Tracer {
 
     __host__ __device__ bool Mesh::anyHit(const Ray& ray) {
         /*
-            	float3 invD = rcp(ray.dir); from: https://medium.com/@bromanz/another-view-on-the-classic-ray-aabb-intersection-algorithm-for-bvh-traversal-41125138b525
-	float3 t0s = (aabb.min - ray.origin) * invD;
-  	float3 t1s = (aabb.max - ray.origin) * invD;
-    
-  	float3 tsmaller = min(t0s, t1s);
-    	float3 tbigger  = max(t0s, t1s);
-    
-    	tmin = max(tmin, max(tsmaller[0], max(tsmaller[1], tsmaller[2])));
-    	tmax = min(tmax, min(tbigger[0], min(tbigger[1], tbigger[2])));
+        if (!done) {
+            printf("min: %.2f, %.2f, %.2f\nmax: %.2f, %.2f, %.2f\n", minV.x(), minV.y(), minV.z(), maxV.x(), maxV.y(), maxV.z());
+            done = true;
+        }
 
-	return (tmin < tmax);*/
+        vec3 t0 = (minV - ray.origin) * ray.invdir; 
+        vec3 t1 = (maxV - ray.origin) * ray.invdir; 
+        vec3 tmin = min(t0, t1), tmax = max(t0, t1); 
 
-        vec3 nLocal = ray.invorig - ray.invdir * (minV + maxV) / 2.f;
-
-        vec3 k = vec3(abs(ray.invdir.x()), abs(ray.invdir.y()), abs(ray.invdir.z())) * (maxV - minV) / 2.f;
-        vec3 t1 = -nLocal - k;
-        vec3 t2 = -nLocal + k;
-
-        float tNear = max(max(t1.x(), t1.y()), t1.z());
-        float tFar = min(min(t2.x(), t2.y()), t2.z());
-
-        return !(tNear > tFar || tFar < 0.f);
-
+        return max(tmin.x(), max(tmin.y(), tmin.z())) <= min(tmax.x(), min(tmax.y(), tmax.z()));
+        */
+        
+        return true;
     }
 
     __host__ __device__ bool Mesh::tryHit(const Ray& ray, float closest, HitResult& result) {

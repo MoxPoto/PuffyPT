@@ -63,6 +63,7 @@ namespace DXHook {
 	float curPitch = 0, curYaw = 0, curRoll = 0;
 	Tracer::Denoising::GBuffer* gbufferData;
 	bool denoiserEnabled = true;
+	bool showSky = true;
 	int world_count = 0;
 	int frameCount = 0;
 
@@ -190,6 +191,7 @@ namespace DXHook {
 		
 		ImGui::Checkbox("Enable Denoiser?", &denoiserEnabled);
 		ImGui::Checkbox("Show Output?", &showPathtracer);
+		ImGui::Checkbox("Show Sky?", &showSky);
 
 		ImGui::End();
 
@@ -229,6 +231,7 @@ namespace DXHook {
 			options.gbufferPtr = gbufferData;
 			options.frameCount = frameCount;
 			options.curtime = curTime;
+			options.doSky = showSky;
 
 			render << <blocks, threads >> > (options);
 			checkCudaErrors(cudaGetLastError());
