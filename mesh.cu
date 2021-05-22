@@ -28,7 +28,7 @@ __host__ __device__ static bool rayTriangleIntersect(
 #ifdef CULLING 
     // if the determinant is negative the triangle is backfacing
     // if the determinant is close to 0, the ray misses the triangle
-    if (det < kEpsilon) return false;
+    if (!(det < kEpsilon)) return false;
 #else 
     // ray and triangle are parallel if det is close to 0
     if (fabs(det) < kEpsilon) return false;
@@ -135,36 +135,14 @@ namespace Tracer {
         triBuffer[size++] = theTri;
 	}
 
-    __host__ __device__ void Mesh::ComputeAccel() {
+    __host__ __device__ void Mesh::ComputeAccel(vec3 newMin, vec3 newMax) {
         // bounds[0] == min
         // bounds[1] == max
         
-        minV = vec3(1, 1, 1);
-        maxV = vec3(-1, -1, -1);
+        minV = newMin;
+        maxV = newMax;
         
-        
-        #define MIN_CHECK(access) \
-                if (minV.x() > access.x()) { minV.e[0] = access.x(); } \
-                if (minV.y() > access.y()) { minV.e[1] = access.y(); } \
-                if (minV.z() > access.z()) { minV.e[2] = access.z(); } \
-
-        #define MAX_CHECK(access) \
-                if (maxV.x() < access.x()) { maxV.e[0] = access.x(); } \
-                if (maxV.y() < access.y()) { maxV.e[1] = access.y(); } \
-                if (maxV.z() < access.z()) { maxV.e[2] = access.z(); } \
-
-        for (int i = 0; i < size; i++) {
-            Triangle* triHere = triBuffer[i];
-            
-            MIN_CHECK(triHere->v1);
-            MIN_CHECK(triHere->v2);
-            MIN_CHECK(triHere->v3);
-
-            MAX_CHECK(triHere->v1);
-            MAX_CHECK(triHere->v2);
-            MAX_CHECK(triHere->v3);
-        }
-        
+       
         printf("min: %.2f, %.2f, %.2f\nmax: %.2f, %.2f, %.2f\n", minV.x(), minV.y(), minV.z(), maxV.x(), maxV.y(), maxV.z());
         
     }
@@ -183,22 +161,17 @@ namespace Tracer {
 
 	return (tmin < tmax);*/
 
-        /*
-        vec3 t0s = (minV - ray.origin) * ray.invdir;
-        vec3 t1s = (maxV - ray.origin) * ray.invdir;
+        vec3 nLocal = ray.invorig - ray.invdir * (minV + maxV) / 2.f;
 
-        vec3 tsmaller = min(t0s, t1s);
-        vec3 tbigger = max(t0s, t1s);
+        vec3 k = vec3(abs(ray.invdir.x()), abs(ray.invdir.y()), abs(ray.invdir.z())) * (maxV - minV) / 2.f;
+        vec3 t1 = -nLocal - k;
+        vec3 t2 = -nLocal + k;
 
-        float tmin = 0.f;
-        float tmax = FLT_MAX;
+        float tNear = max(max(t1.x(), t1.y()), t1.z());
+        float tFar = min(min(t2.x(), t2.y()), t2.z());
 
-        tmin = max(tmin, max(tsmaller.e[0], max(tsmaller.e[1], tsmaller.e[2])));
-        tmax = min(tmax, min(tbigger.e[0], min(tbigger.e[1], tbigger.e[2])));
+        return !(tNear > tFar || tFar < 0.f);
 
-        return (tmin < tmax);
-        */
-        return true;
     }
 
     __host__ __device__ bool Mesh::tryHit(const Ray& ray, float closest, HitResult& result) {

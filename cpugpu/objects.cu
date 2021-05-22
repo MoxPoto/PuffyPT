@@ -162,13 +162,13 @@ namespace Tracer {
 			return err;
 		}
 
-		__global__ void computeTriAccel(Tracer::Object** world, int id) {
+		__global__ void computeTriAccel(Tracer::Object** world, int id, vec3 nMin, vec3 nMax) {
 			Tracer::Mesh* mesh = reinterpret_cast<Tracer::Mesh*>(world + id);
 
-			mesh->ComputeAccel();
+			mesh->ComputeAccel(nMin, nMax);
 		}
 
-		CommandError ComputeMeshAccel(int id) {
+		CommandError ComputeMeshAccel(int id, vec3 newMin, vec3 newMax) {
 			CommandError err = CommandError::Success;
 
 			if (id >= DXHook::world_count) {
@@ -176,7 +176,7 @@ namespace Tracer {
 				return err;
 			}
 
-			computeTriAccel << <1, 1 >> > (DXHook::world, id);
+			computeTriAccel << <1, 1 >> > (DXHook::world, id, newMin, newMax);
 			checkCudaErrors(cudaDeviceSynchronize());
 			checkCudaErrors(cudaGetLastError());
 
