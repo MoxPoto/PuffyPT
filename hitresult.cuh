@@ -5,14 +5,13 @@
 
 
 namespace Tracer {
-	class HitResult {
-	public:
+	struct HitResult {
 		vec3 HitPos;
 		vec3 HitNormal;
 		float t, u, v;
 		int objId;
 
-		__host__ __device__ HitResult();
+		__host__ __device__ HitResult() {};
 	};
 }
 

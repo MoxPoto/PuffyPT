@@ -86,6 +86,18 @@ LUA_FUNCTION(SYNC_UploadMesh) {
 
 	CPU::CommandError cmdErr = CPU::SetColorEmission(ourID, vec3(color.x, color.y, color.z), emission);
 
+	if (cmdErr != CPU::CommandError::Success) {
+		std::cout << "Command error hit on line " << __LINE__ << "!!!\n";
+	}
+
+	CPU::CommandError cmdErr2 = CPU::ComputeMeshAccel(ourID);
+
+	if (cmdErr2 != CPU::CommandError::Success) {
+		std::cout << "Command error hit on line " << __LINE__ << "!!!\n";
+	}
+
+
+
 	Sync::Prop newProp;
 	newProp.gameID = gameID;
 	newProp.tracerID = ourID;

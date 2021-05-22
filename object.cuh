@@ -28,6 +28,7 @@ namespace Tracer {
 		__host__ __device__ Object();
 
 		__host__ __device__ bool virtual tryHit(const Ray& ray, float closest, HitResult& result);
+		__host__ __device__ bool virtual anyHit(const Ray& ray);
 	};
 }
 #endif

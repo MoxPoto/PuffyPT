@@ -29,6 +29,9 @@ namespace Tracer {
         __host__ __device__ inline vec3& operator/=(const vec3& v2);
         __host__ __device__ inline vec3& operator*=(const float t);
         __host__ __device__ inline vec3& operator/=(const float t);
+        __host__ __device__ inline bool operator>(const vec3& v2);
+        __host__ __device__ inline bool operator<(const vec3& v2);
+     
 
         __host__ __device__ inline float length() const { return sqrt(e[0] * e[0] + e[1] * e[1] + e[2] * e[2]); }
         __host__ __device__ inline float squared_length() const { return e[0] * e[0] + e[1] * e[1] + e[2] * e[2]; }
@@ -55,9 +58,18 @@ namespace Tracer {
         return vec3(v1.e[0] + v2.e[0], v1.e[1] + v2.e[1], v1.e[2] + v2.e[2]);
     }
 
+    __host__ __device__ inline bool vec3::operator<(const vec3& b) {
+        return (this->e[0] < b.e[0] && this->e[1] < b.e[1] && this->e[2] < b.e[2]);
+    }
+
+    __host__ __device__ inline bool vec3::operator>(const vec3& b) {
+        return (this->e[0] > b.e[0] && this->e[1] > b.e[1] && this->e[2] > b.e[2]);
+    }
+
     __host__ __device__ inline vec3 operator-(const vec3& v1, const vec3& v2) {
         return vec3(v1.e[0] - v2.e[0], v1.e[1] - v2.e[1], v1.e[2] - v2.e[2]);
     }
+
 
     __host__ __device__ inline vec3 operator*(const vec3& v1, const vec3& v2) {
         return vec3(v1.e[0] * v2.e[0], v1.e[1] * v2.e[1], v1.e[2] * v2.e[2]);

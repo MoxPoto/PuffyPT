@@ -12,6 +12,8 @@ constexpr float kEpsilon = 1e-8;
 constexpr float MAX_FLOAT = 1000000.0f;
 
 #define MOLLER_TRUMBORE
+#define CULLING
+
 
 __host__ __device__ static bool rayTriangleIntersect(
     const Tracer::vec3& orig, const Tracer::vec3& dir,
@@ -100,11 +102,16 @@ __host__ __device__ static bool rayTriangleIntersect(
 
 #define MAX_TRIANGLES 9000
 #define checkCudaErrors(val) DXHook::check_cuda( (val), #val, __FILE__, __LINE__ )
+#define min(a,b) ((a)<(b)?(a):(b))
+#define max(a,b) ((a)>(b)?(a):(b))
 
 namespace Tracer {
 	__host__ __device__ Mesh::Mesh() {
 		size = 0;
         triBuffer = new Triangle*[MAX_TRIANGLES];
+        minV = vec3(0, 0, 0);
+        maxV = vec3(0, 0, 0);
+
 	}
 
     __host__ __device__ Mesh::~Mesh() {
@@ -127,6 +134,72 @@ namespace Tracer {
 
         triBuffer[size++] = theTri;
 	}
+
+    __host__ __device__ void Mesh::ComputeAccel() {
+        // bounds[0] == min
+        // bounds[1] == max
+        
+        minV = vec3(1, 1, 1);
+        maxV = vec3(-1, -1, -1);
+        
+        
+        #define MIN_CHECK(access) \
+                if (minV.x() > access.x()) { minV.e[0] = access.x(); } \
+                if (minV.y() > access.y()) { minV.e[1] = access.y(); } \
+                if (minV.z() > access.z()) { minV.e[2] = access.z(); } \
+
+        #define MAX_CHECK(access) \
+                if (maxV.x() < access.x()) { maxV.e[0] = access.x(); } \
+                if (maxV.y() < access.y()) { maxV.e[1] = access.y(); } \
+                if (maxV.z() < access.z()) { maxV.e[2] = access.z(); } \
+
+        for (int i = 0; i < size; i++) {
+            Triangle* triHere = triBuffer[i];
+            
+            MIN_CHECK(triHere->v1);
+            MIN_CHECK(triHere->v2);
+            MIN_CHECK(triHere->v3);
+
+            MAX_CHECK(triHere->v1);
+            MAX_CHECK(triHere->v2);
+            MAX_CHECK(triHere->v3);
+        }
+        
+        printf("min: %.2f, %.2f, %.2f\nmax: %.2f, %.2f, %.2f\n", minV.x(), minV.y(), minV.z(), maxV.x(), maxV.y(), maxV.z());
+        
+    }
+
+    __host__ __device__ bool Mesh::anyHit(const Ray& ray) {
+        /*
+            	float3 invD = rcp(ray.dir); from: https://medium.com/@bromanz/another-view-on-the-classic-ray-aabb-intersection-algorithm-for-bvh-traversal-41125138b525
+	float3 t0s = (aabb.min - ray.origin) * invD;
+  	float3 t1s = (aabb.max - ray.origin) * invD;
+    
+  	float3 tsmaller = min(t0s, t1s);
+    	float3 tbigger  = max(t0s, t1s);
+    
+    	tmin = max(tmin, max(tsmaller[0], max(tsmaller[1], tsmaller[2])));
+    	tmax = min(tmax, min(tbigger[0], min(tbigger[1], tbigger[2])));
+
+	return (tmin < tmax);*/
+
+        /*
+        vec3 t0s = (minV - ray.origin) * ray.invdir;
+        vec3 t1s = (maxV - ray.origin) * ray.invdir;
+
+        vec3 tsmaller = min(t0s, t1s);
+        vec3 tbigger = max(t0s, t1s);
+
+        float tmin = 0.f;
+        float tmax = FLT_MAX;
+
+        tmin = max(tmin, max(tsmaller.e[0], max(tsmaller.e[1], tsmaller.e[2])));
+        tmax = min(tmax, min(tbigger.e[0], min(tbigger.e[1], tbigger.e[2])));
+
+        return (tmin < tmax);
+        */
+        return true;
+    }
 
     __host__ __device__ bool Mesh::tryHit(const Ray& ray, float closest, HitResult& result) {
         result.t = 0;

@@ -13,11 +13,15 @@ namespace Tracer {
 	public:
 		Triangle **triBuffer;
 		int size;
+		vec3 minV;
+		vec3 maxV;
 
 		__host__ __device__ Mesh();
 		__host__ __device__ ~Mesh();
 		__host__ __device__ void InsertTri(vec3 v1, vec3 v2, vec3 v3);
+		__host__ __device__ void ComputeAccel(); 
 		__host__ __device__ bool virtual tryHit(const Ray& ray, float closest, HitResult& result);
+		__host__ __device__ bool virtual anyHit(const Ray& ray);
 	};
 }
 

@@ -162,6 +162,27 @@ namespace Tracer {
 			return err;
 		}
 
+		__global__ void computeTriAccel(Tracer::Object** world, int id) {
+			Tracer::Mesh* mesh = reinterpret_cast<Tracer::Mesh*>(world + id);
+
+			mesh->ComputeAccel();
+		}
+
+		CommandError ComputeMeshAccel(int id) {
+			CommandError err = CommandError::Success;
+
+			if (id >= DXHook::world_count) {
+				err = CommandError::NonexistantObject;
+				return err;
+			}
+
+			computeTriAccel << <1, 1 >> > (DXHook::world, id);
+			checkCudaErrors(cudaDeviceSynchronize());
+			checkCudaErrors(cudaGetLastError());
+
+			return err;
+		}
+
 		void SetCameraPos(float x, float y, float z) {
 			if (DXHook::curX != x || DXHook::curY != y || DXHook::curZ != z) {
 				DXHook::frameCount = 0;

@@ -19,6 +19,7 @@
 #include "vec3.cuh"
 #include "object.cuh"
 #include "triangle.cuh"
+#include "hitresult.cuh"
 
 #include "brdfs/lambert.cuh"
 #include "brdfs/specular.cuh"
@@ -68,6 +69,7 @@ __device__ Tracer::Object* traceScene(int count, Tracer::Object** world, const T
     float minDistance = 0.001f;
 
     Object* hitObject = NULL;
+   
 
     for (int i = 0; i < count; i++) {
         Tracer::Object* target;
@@ -79,10 +81,13 @@ __device__ Tracer::Object* traceScene(int count, Tracer::Object** world, const T
             target = *(world + i);
         }
 
-        if (target->tryHit(ray, t_max, output) && output.t > minDistance && output.t < t_max) {
-            t_max = output.t;
-            hitObject = target;
-            output.objId = i;
+        if (target->anyHit(ray)) { // do we hit it first?
+            // ok, then we trace the precise mesh
+            if (target->tryHit(ray, t_max, output) && output.t > minDistance && output.t < t_max) {
+                t_max = output.t;
+                hitObject = target;
+                output.objId = i;
+            }
         }
     }
 
