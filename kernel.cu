@@ -39,6 +39,9 @@
 #define HEIGHT 270
 #define checkCudaErrors(val) DXHook::check_cuda( (val), #val, __FILE__, __LINE__ )
 #define DEBUGHOST(str) printf("[host]: %s\n", str);
+#define HDRI_LOCATION "C:\\pathtracer\\hdrs\\rooftop_night_2k.hdr"
+#define HDRI_RESX 2048
+#define HDRI_RESY 1024
 
 void DXHook::check_cuda(cudaError_t result, char const* const func, const char* const file, int const line) {
     if (result) {
@@ -342,7 +345,7 @@ GMOD_MODULE_OPEN()
     size_t world_size = 90 * sizeof(Tracer::Object*);
     size_t origin_size = sizeof(Tracer::vec3*);
     size_t gbuffer_size = num_pixels * sizeof(Tracer::Denoising::GBuffer);
-
+    size_t imageSize = 
     DEBUGHOST("Calculated sizes..");
 
     checkCudaErrors(cudaMallocManaged((void**)&DXHook::fb, fb_size));

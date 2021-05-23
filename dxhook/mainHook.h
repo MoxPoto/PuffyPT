@@ -13,6 +13,7 @@
 #include "curand_kernel.h"
 #include "../mesh.cuh"
 #include "../denoiser/mainDenoiser.cuh"
+#include "../images/hdri.cuh"
 
 namespace DXHook {
 	typedef HRESULT(__stdcall* EndScene)(LPDIRECT3DDEVICE9);
@@ -27,6 +28,8 @@ namespace DXHook {
 	extern IDirect3DTexture9* pathtraceOutput;
 	extern IDirect3DVertexBuffer9* quadVertexBuffer;
 	extern ID3DXSprite* pathtraceObject;
+	extern Tracer::HDRI* mainHDRI;
+	extern unsigned char* hdriData;
 
 	extern float fov;
 	extern Tracer::vec3* origin;
