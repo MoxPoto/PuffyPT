@@ -67,6 +67,9 @@ namespace DXHook {
 	int world_count = 0;
 	int frameCount = 0;
 
+	Tracer::HDRI* mainHDRI = NULL;
+	float* hdriData = NULL;
+
 	int samples = 1;
 	int max_depth = 6; // less than 4 results in really, really bad reflections
 	bool showPathtracer = true;
@@ -232,7 +235,8 @@ namespace DXHook {
 			options.frameCount = frameCount;
 			options.curtime = curTime;
 			options.doSky = showSky;
-
+			options.hdri = mainHDRI;
+			options.hdriData = hdriData;
 			render << <blocks, threads >> > (options);
 			checkCudaErrors(cudaGetLastError());
 			checkCudaErrors(cudaDeviceSynchronize());

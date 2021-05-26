@@ -29,7 +29,7 @@ namespace DXHook {
 	extern IDirect3DVertexBuffer9* quadVertexBuffer;
 	extern ID3DXSprite* pathtraceObject;
 	extern Tracer::HDRI* mainHDRI;
-	extern unsigned char* hdriData;
+	extern float* hdriData;
 
 	extern float fov;
 	extern Tracer::vec3* origin;
@@ -76,6 +76,8 @@ namespace DXHook {
 		int frameCount;
 		float curtime;
 		bool doSky;
+		Tracer::HDRI* hdri;
+		float* hdriData;
 		Tracer::Denoising::GBuffer* gbufferPtr;
 	};
 

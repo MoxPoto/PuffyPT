@@ -21,6 +21,7 @@
 #include "triangle.cuh"
 #include "hitresult.cuh"
 
+#include "util/macros.h"
 #include "brdfs/lambert.cuh"
 #include "brdfs/specular.cuh"
 
@@ -28,6 +29,9 @@
 #include "denoiser/mainDenoiser.cuh"
 #include "cpugpu/objects.cuh"
 #include "synchronization/syncMain.cuh"
+
+#define STB_IMAGE_IMPLEMENTATION
+#include "../vendor/stb_image.h"
 
 #define GLM_FORCE_CUDA
 #include <glm/glm.hpp>
@@ -39,9 +43,9 @@
 #define HEIGHT 270
 #define checkCudaErrors(val) DXHook::check_cuda( (val), #val, __FILE__, __LINE__ )
 #define DEBUGHOST(str) printf("[host]: %s\n", str);
-#define HDRI_LOCATION "C:\\pathtracer\\hdrs\\rooftop_night_2k.hdr"
-#define HDRI_RESX 2048
-#define HDRI_RESY 1024
+#define HDRI_LOCATION "C:\\pathtracer\\hdrs\\noon_grass_1k.hdr"
+#define HDRI_RESX 1024
+#define HDRI_RESY 512
 
 void DXHook::check_cuda(cudaError_t result, char const* const func, const char* const file, int const line) {
     if (result) {
@@ -56,11 +60,15 @@ __device__ float deg2rad(const float& degree) {
     return degree * M_PI / 180.f;
 }
 
-__device__ Tracer::vec3 genSkyColor(const Tracer::vec3& dir) {
+__device__ Tracer::vec3 genSkyColor(Tracer::HDRI* mainHDRI, float* imgData, const Tracer::vec3& dir) {
     using namespace Tracer;
 
+    /*
     float t = 0.5f * (dir.z() + 1.0f);
     vec3 skyColor = (1.0f - t) * vec3(1.0, 1.0, 1.0) + t * vec3(0.5, 0.7, 1.0);
+    */
+
+    vec3 skyColor = mainHDRI->getPixelFromRay(dir, imgData);
 
     return skyColor;
 }
@@ -98,7 +106,7 @@ __device__ Tracer::Object* traceScene(int count, Tracer::Object** world, const T
 }
 
 
-__device__ Tracer::vec3 depthColor(int count, bool doSky, float extraRand, const Tracer::Ray& ray, Tracer::Object** world, curandState* local_rand_state, int max_depth) {
+__device__ Tracer::vec3 depthColor(int count, Tracer::HDRI* mainHDRI, float* imgData, bool doSky, float extraRand, const Tracer::Ray& ray, Tracer::Object** world, curandState* local_rand_state, int max_depth) {
     using namespace Tracer;
 
     Ray cur_ray = ray;
@@ -136,19 +144,19 @@ __device__ Tracer::vec3 depthColor(int count, bool doSky, float extraRand, const
             // didnt hit, finish our depth trace by attenuating our final hit color by the sky color
 
             if (doSky) {
-                vec3 skyColor = genSkyColor(cur_ray.direction);
+                vec3 skyColor = genSkyColor(mainHDRI, imgData, cur_ray.direction);
 
                 return (currentLight * (skyColor * 0.10f));
             }
             else {
-                return (currentLight * vec3(0.01, 0.01, 0.01));
+                return (currentLight * vec3(0.3, 0.3, 0.3));
             }
         }
     }
     return vec3(0.0, 0.0, 0.0); // exceeded recursion
 }
 
-__device__ Tracer::vec3 pathtrace(int count, bool doSky, float extraRand, Tracer::Object** world, const Tracer::Ray& ray, curandState* local_rand_state, int samples, int max_depth) {
+__device__ Tracer::vec3 pathtrace(int count, Tracer::HDRI* mainHDRI, float* imgData, bool doSky, float extraRand, Tracer::Object** world, const Tracer::Ray& ray, curandState* local_rand_state, int samples, int max_depth) {
     using namespace Tracer;
     vec3 indirectLighting(0, 0, 0);
     vec3 directLighting(0, 0, 0); // to be done soon
@@ -157,7 +165,7 @@ __device__ Tracer::vec3 pathtrace(int count, bool doSky, float extraRand, Tracer
     Tracer::Object* hitObject = traceScene(count, world, ray, result);
 
     for (int i = 0; i < samples; i++) {
-        indirectLighting += depthColor(count, doSky, extraRand, ray, world, local_rand_state, max_depth);
+        indirectLighting += depthColor(count, mainHDRI, imgData, doSky, extraRand, ray, world, local_rand_state, max_depth);
     }
 
     indirectLighting /= (float)samples;
@@ -223,7 +231,7 @@ __global__ void  DXHook::render(DXHook::RenderOptions options) {
         Ray newRay = ourRay;
         newRay.origin = newRay.origin + (result.HitNormal * 0.001f);
 
-        vec3 indirect = pathtrace(options.count, options.doSky, options.curtime, options.world, newRay, &local_rand_state, samples, max_depth);
+        vec3 indirect = pathtrace(options.count, options.hdri, options.hdriData, options.doSky, options.curtime, options.world, newRay, &local_rand_state, samples, max_depth);
         indirect.clamp();
 
         r = sqrt(indirect.r());
@@ -232,7 +240,7 @@ __global__ void  DXHook::render(DXHook::RenderOptions options) {
     }
     else {
         if (options.doSky) {
-            vec3 skyColor = genSkyColor(dir);
+            vec3 skyColor = genSkyColor(options.hdri, options.hdriData, dir);
 
             r = skyColor.r();
             g = skyColor.g();
@@ -302,6 +310,22 @@ __global__ void DXHook::registerRands(int max_x, int max_y, curandState* rand_st
     *(gbufferData + pixel_index) = myBuffer;
 }
 
+__global__ void createHDRIGPU(Tracer::HDRI* targetHDRI, float* imageData) {
+    targetHDRI = new Tracer::HDRI();
+
+    if (imageData == nullptr) {
+        NULLPTR_HIT("createHDRIGPU: hit a nullptr on imageData!!");
+    }
+
+    // (targetHDRI)->loadData(imageData);
+    (targetHDRI)->resX = HDRI_RESX;
+    (targetHDRI)->resY = HDRI_RESY;
+}
+
+__global__ void initializeHDRI(float* hdriData, size_t imageSize) {
+    (hdriData) = new float[imageSize];
+}
+
 __global__ void freeMem(Tracer::Object** world, Tracer::vec3* origin, int worldCount) {
     for (int i = 0; i < worldCount; i++) {
         delete* (world + i);
@@ -345,7 +369,9 @@ GMOD_MODULE_OPEN()
     size_t world_size = 90 * sizeof(Tracer::Object*);
     size_t origin_size = sizeof(Tracer::vec3*);
     size_t gbuffer_size = num_pixels * sizeof(Tracer::Denoising::GBuffer);
-    size_t imageSize = 
+    size_t imageSize = 3 * (HDRI_RESX * HDRI_RESY) * sizeof(float);
+    size_t hdriSize = sizeof(Tracer::HDRI*);
+
     DEBUGHOST("Calculated sizes..");
 
     checkCudaErrors(cudaMallocManaged((void**)&DXHook::fb, fb_size));
@@ -354,6 +380,8 @@ GMOD_MODULE_OPEN()
 
     checkCudaErrors(cudaMalloc((void**)&DXHook::gbufferData, gbuffer_size));
     checkCudaErrors(cudaMalloc((void**)&DXHook::d_rand_state, num_pixels * sizeof(curandState)));
+    checkCudaErrors(cudaMallocManaged((void**)&DXHook::hdriData, imageSize));
+    checkCudaErrors(cudaMallocManaged((void**)&DXHook::mainHDRI, hdriSize));
 
     DEBUGHOST("Allocated all memory");
 
@@ -363,6 +391,34 @@ GMOD_MODULE_OPEN()
     checkCudaErrors(cudaDeviceSynchronize());
     */
 
+    DEBUGHOST("Reading HDRI from disk..");
+    
+    int width = HDRI_RESX;
+    int height = HDRI_RESY;
+    int comps = 3;
+    float* hdriImg = stbi_loadf(HDRI_LOCATION, &width, &height, &comps, 0);
+
+
+    if (hdriImg != NULL) {
+        DEBUGHOST("Loaded HDRI, copying to VRAM..");
+        DEBUGHOST("Sample R, G, B:");
+        int startIdx = (3 * (1 * HDRI_RESX + 1));
+        HOST_DEBUG("R: %.2f, G: %.2f, B: %.2f\n", hdriImg[startIdx], hdriImg[startIdx + 1], hdriImg[startIdx + 2]);
+
+        checkCudaErrors(cudaMemcpy(DXHook::hdriData, hdriImg, imageSize, cudaMemcpyHostToDevice));
+        DEBUGHOST("Done, instantiating HDRI on gpu now..");
+        std::cout << "[host]: image size = " << sizeof(hdriImg) << ", imageSize = " << imageSize << "\n";
+        
+        createHDRIGPU << <1, 1 >> > (DXHook::mainHDRI, DXHook::hdriData);
+        checkCudaErrors(cudaGetLastError());
+        checkCudaErrors(cudaDeviceSynchronize());
+
+        DEBUGHOST("HDRI created on gpu with image data intact, continuing setup..");
+    }
+    else {
+        NULLPTR_HIT("Hit nullptr on hdriImg!!");
+        return 0;
+    }
 
     DEBUGHOST("Starting random threads..");
 
@@ -387,6 +443,9 @@ GMOD_MODULE_OPEN()
     Sync::Initialize(LUA);
     DEBUGHOST("Finished!");
 
+    DEBUGHOST("Clearing HDRI on CPU since it's on the GPU..");
+    stbi_image_free(hdriImg);
+    DEBUGHOST("Done!");
     return 0;
 }
 
@@ -414,7 +473,7 @@ GMOD_MODULE_CLOSE()
     checkCudaErrors(cudaFree(DXHook::d_rand_state));
     checkCudaErrors(cudaFree(DXHook::origin));
     checkCudaErrors(cudaFree(DXHook::gbufferData));
-
+    checkCudaErrors(cudaFree(DXHook::hdriData));
     DEBUGHOST("Freeing DirectX Resources..");
     DXHook::quadVertexBuffer->Release();
     DXHook::msgFont->Release();
