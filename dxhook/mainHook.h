@@ -12,7 +12,7 @@
 #include "cuda_runtime.h"
 #include "curand_kernel.h"
 #include "../mesh.cuh"
-#include "../denoiser/mainDenoiser.cuh"
+#include "../postprocess/mainDenoiser.cuh"
 #include "../images/hdri.cuh"
 
 namespace DXHook {
@@ -23,6 +23,8 @@ namespace DXHook {
 	extern HRESULT __stdcall EndSceneHook(LPDIRECT3DDEVICE9 pDevice);
 
 	extern float* fb; // Frame buffer
+	extern float* postFB; // Post Frame buffer
+
 	extern Tracer::Object** world;
 	extern curandState* d_rand_state;
 	extern IDirect3DTexture9* pathtraceOutput;
@@ -30,13 +32,14 @@ namespace DXHook {
 	extern ID3DXSprite* pathtraceObject;
 	extern Tracer::HDRI* mainHDRI;
 	extern float* hdriData;
+	extern int currentPass;
 
 	extern float fov;
 	extern Tracer::vec3* origin;
 	extern float curX, curY, curZ;
 	extern float curPitch, curYaw, curRoll;
 	extern ID3DXFont* msgFont;
-	extern Tracer::Denoising::GBuffer* gbufferData;
+	extern Tracer::Post::GBuffer* gbufferData;
 	extern bool denoiserEnabled;
 	extern int world_count;
 	extern bool showPathtracer;
@@ -76,14 +79,15 @@ namespace DXHook {
 		int frameCount;
 		float curtime;
 		bool doSky;
+		int curPass;
 		Tracer::HDRI* hdri;
 		float* hdriData;
-		Tracer::Denoising::GBuffer* gbufferPtr;
+		Tracer::Post::GBuffer* gbufferPtr;
 	};
 
 	extern __global__ void render(RenderOptions options);
 	extern __global__ void initMem(Tracer::Object** world, Tracer::vec3* origin);
-	extern __global__ void registerRands(int max_x, int max_y, curandState* rand_state, Tracer::Denoising::GBuffer* gbufferData);
+	extern __global__ void registerRands(int max_x, int max_y, curandState* rand_state, Tracer::Post::GBuffer* gbufferData);
 	extern void check_cuda(cudaError_t result, char const* const func, const char* const file, int const line);
 
 	extern inline void error(GarrysMod::Lua::ILuaBase* LUA, const char* str);

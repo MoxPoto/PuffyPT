@@ -21,6 +21,8 @@ namespace Tracer {
 	class Object {
 	public:
 		vec3 color = vec3(1, 1, 1);
+		vec3 position = vec3(0, 0, 0);
+		int objectID = 0;
 		float emission = 1.f;
 		BRDF matType = BRDF::Lambertian;
 		LightingOptions lighting;

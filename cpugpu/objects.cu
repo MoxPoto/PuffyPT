@@ -18,11 +18,17 @@ namespace Tracer {
 				case (ObjectType::Sphere):
 					printf("Adding sphere on GPU with curCount: %d, and obj_type: %d\n", curCount, obj_type);
 					*(world + curCount) = (new Tracer::Sphere(vec3(0, 0, 0), 1.f));
+					Tracer::Object* newObject = *(world + curCount);
+					newObject->objectID = curCount;
+
 					DEBUGGPU("Finished sphere instantiation on GPU!");
 
 					break;
 				case (ObjectType::TriangleMesh):
 					*(world + curCount) = (new Tracer::Mesh());
+					Tracer::Object* newMesh = *(world + curCount);
+					newMesh->objectID = curCount;
+
 					break;
 				default:
 					break;
@@ -163,7 +169,7 @@ namespace Tracer {
 		}
 
 		__global__ void computeTriAccel(Tracer::Object** world, int id, vec3 nMin, vec3 nMax) {
-			Tracer::Mesh* mesh = reinterpret_cast<Tracer::Mesh*>(world + id);
+			Tracer::Mesh* mesh = reinterpret_cast<Tracer::Mesh*>(*(world + id));
 
 			mesh->ComputeAccel(nMin, nMax);
 		}
@@ -182,6 +188,28 @@ namespace Tracer {
 
 			return err;
 		}
+
+		__global__ void setObjPosition(Tracer::Object** world, int id, vec3 newPos) {
+			Tracer::Object* obj = *(world + id);
+
+			obj->position = newPos;
+		}
+
+		CommandError SetObjectPosition(int id, vec3 position) {
+			CommandError err = CommandError::Success;
+
+			if (id >= DXHook::world_count) {
+				err = CommandError::NonexistantObject;
+				return err;
+			}
+
+			setObjPosition << <1, 1 >> > (DXHook::world, id, position);
+			checkCudaErrors(cudaDeviceSynchronize());
+			checkCudaErrors(cudaGetLastError());
+
+			return err;
+		}
+
 
 		void SetCameraPos(float x, float y, float z) {
 			if (DXHook::curX != x || DXHook::curY != y || DXHook::curZ != z) {

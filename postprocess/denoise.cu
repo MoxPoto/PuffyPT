@@ -9,7 +9,7 @@
 #define GBUFFER_AT(x, y) (gbufferData + (y * width + x));
 
 namespace Tracer {
-	namespace Denoising {
+	namespace Post {
 		__global__ void denoise(GBuffer* gbufferData, float* framebuffer, int width, int height) {
 
 			int i = threadIdx.x + blockIdx.x * blockDim.x;

@@ -156,7 +156,7 @@ namespace Tracer {
     }
 
     __host__ __device__ bool Mesh::anyHit(const Ray& ray) {
-        /*
+        
         if (!done) {
             printf("min: %.2f, %.2f, %.2f\nmax: %.2f, %.2f, %.2f\n", minV.x(), minV.y(), minV.z(), maxV.x(), maxV.y(), maxV.z());
             done = true;
@@ -167,9 +167,9 @@ namespace Tracer {
         vec3 tmin = min(t0, t1), tmax = max(t0, t1); 
 
         return max(tmin.x(), max(tmin.y(), tmin.z())) <= min(tmax.x(), min(tmax.y(), tmax.z()));
-        */
         
-        return true;
+        
+       // return true;
     }
 
     __host__ __device__ bool Mesh::tryHit(const Ray& ray, float closest, HitResult& result) {

@@ -17,7 +17,7 @@
 #include "../vec3.cuh"
 #include "../object.cuh"
 #include "../triangle.cuh"
-#include "../denoiser/mainDenoiser.cuh"
+#include "../postprocess/mainDenoiser.cuh"
 #include <chrono>
 #include <random>
 
@@ -50,18 +50,21 @@ namespace DXHook {
 	bool gotDevice = false;
 
 	float* fb;
+	float* postFB;
+
 	Tracer::Object** world;
 	curandState* d_rand_state;
 	IDirect3DTexture9* pathtraceOutput = NULL;
 	IDirect3DVertexBuffer9* quadVertexBuffer = NULL;
 	ID3DXSprite* pathtraceObject = NULL;
 	ID3DXFont* msgFont = NULL;
-	float fov = 60.f;
+	float fov = 114.f;
+	int currentPass = 2;
 
 	Tracer::vec3* origin;
 	float curX = 0, curY = 0, curZ = 0;
 	float curPitch = 0, curYaw = 0, curRoll = 0;
-	Tracer::Denoising::GBuffer* gbufferData;
+	Tracer::Post::GBuffer* gbufferData;
 	bool denoiserEnabled = true;
 	bool showSky = true;
 	int world_count = 0;
@@ -192,9 +195,18 @@ namespace DXHook {
 			max_depth -= 1;
 		}
 		
-		ImGui::Checkbox("Enable Denoiser?", &denoiserEnabled);
+		ImGui::Checkbox("Enable Postprocessing?", &denoiserEnabled);
 		ImGui::Checkbox("Show Output?", &showPathtracer);
 		ImGui::Checkbox("Show Sky?", &showSky);
+
+		const char* passes[] = {
+			"Direct Lighting",
+			"Indirect Lighting",
+			"Combined"
+		};
+
+		if (ImGui::ListBox("Passes", &currentPass, passes, 3))
+			frameCount = 0;
 
 		ImGui::End();
 
@@ -237,6 +249,7 @@ namespace DXHook {
 			options.doSky = showSky;
 			options.hdri = mainHDRI;
 			options.hdriData = hdriData;
+			options.curPass = currentPass;
 			render << <blocks, threads >> > (options);
 			checkCudaErrors(cudaGetLastError());
 			checkCudaErrors(cudaDeviceSynchronize());
@@ -244,9 +257,7 @@ namespace DXHook {
 			frameCount++;
 
 			if (denoiserEnabled) {
-				//Tracer::Denoising::denoise << <blocks, threads >> > (gbufferData, fb, WIDTH, HEIGHT);
-				//checkCudaErrors(cudaGetLastError());
-				//checkCudaErrors(cudaDeviceSynchronize());
+				Tracer::ApplyPostprocess(WIDTH, HEIGHT, blocks, threads);
 			}
 
 		}
@@ -272,9 +283,15 @@ namespace DXHook {
 				DWORD* row = (DWORD*)data;
 				for (int x = 0; x < WIDTH; ++x) {
 					int pixel_index = y * WIDTH * 3 + x * 3;
-					int r = int(fb[pixel_index] * 255.99);
-					int g = int(fb[pixel_index + 1] * 255.99);
-					int b = int(fb[pixel_index + 2] * 255.99);
+					int r = int(postFB[pixel_index] * 255.99);
+					int g = int(postFB[pixel_index + 1] * 255.99);
+					int b = int(postFB[pixel_index + 2] * 255.99);
+
+					if (!denoiserEnabled) {
+						r = int(fb[pixel_index] * 255.99);
+						g = int(fb[pixel_index + 1] * 255.99);
+						b = int(fb[pixel_index + 2] * 255.99);
+					}
 
 					*row++ = D3DCOLOR_XRGB(r, g, b);
 				}

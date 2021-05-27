@@ -55,6 +55,9 @@ namespace Tracer {
 		extern __global__ void computeTriAccel(Tracer::Object** world, int id, vec3 nMin, vec3 nMax);
 		extern CommandError ComputeMeshAccel(int id, vec3 newMin, vec3 newMax);
 
+		extern __global__ void setObjPosition(Tracer::Object** world, int id, vec3 newPos);
+		extern CommandError SetObjectPosition(int id, vec3 position);
+
 		extern void SetCameraPos(float x, float y, float z);
 		extern void SetCameraAngles(float pitch, float yaw, float roll);
 	}

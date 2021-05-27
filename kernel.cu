@@ -4,6 +4,7 @@
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 #include "curand_kernel.h"
+#include "math_constants.h"
 
 #include <stdio.h>
 #include <iostream>
@@ -26,7 +27,7 @@
 #include "brdfs/specular.cuh"
 
 #include "dxhook/mainHook.h"
-#include "denoiser/mainDenoiser.cuh"
+#include "postprocess/mainDenoiser.cuh"
 #include "cpugpu/objects.cuh"
 #include "synchronization/syncMain.cuh"
 
@@ -63,12 +64,12 @@ __device__ float deg2rad(const float& degree) {
 __device__ Tracer::vec3 genSkyColor(Tracer::HDRI* mainHDRI, float* imgData, const Tracer::vec3& dir) {
     using namespace Tracer;
 
-    /*
+    
     float t = 0.5f * (dir.z() + 1.0f);
     vec3 skyColor = (1.0f - t) * vec3(1.0, 1.0, 1.0) + t * vec3(0.5, 0.7, 1.0);
-    */
+    
 
-    vec3 skyColor = mainHDRI->getPixelFromRay(dir, imgData);
+    //vec3 skyColor = mainHDRI->getPixelFromRay(dir, imgData);
 
     return skyColor;
 }
@@ -105,6 +106,57 @@ __device__ Tracer::Object* traceScene(int count, Tracer::Object** world, const T
     return hitObject;
 }
 
+// to-do: clean this damn shit up.. like come on.. a simple shading.cu file would do, like dam..
+__device__ const int EMISSIVE_MINIMUM = 15; // Minimum emission to be considered a light
+#define min(a,b) ((a)<(b)?(a):(b))
+#define max(a,b) ((a)>(b)?(a):(b))
+
+__device__ Tracer::vec3 calcDirect(int count, Tracer::Object** world, const Tracer::Ray& ray, const Tracer::HitResult& rec) {
+    using namespace Tracer;
+
+    vec3 lightObtained(0, 0, 0);
+    int lightHits = 0;
+
+    for (int i = 0; i < count; i++) {
+        Tracer::Object* light = *(world + i);
+
+        if (light->emission >= EMISSIVE_MINIMUM) {
+            float lightPower = 15.f;// +((light->emission - EMISSIVE_MINIMUM) * 2.f); // The more intense emission is, more range is added
+            
+            vec3 newOrigin = rec.HitPos + (rec.HitNormal * 0.001f);
+            vec3 testDirection = unit_vector((light->position - newOrigin));
+
+            Ray testRay(newOrigin, testDirection);
+            HitResult testResult;
+
+            Tracer::Object* hitObject = traceScene(count, world, testRay, testResult);
+
+            float distance = testResult.t;
+
+            // A path from the sampled position and the light has been found
+            if (hitObject != NULL && hitObject->objectID == light->objectID && testResult.t <= distance) {
+                float clampedRange = distance;
+                float normalizedRange = (clampedRange / lightPower);
+
+                float invRange = (1.0f - normalizedRange);
+
+                vec3 lightContribution = light->color * invRange;
+
+                lightHits++;
+                lightObtained += lightContribution;
+            }
+        }
+    }
+
+    if (lightHits == 0) {
+        return lightObtained;
+    }
+    else {
+        lightObtained /= static_cast<float>(lightHits);
+        return lightObtained;
+    }
+
+}
 
 __device__ Tracer::vec3 depthColor(int count, Tracer::HDRI* mainHDRI, float* imgData, bool doSky, float extraRand, const Tracer::Ray& ray, Tracer::Object** world, curandState* local_rand_state, int max_depth) {
     using namespace Tracer;
@@ -146,7 +198,7 @@ __device__ Tracer::vec3 depthColor(int count, Tracer::HDRI* mainHDRI, float* img
             if (doSky) {
                 vec3 skyColor = genSkyColor(mainHDRI, imgData, cur_ray.direction);
 
-                return (currentLight * (skyColor * 0.10f));
+                return (currentLight * (skyColor * 0.20f));
             }
             else {
                 return (currentLight * vec3(0.3, 0.3, 0.3));
@@ -156,13 +208,15 @@ __device__ Tracer::vec3 depthColor(int count, Tracer::HDRI* mainHDRI, float* img
     return vec3(0.0, 0.0, 0.0); // exceeded recursion
 }
 
-__device__ Tracer::vec3 pathtrace(int count, Tracer::HDRI* mainHDRI, float* imgData, bool doSky, float extraRand, Tracer::Object** world, const Tracer::Ray& ray, curandState* local_rand_state, int samples, int max_depth) {
+__device__ Tracer::vec3 pathtrace(int count, int currentPass, Tracer::HDRI* mainHDRI, float* imgData, bool doSky, float extraRand, Tracer::Object** world, const Tracer::Ray& ray, curandState* local_rand_state, int samples, int max_depth) {
     using namespace Tracer;
     vec3 indirectLighting(0, 0, 0);
-    vec3 directLighting(0, 0, 0); // to be done soon
+    vec3 directLighting(0, 0, 0); 
 
     HitResult result;
     Tracer::Object* hitObject = traceScene(count, world, ray, result);
+
+    directLighting = calcDirect(count, world, ray, result);
 
     for (int i = 0; i < samples; i++) {
         indirectLighting += depthColor(count, mainHDRI, imgData, doSky, extraRand, ray, world, local_rand_state, max_depth);
@@ -171,10 +225,18 @@ __device__ Tracer::vec3 pathtrace(int count, Tracer::HDRI* mainHDRI, float* imgD
     indirectLighting /= (float)samples;
 
 
-    return indirectLighting;
+    if (currentPass == 0) { // Direct only
+        return directLighting;  
+    }
+    else if (currentPass == 1) { // Indirect only
+        return indirectLighting;
+    }
+    else {
+        return (directLighting / CUDART_PI + 2.0 * indirectLighting);
+    }
 }
 
-__global__ void  DXHook::render(DXHook::RenderOptions options) {
+__global__ void DXHook::render(DXHook::RenderOptions options) {
     using namespace Tracer;
 
     int i = threadIdx.x + blockIdx.x * blockDim.x;
@@ -231,12 +293,12 @@ __global__ void  DXHook::render(DXHook::RenderOptions options) {
         Ray newRay = ourRay;
         newRay.origin = newRay.origin + (result.HitNormal * 0.001f);
 
-        vec3 indirect = pathtrace(options.count, options.hdri, options.hdriData, options.doSky, options.curtime, options.world, newRay, &local_rand_state, samples, max_depth);
+        vec3 indirect = pathtrace(options.count, options.curPass, options.hdri, options.hdriData, options.doSky, options.curtime, options.world, newRay, &local_rand_state, samples, max_depth);
         indirect.clamp();
 
-        r = sqrt(indirect.r());
-        g = sqrt(indirect.g());
-        b = sqrt(indirect.b());
+        r = (indirect.r());
+        g = (indirect.g());
+        b = (indirect.b());
     }
     else {
         if (options.doSky) {
@@ -297,7 +359,7 @@ __global__ void DXHook::initMem(Tracer::Object** world, Tracer::vec3* origin) {
 
 }
 
-__global__ void DXHook::registerRands(int max_x, int max_y, curandState* rand_state, Tracer::Denoising::GBuffer* gbufferData) {
+__global__ void DXHook::registerRands(int max_x, int max_y, curandState* rand_state, Tracer::Post::GBuffer* gbufferData) {
     int i = threadIdx.x + blockIdx.x * blockDim.x;
     int j = threadIdx.y + blockIdx.y * blockDim.y;
     if ((i >= max_x) || (j >= max_y)) return;
@@ -305,7 +367,7 @@ __global__ void DXHook::registerRands(int max_x, int max_y, curandState* rand_st
     //Each thread gets same seed, a different sequence number, no offset
     curand_init(1984 + pixel_index, pixel_index, 0, &rand_state[pixel_index]);
     // lets also initialize our GBuffers
-    Tracer::Denoising::GBuffer myBuffer;
+    Tracer::Post::GBuffer myBuffer;
 
     *(gbufferData + pixel_index) = myBuffer;
 }
@@ -368,13 +430,14 @@ GMOD_MODULE_OPEN()
     size_t fb_size = 3 * num_pixels * sizeof(float);
     size_t world_size = 90 * sizeof(Tracer::Object*);
     size_t origin_size = sizeof(Tracer::vec3*);
-    size_t gbuffer_size = num_pixels * sizeof(Tracer::Denoising::GBuffer);
+    size_t gbuffer_size = num_pixels * sizeof(Tracer::Post::GBuffer);
     size_t imageSize = 3 * (HDRI_RESX * HDRI_RESY) * sizeof(float);
     size_t hdriSize = sizeof(Tracer::HDRI*);
 
     DEBUGHOST("Calculated sizes..");
 
     checkCudaErrors(cudaMallocManaged((void**)&DXHook::fb, fb_size));
+    checkCudaErrors(cudaMallocManaged((void**)&DXHook::postFB, fb_size));
     checkCudaErrors(cudaMallocManaged((void**)&DXHook::world, world_size));
     checkCudaErrors(cudaMallocManaged((void**)&DXHook::origin, origin_size));
 

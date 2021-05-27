@@ -35,6 +35,7 @@ LUA_FUNCTION(SYNC_SetCameraAngles) {
 
 LUA_FUNCTION(SYNC_UploadMesh) {
 	using namespace Tracer;
+	LUA->CheckType(-8, Lua::Type::Vector); // Position
 	LUA->CheckType(-7, Lua::Type::Number); // BRDF
 	LUA->CheckType(-6, Lua::Type::Vector); // AABB Min
 	LUA->CheckType(-5, Lua::Type::Vector); // AABB Max
@@ -83,6 +84,7 @@ LUA_FUNCTION(SYNC_UploadMesh) {
 
 	LUA->Pop(2);
 
+	Vector pos = LUA->GetVector(-7);
 	int brdfType = static_cast<int>(LUA->GetNumber(-6));
 	Vector nMin = LUA->GetVector(-5);
 	Vector nMax = LUA->GetVector(-4);
@@ -105,6 +107,12 @@ LUA_FUNCTION(SYNC_UploadMesh) {
 	CPU::CommandError cmdErr3 = CPU::SetBRDF(ourID, static_cast<BRDF>(brdfType));
 
 	if (cmdErr3 != CPU::CommandError::Success) {
+		std::cout << "Command error hit on line " << __LINE__ << "!!!\n";
+	}
+
+	CPU::CommandError cmdErr4 = CPU::SetObjectPosition(ourID, vec3(pos.x, pos.y, pos.z));
+
+	if (cmdErr4 != CPU::CommandError::Success) {
 		std::cout << "Command error hit on line " << __LINE__ << "!!!\n";
 	}
 
