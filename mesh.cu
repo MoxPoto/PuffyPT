@@ -155,21 +155,22 @@ namespace Tracer {
         
     }
 
-    __host__ __device__ bool Mesh::anyHit(const Ray& ray) {
+    __host__ __device__ bool Mesh::anyHit(const Ray& ray, float& tMax) {
         
-        if (!done) {
-            printf("min: %.2f, %.2f, %.2f\nmax: %.2f, %.2f, %.2f\n", minV.x(), minV.y(), minV.z(), maxV.x(), maxV.y(), maxV.z());
-            done = true;
-        }
+        vec3 nLocal = ray.invorig - ray.invdir * (minV + maxV) / 2.f;
 
-        vec3 t0 = (minV - ray.origin) * ray.invdir; 
-        vec3 t1 = (maxV - ray.origin) * ray.invdir; 
-        vec3 tmin = min(t0, t1), tmax = max(t0, t1); 
+        vec3 k = vec3(abs(ray.invdir.x()), abs(ray.invdir.y()), abs(ray.invdir.z())) * (maxV - minV) / 2.f;
+        vec3 t1 = -nLocal - k;
+        vec3 t2 = -nLocal + k;
 
-        return max(tmin.x(), max(tmin.y(), tmin.z())) <= min(tmax.x(), min(tmax.y(), tmax.z()));
-        
-        
-       // return true;
+        double tNear = max(max(t1.x(), t1.y()), t1.z());
+        double tFar = min(min(t2.x(), t2.y()), t2.z());
+
+        tMax = tFar;
+
+        return !(tNear > tFar || tFar < 0);
+
+        //return true;
     }
 
     __host__ __device__ bool Mesh::tryHit(const Ray& ray, float closest, HitResult& result) {

@@ -14,6 +14,7 @@
 #include "../mesh.cuh"
 #include "../postprocess/mainDenoiser.cuh"
 #include "../images/hdri.cuh"
+#include "../camera.cuh"
 
 namespace DXHook {
 	typedef HRESULT(__stdcall* EndScene)(LPDIRECT3DDEVICE9);
@@ -24,6 +25,7 @@ namespace DXHook {
 
 	extern float* fb; // Frame buffer
 	extern float* postFB; // Post Frame buffer
+	extern Tracer::Camera mainCam; // Main camera
 
 	extern Tracer::Object** world;
 	extern curandState* d_rand_state;

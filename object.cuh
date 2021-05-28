@@ -14,7 +14,7 @@ namespace Tracer {
 	};
 
 	struct LightingOptions {
-		float roughness = 0.1f;
+		float roughness = 0.0f;
 		float ior = 1.1f;
 	};
 
@@ -30,7 +30,7 @@ namespace Tracer {
 		__host__ __device__ Object();
 
 		__host__ __device__ bool virtual tryHit(const Ray& ray, float closest, HitResult& result);
-		__host__ __device__ bool virtual anyHit(const Ray& ray);
+		__host__ __device__ bool virtual anyHit(const Ray& ray, float& tMax);
 	};
 }
 #endif

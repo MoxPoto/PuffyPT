@@ -10,11 +10,12 @@ namespace Tracer {
 		vec3 direction;
 		vec3 invdir;
 		vec3 invorig;
-		
+
+		int ignoreID;
 		int sign[3];
 
 		// is it just me or do these initializer lists look so cursed
-		__host__ __device__ Ray(vec3 orig = vec3(0, 0, 0), vec3 dir = vec3(0, 0, 0)) : origin(orig), direction(dir) {
+		__host__ __device__ Ray(vec3 orig = vec3(0, 0, 0), vec3 dir = vec3(0, 0, 0), int ignore = -1) : origin(orig), direction(dir), ignoreID(ignore) {
 			invdir = vec3(1.f, 1.f, 1.f) / dir;
 			invorig = origin * invdir;
 

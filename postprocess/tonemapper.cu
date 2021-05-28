@@ -35,7 +35,7 @@ namespace Tracer {
 			return dot(rgb, vec3(0.2126f, 0.7152f, 0.0722f));
 		}
 
-		__global__ void tonemap(float* framebuffer, float* postFB, int width, int height) {
+		__global__ void tonemap(float* framebuffer, Camera mainCam, float* postFB, int width, int height) {
 			/*
 			ACES Approximation by Krzysztof Narkowicz
 			https://64.github.io/tonemapping/#aces
@@ -45,7 +45,7 @@ namespace Tracer {
 			if ((i >= width) || (j >= height)) return;
 			int pixel_index = j * width * 3 + i * 3;
 
-			vec3 frameColor = vec3(framebuffer[pixel_index], framebuffer[pixel_index + 1], framebuffer[pixel_index + 2]);
+			vec3 frameColor = vec3(framebuffer[pixel_index], framebuffer[pixel_index + 1], framebuffer[pixel_index + 2]) * mainCam.exposure;
 
 			frameColor *= 0.5f;
 			float a = 2.51f;
@@ -68,7 +68,7 @@ namespace Tracer {
 	__host__ void ApplyPostprocess(int width, int height, dim3 blocks, dim3 threads) {
 		using namespace Post;
 
-		tonemap << <blocks, threads >> > (DXHook::fb, DXHook::postFB, width, height);
+		tonemap << <blocks, threads >> > (DXHook::fb, DXHook::mainCam, DXHook::postFB, width, height);
 		checkCudaErrors(cudaGetLastError());
 		checkCudaErrors(cudaDeviceSynchronize());
 	}

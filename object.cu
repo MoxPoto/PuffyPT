@@ -13,7 +13,7 @@ namespace Tracer {
 		return false;
 	}
 
-	__host__ __device__ bool Object::anyHit(const Ray& ray) {
+	__host__ __device__ bool Object::anyHit(const Ray& ray, float& tMax) {
 		return true; // if something simply just returns "true" on the anyhit pass it's pretty much safe to assume it's not accelerated
 	}
 }

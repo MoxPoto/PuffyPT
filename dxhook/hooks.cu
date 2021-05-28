@@ -51,6 +51,7 @@ namespace DXHook {
 
 	float* fb;
 	float* postFB;
+	Tracer::Camera mainCam;
 
 	Tracer::Object** world;
 	curandState* d_rand_state;
@@ -194,6 +195,9 @@ namespace DXHook {
 		if (ImGui::Button("Decrease Depth")) {
 			max_depth -= 1;
 		}
+
+		PUFF_INCREMENT("Exposure Increase", mainCam.exposure);
+		PUFF_DECREMENT("Exposure Decrease", mainCam.exposure);
 		
 		ImGui::Checkbox("Enable Postprocessing?", &denoiserEnabled);
 		ImGui::Checkbox("Show Output?", &showPathtracer);

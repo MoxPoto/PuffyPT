@@ -68,9 +68,9 @@ __device__ Tracer::vec3 genSkyColor(Tracer::HDRI* mainHDRI, float* imgData, cons
     float t = 0.5f * (dir.z() + 1.0f);
     vec3 skyColor = (1.0f - t) * vec3(1.0, 1.0, 1.0) + t * vec3(0.5, 0.7, 1.0);
     
-
-    //vec3 skyColor = mainHDRI->getPixelFromRay(dir, imgData);
-
+    /*
+    vec3 skyColor = mainHDRI->getPixelFromRay(dir, imgData);
+    */
     return skyColor;
 }
 
@@ -78,6 +78,7 @@ __device__ Tracer::Object* traceScene(int count, Tracer::Object** world, const T
     using namespace Tracer;
 
     float t_max = FLT_MAX;
+    float approxtMax = FLT_MAX;
     float minDistance = FLT_MIN;
 
     Object* hitObject = NULL;
@@ -93,8 +94,15 @@ __device__ Tracer::Object* traceScene(int count, Tracer::Object** world, const T
             target = *(world + i);
         }
 
-        if (target->anyHit(ray)) { // do we hit it first?
+        if (target->objectID == ray.ignoreID) {
+            continue;
+        }
+
+        float placeholdertMax = approxtMax;
+
+        if (target->anyHit(ray, placeholdertMax)) { 
             // ok, then we trace the precise mesh
+
             if (target->tryHit(ray, t_max, output) && output.t > minDistance && output.t < t_max) {
                 t_max = output.t;
                 hitObject = target;
@@ -111,7 +119,7 @@ __device__ const int EMISSIVE_MINIMUM = 15; // Minimum emission to be considered
 #define min(a,b) ((a)<(b)?(a):(b))
 #define max(a,b) ((a)>(b)?(a):(b))
 
-__device__ Tracer::vec3 calcDirect(int count, Tracer::Object** world, const Tracer::Ray& ray, const Tracer::HitResult& rec) {
+__device__ Tracer::vec3 calcDirect(int count, Tracer::Object** world, Tracer::Object* firstHit, const Tracer::Ray& ray, const Tracer::HitResult& rec) {
     using namespace Tracer;
 
     vec3 lightObtained(0, 0, 0);
@@ -216,7 +224,9 @@ __device__ Tracer::vec3 pathtrace(int count, int currentPass, Tracer::HDRI* main
     HitResult result;
     Tracer::Object* hitObject = traceScene(count, world, ray, result);
 
-    directLighting = calcDirect(count, world, ray, result);
+    if (hitObject != NULL) {
+        directLighting = calcDirect(count, world, hitObject, ray, result);
+    }
 
     for (int i = 0; i < samples; i++) {
         indirectLighting += depthColor(count, mainHDRI, imgData, doSky, extraRand, ray, world, local_rand_state, max_depth);

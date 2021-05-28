@@ -3,6 +3,8 @@
 
 #include "../vec3.cuh"
 #include "../object.cuh"
+#include "../camera.cuh"
+
 #include "cuda_runtime.h"
 
 // originally this was denoising only
@@ -21,7 +23,7 @@ namespace Tracer {
 		};
 
 		__global__ extern void denoise(GBuffer* gbufferData, float* framebuffer, int width, int height);
-		__global__ extern void tonemap(float* framebuffer, float* postFB, int width, int height);
+		__global__ extern void tonemap(float* framebuffer, Camera mainCam, float* postFB, int width, int height);
 
 		__device__ extern float luminance(vec3 rgb);
 		__device__ vec3 LinearTosRGB(vec3 color);

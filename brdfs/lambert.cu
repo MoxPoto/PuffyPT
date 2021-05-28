@@ -61,7 +61,7 @@ namespace Tracer {
 			float r1 = curand_uniform(local_rand_state);
 			float r2 = curand_uniform(local_rand_state);
 
-			float r = sqrt(r1);
+			float r = sqrtf(r1);
 			float theta = r2 * 2.f * CUDART_PI;
 
 			float x = r * cosf(theta);
@@ -72,11 +72,11 @@ namespace Tracer {
 
 			vec3 sampleLocalized = TransformToWorld(x, y, z, rec.HitNormal);
 
-			// float pdf = dot(sampleLocalized, rec.HitNormal) * M_1_PI;
+			float cos_theta = dot(sampleLocalized, rec.HitNormal);
 
 			targetRay.direction = sampleLocalized;
 
-			attenuation = ((target->color * target->emission));
+			attenuation = ((target->color * target->emission) * cos_theta);
 
 		}
 	}
