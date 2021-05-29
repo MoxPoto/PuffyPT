@@ -15,6 +15,7 @@ using namespace Tracer;
 
 static constexpr float M_1_PI = 0.318309886183790671538f;
 
+// from: https://computergraphics.stackexchange.com/questions/4979/what-is-importance-sampling/4993
 __device__ static vec3 TransformToWorld(const float& x, const float& y, const float& z, const vec3& normal)
 {
 	// Find an axis that is not parallel to normal
@@ -38,6 +39,15 @@ __device__ static vec3 TransformToWorld(const float& x, const float& y, const fl
 	return u * x + v * y + w * z;
 }
 
+// from: https://computergraphics.stackexchange.com/questions/4979/what-is-importance-sampling/4993
+__device__ static float getLambertPDF(vec3 inputDir, vec3 normal) {
+	return dot(inputDir, normal) * M_1_PI;
+}
+
+// from: https://computergraphics.stackexchange.com/questions/4979/what-is-importance-sampling/4993
+__device__ static vec3 evaluateLambert(vec3 inputDir, vec3 normal, vec3 albedo) {
+	return albedo * M_1_PI * dot(inputDir, normal);
+}
 
 namespace Tracer {
 	namespace LambertBRDF {
@@ -50,7 +60,7 @@ namespace Tracer {
 			return p;
 		}
 		
-		__device__ void SampleWorld(const HitResult& rec, curandState* local_rand_state, float extraRand, vec3& attenuation, Ray& targetRay, Object* target) {
+		__device__ void SampleWorld(const HitResult& rec, curandState* local_rand_state, float extraRand, float& pdf, vec3& attenuation, Ray& targetRay, Object* target) {
 			/*vec3 newDirPos = rec.HitPos + rec.HitNormal + random_in_unit_sphere(local_rand_state, extraRand);
 			targetRay.origin = rec.HitPos;
 			targetRay.direction = unit_vector(newDirPos - rec.HitPos);
@@ -71,12 +81,10 @@ namespace Tracer {
 			float z = sqrt(1.0f - x * x - y * y);
 
 			vec3 sampleLocalized = TransformToWorld(x, y, z, rec.HitNormal);
-
-			float cos_theta = dot(sampleLocalized, rec.HitNormal);
-
 			targetRay.direction = sampleLocalized;
 
-			attenuation = ((target->color * target->emission) * cos_theta);
+			attenuation = evaluateLambert(sampleLocalized, rec.HitNormal, (target->color * target->emission));
+			pdf = getLambertPDF(sampleLocalized, rec.HitNormal);
 
 		}
 	}

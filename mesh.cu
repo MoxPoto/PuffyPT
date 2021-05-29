@@ -155,7 +155,7 @@ namespace Tracer {
         
     }
 
-    __host__ __device__ bool Mesh::anyHit(const Ray& ray, float& tMax) {
+    __host__ __device__ bool Mesh::anyHit(const Ray& ray, float& tMaxA) {
         
         vec3 nLocal = ray.invorig - ray.invdir * (minV + maxV) / 2.f;
 
@@ -166,9 +166,23 @@ namespace Tracer {
         double tNear = max(max(t1.x(), t1.y()), t1.z());
         double tFar = min(min(t2.x(), t2.y()), t2.z());
 
-        tMax = tFar;
+        tMaxA = tFar;
 
         return !(tNear > tFar || tFar < 0);
+        
+
+        /*
+        vec3 tMin = (minV - ray.origin) / ray.direction;
+        vec3 tMax = (maxV - ray.origin) / ray.direction;
+        vec3 t1 = min(tMin, tMax);
+        vec3 t2 = max(tMin, tMax);
+        float tNear = max(max(t1.x(), t1.y()), t1.z());
+        float tFar = min(min(t2.x(), t2.y()), t2.z());
+
+        tMaxA = tFar;
+
+        return tNear > tFar;
+        */
 
         //return true;
     }

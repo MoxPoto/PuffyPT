@@ -21,6 +21,7 @@
 #include "object.cuh"
 #include "triangle.cuh"
 #include "hitresult.cuh"
+#include "camera.cuh"
 
 #include "util/macros.h"
 #include "brdfs/lambert.cuh"
@@ -61,12 +62,12 @@ __device__ float deg2rad(const float& degree) {
     return degree * M_PI / 180.f;
 }
 
-__device__ Tracer::vec3 genSkyColor(Tracer::HDRI* mainHDRI, float* imgData, const Tracer::vec3& dir) {
+__device__ Tracer::vec3 genSkyColor(Tracer::HDRI* mainHDRI, Tracer::SkyInfo skyInfo, float* imgData, const Tracer::vec3& dir) {
     using namespace Tracer;
 
     
     float t = 0.5f * (dir.z() + 1.0f);
-    vec3 skyColor = (1.0f - t) * vec3(1.0, 1.0, 1.0) + t * vec3(0.5, 0.7, 1.0);
+    vec3 skyColor = (1.0f - t) * skyInfo.azimuth + t * skyInfo.zenith;
     
     /*
     vec3 skyColor = mainHDRI->getPixelFromRay(dir, imgData);
@@ -74,7 +75,7 @@ __device__ Tracer::vec3 genSkyColor(Tracer::HDRI* mainHDRI, float* imgData, cons
     return skyColor;
 }
 
-__device__ Tracer::Object* traceScene(int count, Tracer::Object** world, const Tracer::Ray& ray, Tracer::HitResult& output) {
+__device__ Tracer::Object* traceScene(int count, Tracer::Object** world, const Tracer::Ray& ray, Tracer::HitResult& output, bool aabbOverride = false) {
     using namespace Tracer;
 
     float t_max = FLT_MAX;
@@ -99,8 +100,9 @@ __device__ Tracer::Object* traceScene(int count, Tracer::Object** world, const T
         }
 
         float placeholdertMax = approxtMax;
+        
 
-        if (target->anyHit(ray, placeholdertMax)) { 
+        if (target->anyHit(ray, placeholdertMax) || aabbOverride) { 
             // ok, then we trace the precise mesh
 
             if (target->tryHit(ray, t_max, output) && output.t > minDistance && output.t < t_max) {
@@ -166,7 +168,7 @@ __device__ Tracer::vec3 calcDirect(int count, Tracer::Object** world, Tracer::Ob
 
 }
 
-__device__ Tracer::vec3 depthColor(int count, Tracer::HDRI* mainHDRI, float* imgData, bool doSky, float extraRand, const Tracer::Ray& ray, Tracer::Object** world, curandState* local_rand_state, int max_depth) {
+__device__ Tracer::vec3 depthColor(int count, bool aabb, Tracer::HDRI* mainHDRI, Tracer::SkyInfo skyInfo, float* imgData, bool doSky, float extraRand, const Tracer::Ray& ray, Tracer::Object** world, curandState* local_rand_state, int max_depth) {
     using namespace Tracer;
 
     Ray cur_ray = ray;
@@ -183,10 +185,11 @@ __device__ Tracer::vec3 depthColor(int count, Tracer::HDRI* mainHDRI, float* img
             // and attenuate our color by the albedo we hit, but we also should multiply our albedo by the objects emission
             Ray new_ray(vec3(0, 0, 0), vec3(0, 0, 0));
             vec3 attenuation(0, 0, 0);
+            float pdf = 1.f;
 
             switch (target->matType) {
                 case (BRDF::Lambertian):
-                    LambertBRDF::SampleWorld(rec, local_rand_state, extraRand, attenuation, new_ray, target);
+                    LambertBRDF::SampleWorld(rec, local_rand_state, extraRand, pdf, attenuation, new_ray, target);
                     break;
                 case (BRDF::Specular):
                     SpecularBRDF::SampleWorld(rec, local_rand_state, extraRand, cur_ray, attenuation, new_ray, target);
@@ -195,7 +198,7 @@ __device__ Tracer::vec3 depthColor(int count, Tracer::HDRI* mainHDRI, float* img
                     break;
             }
 
-            currentLight *= attenuation;
+            currentLight *= attenuation / pdf;
 
             cur_ray = new_ray;
             
@@ -204,7 +207,7 @@ __device__ Tracer::vec3 depthColor(int count, Tracer::HDRI* mainHDRI, float* img
             // didnt hit, finish our depth trace by attenuating our final hit color by the sky color
 
             if (doSky) {
-                vec3 skyColor = genSkyColor(mainHDRI, imgData, cur_ray.direction);
+                vec3 skyColor = genSkyColor(mainHDRI, skyInfo, imgData, cur_ray.direction);
 
                 return (currentLight * (skyColor * 0.20f));
             }
@@ -216,7 +219,7 @@ __device__ Tracer::vec3 depthColor(int count, Tracer::HDRI* mainHDRI, float* img
     return vec3(0.0, 0.0, 0.0); // exceeded recursion
 }
 
-__device__ Tracer::vec3 pathtrace(int count, int currentPass, Tracer::HDRI* mainHDRI, float* imgData, bool doSky, float extraRand, Tracer::Object** world, const Tracer::Ray& ray, curandState* local_rand_state, int samples, int max_depth) {
+__device__ Tracer::vec3 pathtrace(int count, int currentPass, bool aabb, Tracer::SkyInfo skyInfo, Tracer::HDRI* mainHDRI, float* imgData, bool doSky, float extraRand, Tracer::Object** world, const Tracer::Ray& ray, curandState* local_rand_state, int samples, int max_depth) {
     using namespace Tracer;
     vec3 indirectLighting(0, 0, 0);
     vec3 directLighting(0, 0, 0); 
@@ -229,7 +232,7 @@ __device__ Tracer::vec3 pathtrace(int count, int currentPass, Tracer::HDRI* main
     }
 
     for (int i = 0; i < samples; i++) {
-        indirectLighting += depthColor(count, mainHDRI, imgData, doSky, extraRand, ray, world, local_rand_state, max_depth);
+        indirectLighting += depthColor(count, aabb, mainHDRI, skyInfo, imgData, doSky, extraRand, ray, world, local_rand_state, max_depth);
     }
 
     indirectLighting /= (float)samples;
@@ -277,6 +280,7 @@ __global__ void DXHook::render(DXHook::RenderOptions options) {
     // NOT MY CODE!! https://github.com/100PXSquared/public-starfalls/tree/master/raytracer
   
     glm::mat4 rotationMat(1.f);
+    /*
     // X is roll..
     // Z is yaw
     // so Y is pitch!! YAY!! SOMETHING SORT OF SENSIBLE!!
@@ -284,7 +288,27 @@ __global__ void DXHook::render(DXHook::RenderOptions options) {
     rotationMat = glm::rotate(rotationMat, glm::radians(-options.pitch), glm::vec3(0, 1, 0));
     rotationMat = glm::rotate(rotationMat, glm::radians(options.yaw), glm::vec3(0, 0, 1));
 //    rotationMat = glm::rotate(rotationMat, glm::radians(options.roll), glm::vec3(1, 0, 0));
+    */
+    
+    vec3 xaxis = cross(vec3(0, 0, 1.f), options.cameraDir);
+    xaxis.make_unit_vector();
 
+    vec3 yaxis = cross(options.cameraDir, xaxis);
+    yaxis.make_unit_vector();
+
+    rotationMat[0][0] = xaxis.x();
+    rotationMat[0][1] = yaxis.x();
+    rotationMat[0][2] = options.cameraDir.x();
+
+    rotationMat[1][0] = xaxis.y();
+    rotationMat[1][1] = yaxis.y();
+    rotationMat[1][2] = options.cameraDir.y();
+
+    rotationMat[2][0] = xaxis.z();
+    rotationMat[2][1] = yaxis.z();
+    rotationMat[2][2] = options.cameraDir.z();
+
+    
     glm::vec4 preVec = rotationMat * glm::vec4(dir.x(), dir.y(), dir.z(), 0);
     
     dir = vec3(preVec.x, preVec.y, preVec.z);
@@ -303,7 +327,7 @@ __global__ void DXHook::render(DXHook::RenderOptions options) {
         Ray newRay = ourRay;
         newRay.origin = newRay.origin + (result.HitNormal * 0.001f);
 
-        vec3 indirect = pathtrace(options.count, options.curPass, options.hdri, options.hdriData, options.doSky, options.curtime, options.world, newRay, &local_rand_state, samples, max_depth);
+        vec3 indirect = pathtrace(options.count, options.curPass, options.aabbOverride, options.skyInfo, options.hdri, options.hdriData, options.doSky, options.curtime, options.world, newRay, &local_rand_state, samples, max_depth);
         indirect.clamp();
 
         r = (indirect.r());
@@ -312,7 +336,7 @@ __global__ void DXHook::render(DXHook::RenderOptions options) {
     }
     else {
         if (options.doSky) {
-            vec3 skyColor = genSkyColor(options.hdri, options.hdriData, dir);
+            vec3 skyColor = genSkyColor(options.hdri, options.skyInfo, options.hdriData, dir);
 
             r = skyColor.r();
             g = skyColor.g();

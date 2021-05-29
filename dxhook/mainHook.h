@@ -26,6 +26,7 @@ namespace DXHook {
 	extern float* fb; // Frame buffer
 	extern float* postFB; // Post Frame buffer
 	extern Tracer::Camera mainCam; // Main camera
+	extern Tracer::SkyInfo skyInfo;
 
 	extern Tracer::Object** world;
 	extern curandState* d_rand_state;
@@ -49,6 +50,11 @@ namespace DXHook {
 	extern std::chrono::steady_clock::time_point lastTime;
 	extern float curTime;
 	extern bool showSky;
+	extern bool aabbOverride;
+	extern Tracer::vec3 camDir;
+
+	extern float zenith[3]; // for imgui
+	extern float azimuth[3]; // for imgui
 
 	extern HWND window;
 	extern bool gotDevice;
@@ -81,9 +87,12 @@ namespace DXHook {
 		int frameCount;
 		float curtime;
 		bool doSky;
+		bool aabbOverride;
+		Tracer::vec3 cameraDir;
 		int curPass;
 		Tracer::HDRI* hdri;
 		float* hdriData;
+		Tracer::SkyInfo skyInfo;
 		Tracer::Post::GBuffer* gbufferPtr;
 	};
 

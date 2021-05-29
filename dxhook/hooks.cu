@@ -52,6 +52,7 @@ namespace DXHook {
 	float* fb;
 	float* postFB;
 	Tracer::Camera mainCam;
+	Tracer::SkyInfo skyInfo;
 
 	Tracer::Object** world;
 	curandState* d_rand_state;
@@ -61,6 +62,10 @@ namespace DXHook {
 	ID3DXFont* msgFont = NULL;
 	float fov = 114.f;
 	int currentPass = 2;
+	Tracer::vec3 camDir;
+
+	float azimuth[3] = { 1, 1, 1 };
+	float zenith[3] = { 0.5f, 0.7f, 1.0f };
 
 	Tracer::vec3* origin;
 	float curX = 0, curY = 0, curZ = 0;
@@ -70,6 +75,7 @@ namespace DXHook {
 	bool showSky = true;
 	int world_count = 0;
 	int frameCount = 0;
+	bool aabbOverride = false;
 
 	Tracer::HDRI* mainHDRI = NULL;
 	float* hdriData = NULL;
@@ -81,6 +87,8 @@ namespace DXHook {
 	float curTime = 0.f;
 
 	HRESULT __stdcall EndSceneHook(LPDIRECT3DDEVICE9 pDevice) {
+		using Tracer::vec3;
+
 		if (!gotDevice) {
 			gotDevice = true;
 			device = pDevice;
@@ -202,6 +210,18 @@ namespace DXHook {
 		ImGui::Checkbox("Enable Postprocessing?", &denoiserEnabled);
 		ImGui::Checkbox("Show Output?", &showPathtracer);
 		ImGui::Checkbox("Show Sky?", &showSky);
+		ImGui::Checkbox("Override AABB Accel?", &aabbOverride);
+
+		if (ImGui::ColorPicker3("Edit Sky Azimuth", azimuth)) {
+			frameCount = 0;
+		}
+
+		if (ImGui::ColorPicker3("Edit Sky Zenith", zenith)) {
+			frameCount = 0;
+		}
+
+		skyInfo.azimuth = vec3(azimuth[0], azimuth[1], azimuth[2]);
+		skyInfo.zenith = vec3(zenith[0], zenith[1], zenith[2]);
 
 		const char* passes[] = {
 			"Direct Lighting",
@@ -254,6 +274,9 @@ namespace DXHook {
 			options.hdri = mainHDRI;
 			options.hdriData = hdriData;
 			options.curPass = currentPass;
+			options.skyInfo = skyInfo;
+			options.cameraDir = camDir;
+			options.aabbOverride = aabbOverride;
 			render << <blocks, threads >> > (options);
 			checkCudaErrors(cudaGetLastError());
 			checkCudaErrors(cudaDeviceSynchronize());

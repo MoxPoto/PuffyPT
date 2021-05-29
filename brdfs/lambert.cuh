@@ -11,7 +11,7 @@
 namespace Tracer {
 	namespace LambertBRDF {
 		__device__ vec3 random_in_unit_sphere(curandState* local_rand_state, float extraRand);
-		__device__ void SampleWorld(const HitResult& res, curandState* local_rand_state, float extraRand, vec3& attenuation, Ray& targetRay, Object* target);
+		__device__ void SampleWorld(const HitResult& res, curandState* local_rand_state, float extraRand, float& pdf, vec3& attenuation, Ray& targetRay, Object* target);
 	}
 }
 

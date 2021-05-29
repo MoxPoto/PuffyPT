@@ -25,10 +25,10 @@ LUA_FUNCTION(SYNC_SetCameraPos) {
 
 LUA_FUNCTION(SYNC_SetCameraAngles) {
 	using namespace Tracer;
-	LUA->CheckType(-1, Lua::Type::Angle);
+	LUA->CheckType(-1, Lua::Type::Vector);
 
-	QAngle ourVec = LUA->GetAngle(-1);
-	CPU::SetCameraAngles(ourVec.x, ourVec.y, ourVec.z);
+	Vector ourVec = LUA->GetVector(-1);
+	CPU::SetCameraAngles(vec3(ourVec.x, ourVec.y, ourVec.z));
 
 	return 0;
 }

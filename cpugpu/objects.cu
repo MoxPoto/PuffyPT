@@ -15,23 +15,23 @@ namespace Tracer {
 	namespace CPU {
 		__global__ void addObject(Tracer::Object** world, ObjectType obj_type, int curCount) {
 			switch (obj_type) {
-				case (ObjectType::Sphere):
-					printf("Adding sphere on GPU with curCount: %d, and obj_type: %d\n", curCount, obj_type);
-					*(world + curCount) = (new Tracer::Sphere(vec3(0, 0, 0), 1.f));
-					Tracer::Object* newObject = *(world + curCount);
-					newObject->objectID = curCount;
+			case (ObjectType::Sphere):
+				printf("Adding sphere on GPU with curCount: %d, and obj_type: %d\n", curCount, obj_type);
+				*(world + curCount) = (new Tracer::Sphere(vec3(0, 0, 0), 1.f));
+				Tracer::Object* newObject = *(world + curCount);
+				newObject->objectID = curCount;
 
-					DEBUGGPU("Finished sphere instantiation on GPU!");
+				DEBUGGPU("Finished sphere instantiation on GPU!");
 
-					break;
-				case (ObjectType::TriangleMesh):
-					*(world + curCount) = (new Tracer::Mesh());
-					Tracer::Object* newMesh = *(world + curCount);
-					newMesh->objectID = curCount;
+				break;
+			case (ObjectType::TriangleMesh):
+				*(world + curCount) = (new Tracer::Mesh());
+				Tracer::Object* newMesh = *(world + curCount);
+				newMesh->objectID = curCount;
 
-					break;
-				default:
-					break;
+				break;
+			default:
+				break;
 			}
 
 			DEBUGGPU("[addObject]: Finished kernel, returning to host!");
@@ -71,7 +71,7 @@ namespace Tracer {
 			setObjectBRDF << <1, 1 >> > (DXHook::world, type, objectId);
 			checkCudaErrors(cudaGetLastError());
 			checkCudaErrors(cudaDeviceSynchronize());
-			
+
 			return err;
 		}
 
@@ -93,7 +93,7 @@ namespace Tracer {
 			setObjectClrEmission << <1, 1 >> > (DXHook::world, color, emission, objectID);
 			checkCudaErrors(cudaGetLastError());
 			checkCudaErrors(cudaDeviceSynchronize());
-			
+
 			return err;
 		}
 
@@ -161,7 +161,7 @@ namespace Tracer {
 			insertCPUTri << <1, 1 >> > (DXHook::world, id, v1.x(), v1.y(), v1.z(), v2.x(), v2.y(), v2.z(), v3.x(), v3.y(), v3.z());
 			checkCudaErrors(cudaDeviceSynchronize());
 			checkCudaErrors(cudaGetLastError());
-			
+
 
 			DEBUGHOST("[InsertObjectTri]: Called!");
 
@@ -221,14 +221,12 @@ namespace Tracer {
 			DXHook::curZ = z;
 		}
 
-		void SetCameraAngles(float pitch, float yaw, float roll) {
-			if (DXHook::curPitch != pitch || DXHook::curYaw != yaw || DXHook::curRoll != roll) {
+		void SetCameraAngles(vec3 camDir) {
+			if (DXHook::camDir.x() != camDir.x() || DXHook::camDir.y() != camDir.y() || DXHook::camDir.z() != camDir.z()) {
 				DXHook::frameCount = 0;
 			}
 
-			DXHook::curPitch = pitch;
-			DXHook::curYaw = yaw;
-			DXHook::curRoll = roll;
+			DXHook::camDir = camDir;
 		}
 	}
 }
