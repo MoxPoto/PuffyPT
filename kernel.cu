@@ -82,8 +82,6 @@ __device__ Tracer::Object* traceScene(int count, Tracer::Object** world, const T
     float approxtMax = FLT_MAX;
     float minDistance = FLT_MIN;
 
-    vec3 hitPos;
-    vec3 hitNormal;
 
     Object* hitObject = NULL;
    
@@ -107,19 +105,12 @@ __device__ Tracer::Object* traceScene(int count, Tracer::Object** world, const T
         if (target->anyHit(ray, approxtMax) || aabbOverride) { 
             // ok, then we trace the precise mesh
 
-            if (target->tryHit(ray, t_max, output) && output.t > minDistance && output.t < t_max) {
-                t_max = output.t;
-                hitPos = output.HitPos;
-                hitNormal = output.HitNormal;
-                hitObject = target;
+            if (target->tryHit(ray, t_max, output)) {
+
                 output.objId = i;
             }
         }
     }
-
-    output.t = t_max;
-    output.HitNormal = hitNormal;
-    output.HitPos = hitPos;
 
     return hitObject;
 }
@@ -139,8 +130,9 @@ __device__ Tracer::vec3 calcDirect(int count, Tracer::Object** world, Tracer::Ob
         Tracer::Object* light = *(world + i);
 
         if (light->emission >= EMISSIVE_MINIMUM) {
-            float lightPower = 50.f + ((light->emission - EMISSIVE_MINIMUM) * 2.f); // The more intense emission is, more range is added
-            
+            float lightPower = 2760.f + ((light->emission - EMISSIVE_MINIMUM) * 2.f); // The more intense emission is, more range is added
+            float lightBrightness = 1.f;
+
             vec3 newOrigin = rec.HitPos + (rec.HitNormal * 0.001f);
             vec3 testDirection = unit_vector((light->position - newOrigin));
 
@@ -149,16 +141,14 @@ __device__ Tracer::vec3 calcDirect(int count, Tracer::Object** world, Tracer::Ob
 
             Tracer::Object* hitObject = traceScene(count, world, testRay, testResult);
 
-            float distance = testResult.t;
 
             // A path from the sampled position and the light has been found
-            if (hitObject != NULL && hitObject->objectID == light->objectID && testResult.t <= distance) {
-                float clampedRange = distance;
-                float normalizedRange = (clampedRange / lightPower);
+            if (hitObject != NULL && hitObject->objectID == light->objectID && testResult.t <= lightPower) {
+                // float normalizedRange = (distance / lightPower);
 
-                float invRange = (1.0f - normalizedRange);
+                float falloff = lightPower / ((0.01 * 0.01) + powf(testResult.t, 2.f));
 
-                vec3 lightContribution = light->color * invRange;
+                vec3 lightContribution = (light->color * falloff) * lightBrightness;
 
                 lightHits++;
                 lightObtained += lightContribution;

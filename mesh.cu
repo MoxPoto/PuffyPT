@@ -193,22 +193,26 @@ namespace Tracer {
         result.v = 0;
 
         float tMax = closest;
+        float minimum = FLT_MIN;
+
         bool didHit = false;
 
         for (int i = 0; i < size; i++) {
             Triangle* triHere = triBuffer[i];
    
             // printf("[gpu]: triangle v1: %.2f, %.2f, %.2f\n", triHere->v1.x(), triHere->v1.y(), triHere->v1.z());
-
-            if (rayTriangleIntersect(ray.origin, ray.direction, triHere->v1, triHere->v2, triHere->v3, result.t, result.u, result.v) && result.t < tMax) {
-                tMax = result.t;
-                result.HitPos = ray.origin + (ray.direction * result.t);
+            HitResult placeholder = result;
+            if (rayTriangleIntersect(ray.origin, ray.direction, triHere->v1, triHere->v2, triHere->v3, placeholder.t, placeholder.u, placeholder.v) && placeholder.t < tMax && placeholder.t > minimum) {
+                tMax = placeholder.t;
+                result.HitPos = ray.origin + (ray.direction * placeholder.t);
                 result.HitNormal = triHere->normal;
                 
                 didHit = true;
             }
         }
 
+        closest = tMax;
+        
         return didHit;
 	}
 }
