@@ -12,7 +12,7 @@ constexpr float kEpsilon = 1e-8;
 constexpr float MAX_FLOAT = 1000000.0f;
 
 #define MOLLER_TRUMBORE
-#define CULLING
+// #define CULLING
 
 
 __host__ __device__ static bool rayTriangleIntersect(
@@ -187,7 +187,7 @@ namespace Tracer {
         //return true;
     }
 
-    __host__ __device__ bool Mesh::tryHit(const Ray& ray, float closest, HitResult& result) {
+    __host__ __device__ bool Mesh::tryHit(const Ray& ray, float& closest, HitResult& result) {
         result.t = 0;
         result.u = 0;
         result.v = 0;

@@ -26,7 +26,7 @@ namespace Tracer {
 		}
 
 		__device__ void SampleWorld(const HitResult& res, curandState* local_rand_state, float extraRand, const Ray& previousRay, vec3& attenuation, Ray& targetRay, Object* target) {
-			targetRay.origin = res.HitPos;
+			targetRay.origin = res.HitPos + (res.HitNormal * 0.001f);
 			targetRay.direction = reflect(previousRay.direction, res.HitNormal);
 
 			attenuation = (target->color * target->emission);

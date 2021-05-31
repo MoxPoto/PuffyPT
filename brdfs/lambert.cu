@@ -66,7 +66,7 @@ namespace Tracer {
 			targetRay.direction = unit_vector(newDirPos - rec.HitPos);
 			*/
 
-			targetRay.origin = rec.HitPos;
+			targetRay.origin = rec.HitPos + (rec.HitNormal * 0.001f);
 
 			float r1 = curand_uniform(local_rand_state);
 			float r2 = curand_uniform(local_rand_state);

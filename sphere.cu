@@ -16,7 +16,7 @@ namespace Tracer {
         center = position;
     }
 
-    __device__ bool Sphere::tryHit(const Ray& ray, float closest, HitResult& result) {
+    __device__ bool Sphere::tryHit(const Ray& ray, float& closest, HitResult& result) {
         result.t = 0;
         result.u = 0;
         result.v = 0;

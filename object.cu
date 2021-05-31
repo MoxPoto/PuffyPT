@@ -9,7 +9,7 @@ namespace Tracer {
 		emission = 1.f;
 	}
 
-	__host__ __device__ bool Object::tryHit(const Ray& ray, float closest, HitResult& result) {
+	__host__ __device__ bool Object::tryHit(const Ray& ray, float& closest, HitResult& result) {
 		return false;
 	}
 

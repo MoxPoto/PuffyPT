@@ -13,7 +13,7 @@ namespace Tracer {
 		vec3 center = vec3(0, 0, 0);
 
 		__host__ __device__ Sphere(vec3 position, float radius);
-		__host__ __device__ bool virtual tryHit(const Ray& ray, float closest, HitResult& result);
+		__host__ __device__ bool virtual tryHit(const Ray& ray, float& closest, HitResult& result);
 	};
 }
 

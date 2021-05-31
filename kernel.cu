@@ -82,6 +82,9 @@ __device__ Tracer::Object* traceScene(int count, Tracer::Object** world, const T
     float approxtMax = FLT_MAX;
     float minDistance = FLT_MIN;
 
+    vec3 hitPos;
+    vec3 hitNormal;
+
     Object* hitObject = NULL;
    
 
@@ -99,19 +102,24 @@ __device__ Tracer::Object* traceScene(int count, Tracer::Object** world, const T
             continue;
         }
 
-        float placeholdertMax = approxtMax;
-        
 
-        if (target->anyHit(ray, placeholdertMax) || aabbOverride) { 
+
+        if (target->anyHit(ray, approxtMax) || aabbOverride) { 
             // ok, then we trace the precise mesh
 
             if (target->tryHit(ray, t_max, output) && output.t > minDistance && output.t < t_max) {
                 t_max = output.t;
+                hitPos = output.HitPos;
+                hitNormal = output.HitNormal;
                 hitObject = target;
                 output.objId = i;
             }
         }
     }
+
+    output.t = t_max;
+    output.HitNormal = hitNormal;
+    output.HitPos = hitPos;
 
     return hitObject;
 }
@@ -131,7 +139,7 @@ __device__ Tracer::vec3 calcDirect(int count, Tracer::Object** world, Tracer::Ob
         Tracer::Object* light = *(world + i);
 
         if (light->emission >= EMISSIVE_MINIMUM) {
-            float lightPower = 15.f;// +((light->emission - EMISSIVE_MINIMUM) * 2.f); // The more intense emission is, more range is added
+            float lightPower = 50.f + ((light->emission - EMISSIVE_MINIMUM) * 2.f); // The more intense emission is, more range is added
             
             vec3 newOrigin = rec.HitPos + (rec.HitNormal * 0.001f);
             vec3 testDirection = unit_vector((light->position - newOrigin));
@@ -259,7 +267,7 @@ __global__ void DXHook::render(DXHook::RenderOptions options) {
     int random_idx = j * options.max_x + i;
 
     curandState local_rand_state = options.rand_state[random_idx];
-    
+
     curand_init(options.frameCount * options.max_x * options.max_y + j * options.max_x + i, 1, 0, &local_rand_state);
 
     //Denoising::GBuffer* gbuffer = ((options.gbufferPtr + random_idx)); // serves as a gbuffer access index too!!
@@ -278,39 +286,40 @@ __global__ void DXHook::render(DXHook::RenderOptions options) {
     );
     vec3 dir = unit_vector(camOrigin);
     // NOT MY CODE!! https://github.com/100PXSquared/public-starfalls/tree/master/raytracer
-  
+
     glm::mat4 rotationMat(1.f);
-    /*
+
     // X is roll..
     // Z is yaw
     // so Y is pitch!! YAY!! SOMETHING SORT OF SENSIBLE!!
 
-    rotationMat = glm::rotate(rotationMat, glm::radians(-options.pitch), glm::vec3(0, 1, 0));
-    rotationMat = glm::rotate(rotationMat, glm::radians(options.yaw), glm::vec3(0, 0, 1));
-//    rotationMat = glm::rotate(rotationMat, glm::radians(options.roll), glm::vec3(1, 0, 0));
-    */
-    
-    vec3 xaxis = cross(vec3(0, 0, 1.f), options.cameraDir);
-    xaxis.make_unit_vector();
+    rotationMat = glm::rotate(rotationMat, glm::radians(-options.cameraDir.x()), glm::vec3(0, 1, 0));
+    rotationMat = glm::rotate(rotationMat, glm::radians(options.cameraDir.y()), glm::vec3(0, 0, 1));
+    //    rotationMat = glm::rotate(rotationMat, glm::radians(options.roll), glm::vec3(1, 0, 0));
 
-    vec3 yaxis = cross(options.cameraDir, xaxis);
-    yaxis.make_unit_vector();
 
-    rotationMat[0][0] = xaxis.x();
-    rotationMat[0][1] = yaxis.x();
-    rotationMat[0][2] = options.cameraDir.x();
+        /*
+        vec3 xaxis = cross(vec3(0, 0, 1.f), options.cameraDir);
+        xaxis.make_unit_vector();
 
-    rotationMat[1][0] = xaxis.y();
-    rotationMat[1][1] = yaxis.y();
-    rotationMat[1][2] = options.cameraDir.y();
+        vec3 yaxis = cross(options.cameraDir, xaxis);
+        yaxis.make_unit_vector();
 
-    rotationMat[2][0] = xaxis.z();
-    rotationMat[2][1] = yaxis.z();
-    rotationMat[2][2] = options.cameraDir.z();
+        rotationMat[0][0] = xaxis.x();
+        rotationMat[0][1] = yaxis.x();
+        rotationMat[0][2] = options.cameraDir.x();
 
-    
+        rotationMat[1][0] = xaxis.y();
+        rotationMat[1][1] = yaxis.y();
+        rotationMat[1][2] = options.cameraDir.y();
+
+        rotationMat[2][0] = xaxis.z();
+        rotationMat[2][1] = yaxis.z();
+        rotationMat[2][2] = options.cameraDir.z();
+        */
+
     glm::vec4 preVec = rotationMat * glm::vec4(dir.x(), dir.y(), dir.z(), 0);
-    
+
     dir = vec3(preVec.x, preVec.y, preVec.z);
 
     vec3 origin(options.x, options.y, options.z);
@@ -364,6 +373,12 @@ __global__ void DXHook::render(DXHook::RenderOptions options) {
     vec3 curFrame = vec3(r, g, b);
 
     vec3 accumulated = (curFrame + previousFrame * options.frameCount) / (options.frameCount + 1);
+
+    // Accumulation can give way to NaN frames which result in black dots
+    // so, check if our new pixel is nan--if it is, then restore old frame
+
+    if (isnan(accumulated.x()) || isnan(accumulated.y()) || isnan(accumulated.z()))
+        accumulated = previousFrame;
 
     options.frameBuffer[pixel_index + 0] = accumulated.r();
     options.frameBuffer[pixel_index + 1] = accumulated.g();
