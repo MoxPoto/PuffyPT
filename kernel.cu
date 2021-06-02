@@ -78,39 +78,25 @@ __device__ Tracer::vec3 genSkyColor(Tracer::HDRI* mainHDRI, Tracer::SkyInfo skyI
 __device__ Tracer::Object* traceScene(int count, Tracer::Object** world, const Tracer::Ray& ray, Tracer::HitResult& output, bool aabbOverride = false) {
     using namespace Tracer;
 
-    float t_max = FLT_MAX;
-    float approxtMax = FLT_MAX;
-    float minDistance = FLT_MIN;
-
-
     Object* hitObject = NULL;
-   
+
+    output.t = FLT_MAX;
 
     for (int i = 0; i < count; i++) {
-        Tracer::Object* target;
+        Tracer::Object* target = *(world + i);
 
-        if (i == 0) {
-            target = *(world);
-        }
-        else {
-            target = *(world + i);
-        }
+        if (i == ray.ignoreID) continue;
 
-        if (target->objectID == ray.ignoreID) {
-            continue;
-        }
-
-
-
-        if (target->anyHit(ray, approxtMax) || aabbOverride) { 
+        if (target->anyHit(ray)) {
             // ok, then we trace the precise mesh
 
-            if (target->tryHit(ray, t_max, output)) {
-
-                output.objId = i;
+            if (target->tryHit(ray, output)) {
+                hitObject = target;
             }
         }
     }
+
+    output.HitPos = ray.origin + (ray.direction * output.t);
 
     return hitObject;
 }
@@ -438,6 +424,8 @@ __global__ void freeMem(Tracer::Object** world, Tracer::vec3* origin, int worldC
 GMOD_MODULE_OPEN()
 {
     using namespace Tracer;
+
+    cudaDeviceSetLimit(cudaLimitPrintfFifoSize, 1024000 * 10);
 
     AllocConsole();
     FILE* pFile = nullptr;

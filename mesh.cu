@@ -12,7 +12,8 @@ constexpr float kEpsilon = 1e-8;
 constexpr float MAX_FLOAT = 1000000.0f;
 
 #define MOLLER_TRUMBORE
-// #define CULLING
+#define CULLING
+
 
 
 __host__ __device__ static bool rayTriangleIntersect(
@@ -155,7 +156,7 @@ namespace Tracer {
         
     }
 
-    __host__ __device__ bool Mesh::anyHit(const Ray& ray, float& tMaxA) {
+    __host__ __device__ bool Mesh::anyHit(const Ray& ray) {
         
         vec3 nLocal = ray.invorig - ray.invdir * (minV + maxV) / 2.f;
 
@@ -166,7 +167,6 @@ namespace Tracer {
         double tNear = max(max(t1.x(), t1.y()), t1.z());
         double tFar = min(min(t2.x(), t2.y()), t2.z());
 
-        tMaxA = tFar;
 
         return !(tNear > tFar || tFar < 0);
         
@@ -187,32 +187,28 @@ namespace Tracer {
         //return true;
     }
 
-    __host__ __device__ bool Mesh::tryHit(const Ray& ray, float& closest, HitResult& result) {
-        result.t = 0;
-        result.u = 0;
-        result.v = 0;
-
-        float tMax = closest;
-        float minimum = FLT_MIN;
-
-        bool didHit = false;
+    __host__ __device__ bool Mesh::tryHit(const Ray& ray, HitResult& closestHit) {
+        bool bHit = false;
 
         for (int i = 0; i < size; i++) {
             Triangle* triHere = triBuffer[i];
    
-            // printf("[gpu]: triangle v1: %.2f, %.2f, %.2f\n", triHere->v1.x(), triHere->v1.y(), triHere->v1.z());
-            HitResult placeholder = result;
-            if (rayTriangleIntersect(ray.origin, ray.direction, triHere->v1, triHere->v2, triHere->v3, placeholder.t, placeholder.u, placeholder.v) && placeholder.t < tMax && placeholder.t > minimum) {
-                tMax = placeholder.t;
-                result.HitPos = ray.origin + (ray.direction * placeholder.t);
-                result.HitNormal = triHere->normal;
+            float t = 0.f;
+            float u = 0.f;
+            float v = 0.f;
+
+            if (rayTriangleIntersect(ray.origin, ray.direction, triHere->v1, triHere->v2, triHere->v3, t, u, v) && t > kEpsilon && t < closestHit.t) {
+                closestHit.t = t;
+                closestHit.u = u;
+                closestHit.v = v;
                 
-                didHit = true;
+                closestHit.HitNormal = triHere->normal;
+                closestHit.objId = objectID;
+
+                bHit = true;
             }
         }
 
-        closest = tMax;
-        
-        return didHit;
+        return bHit;
 	}
 }
