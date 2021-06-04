@@ -10,12 +10,13 @@
 namespace Tracer {
 	enum BRDF {
 		Lambertian,
-		Specular
+		Specular,
+		Refraction
 	};
 
 	struct LightingOptions {
 		float roughness = 0.0f;
-		float ior = 1.1f;
+		float ior = 1.33f;
 	};
 
 	class Object {

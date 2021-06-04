@@ -26,6 +26,7 @@
 #include "util/macros.h"
 #include "brdfs/lambert.cuh"
 #include "brdfs/specular.cuh"
+#include "brdfs/refraction.cuh"
 
 #include "dxhook/mainHook.h"
 #include "postprocess/mainDenoiser.cuh"
@@ -152,7 +153,7 @@ __device__ Tracer::vec3 calcDirect(int count, Tracer::Object** world, Tracer::Ob
 
 }
 
-__device__ Tracer::vec3 depthColor(int count, bool aabb, Tracer::HDRI* mainHDRI, Tracer::SkyInfo skyInfo, float* imgData, bool doSky, float extraRand, const Tracer::Ray& ray, Tracer::Object** world, curandState* local_rand_state, int max_depth) {
+__device__ Tracer::vec3 depthColor(DXHook::RenderOptions* options, const Tracer::Ray& ray, curandState* local_rand_state) {
     using namespace Tracer;
 
     Ray cur_ray = ray;
@@ -160,9 +161,9 @@ __device__ Tracer::vec3 depthColor(int count, bool aabb, Tracer::HDRI* mainHDRI,
     float pdf = 1.f / (2.f * M_PI);
 
 
-    for (int i = 0; i < max_depth; i++) {
+    for (int i = 0; i < options->max_depth; i++) {
         HitResult rec;
-        Tracer::Object* target = traceScene(count, world, cur_ray, rec);
+        Tracer::Object* target = traceScene(options->count, options->world, cur_ray, rec);
 
         if (target != NULL) {
             // set our current ray to the new formulated one (this being perfect diffuse)
@@ -173,10 +174,13 @@ __device__ Tracer::vec3 depthColor(int count, bool aabb, Tracer::HDRI* mainHDRI,
 
             switch (target->matType) {
                 case (BRDF::Lambertian):
-                    LambertBRDF::SampleWorld(rec, local_rand_state, extraRand, pdf, attenuation, new_ray, target);
+                    LambertBRDF::SampleWorld(rec, local_rand_state, options->curtime, pdf, attenuation, new_ray, target);
                     break;
                 case (BRDF::Specular):
-                    SpecularBRDF::SampleWorld(rec, local_rand_state, extraRand, cur_ray, attenuation, new_ray, target);
+                    SpecularBRDF::SampleWorld(rec, local_rand_state, options->curtime, cur_ray, attenuation, new_ray, target);
+                    break;
+                case (BRDF::Refraction):
+                    RefractBRDF::SampleWorld(rec, local_rand_state, options->curtime, cur_ray, attenuation, new_ray, target);
                     break;
                 default:
                     break;
@@ -190,8 +194,8 @@ __device__ Tracer::vec3 depthColor(int count, bool aabb, Tracer::HDRI* mainHDRI,
         else {
             // didnt hit, finish our depth trace by attenuating our final hit color by the sky color
 
-            if (doSky) {
-                vec3 skyColor = genSkyColor(mainHDRI, skyInfo, imgData, cur_ray.direction);
+            if (options->doSky) {
+                vec3 skyColor = genSkyColor(options->hdri, options->skyInfo, options->hdriData, cur_ray.direction);
 
                 return (currentLight * (skyColor * 0.20f));
             }
@@ -203,29 +207,29 @@ __device__ Tracer::vec3 depthColor(int count, bool aabb, Tracer::HDRI* mainHDRI,
     return vec3(0.0, 0.0, 0.0); // exceeded recursion
 }
 
-__device__ Tracer::vec3 pathtrace(int count, int currentPass, bool aabb, Tracer::SkyInfo skyInfo, Tracer::HDRI* mainHDRI, float* imgData, bool doSky, float extraRand, Tracer::Object** world, const Tracer::Ray& ray, curandState* local_rand_state, int samples, int max_depth) {
+__device__ Tracer::vec3 pathtrace(DXHook::RenderOptions* options, const Tracer::Ray& ray, curandState* local_rand_state) {
     using namespace Tracer;
     vec3 indirectLighting(0, 0, 0);
     vec3 directLighting(0, 0, 0); 
 
     HitResult result;
-    Tracer::Object* hitObject = traceScene(count, world, ray, result);
+    Tracer::Object* hitObject = traceScene(options->count, options->world, ray, result);
 
     if (hitObject != NULL) {
-        directLighting = calcDirect(count, world, hitObject, ray, result);
+        directLighting = calcDirect(options->count, options->world, hitObject, ray, result);
     }
 
-    for (int i = 0; i < samples; i++) {
-        indirectLighting += depthColor(count, aabb, mainHDRI, skyInfo, imgData, doSky, extraRand, ray, world, local_rand_state, max_depth);
+    for (int i = 0; i < options->samples; i++) {
+        indirectLighting += depthColor(options, ray, local_rand_state);
     }
 
-    indirectLighting /= (float)samples;
+    indirectLighting /= (float)options->samples;
 
 
-    if (currentPass == 0) { // Direct only
+    if (options->curPass == 0) { // Direct only
         return directLighting;  
     }
-    else if (currentPass == 1) { // Indirect only
+    else if (options->curPass == 1) { // Indirect only
         return indirectLighting;
     }
     else {
@@ -312,7 +316,7 @@ __global__ void DXHook::render(DXHook::RenderOptions options) {
         Ray newRay = ourRay;
         newRay.origin = newRay.origin + (result.HitNormal * 0.001f);
 
-        vec3 indirect = pathtrace(options.count, options.curPass, options.aabbOverride, options.skyInfo, options.hdri, options.hdriData, options.doSky, options.curtime, options.world, newRay, &local_rand_state, samples, max_depth);
+        vec3 indirect = pathtrace(&options, newRay, &local_rand_state);
         indirect.clamp();
 
         r = (indirect.r());

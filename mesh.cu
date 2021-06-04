@@ -12,7 +12,7 @@ constexpr float kEpsilon = 1e-8;
 constexpr float MAX_FLOAT = 1000000.0f;
 
 #define MOLLER_TRUMBORE
-#define CULLING
+// #define CULLING
 
 
 
