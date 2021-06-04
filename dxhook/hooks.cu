@@ -28,7 +28,7 @@
 #define PUFF_INCREMENT(name, variable) ImGui::Button(name); if (ImGui::IsItemActive()) { variable += 0.1f; }
 #define PUFF_DECREMENT(name, variable) ImGui::Button(name); if (ImGui::IsItemActive()) { variable -= 0.1f; }
 
-#define VERSION "PUFFY PT - 0.01"
+#define VERSION "PUFFY PT - 0.08"
 
 struct Vertex
 {

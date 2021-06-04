@@ -49,6 +49,9 @@ namespace Tracer {
 		extern __global__ void setObjPosition(Tracer::Object** world, int id, vec3 newPos);
 		extern CommandError SetObjectPosition(int id, vec3 position);
 
+		extern __global__ void setSphereSize(Tracer::Object** world, int id, float newSize);
+		extern CommandError SetSphereSize(int id, float newSize);
+
 		extern void SetCameraPos(float x, float y, float z);
 		extern void SetCameraAngles(vec3 camDir);
 	}

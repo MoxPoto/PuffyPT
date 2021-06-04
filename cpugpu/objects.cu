@@ -210,6 +210,25 @@ namespace Tracer {
 			return err;
 		}
 
+		__global__ void setSphereSize(Tracer::Object** world, int id, float newSize) {
+			Tracer::Sphere* ourSphere = static_cast<Tracer::Sphere*>(*(world + id));
+			ourSphere->radius = newSize;
+		}
+
+		CommandError SetSphereSize(int id, float newSize) {
+			CommandError err = CommandError::Success;
+
+			if (id >= DXHook::world_count) {
+				err = CommandError::NonexistantObject;
+				return err;
+			}
+
+			setSphereSize << <1, 1 >> > (DXHook::world, id, newSize);
+			checkCudaErrors(cudaDeviceSynchronize());
+			checkCudaErrors(cudaGetLastError());
+
+			return err;
+		}
 
 		void SetCameraPos(float x, float y, float z) {
 			if (DXHook::curX != x || DXHook::curY != y || DXHook::curZ != z) {

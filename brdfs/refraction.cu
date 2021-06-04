@@ -47,9 +47,9 @@ __device__ static bool refract(vec3 incidence, vec3 normal, float ior, vec3& out
 	}
 
 	float eta = etaI / etaT;
-	float k = 1 - powf(eta, 2) * (1.f - powf(cosI, 2));
+	float k = 1.f - powf(eta, 2) * (1.f - powf(cosI, 2));
 
-	if (k < 0) {
+	if (k < 0.f) {
 		return false;
 	} else {
 		outputVector = eta * incidence + (eta * cosI - sqrtf(k)) * normal;
@@ -63,6 +63,10 @@ namespace Tracer {
 			using SpecularBRDF::schlick;
 
 			float probability = curand_uniform(local_rand_state);
+
+			if (probability <= 0) // the ray shouldn't exist..
+				return;
+
 			float fresnel = schlick(dot(previousRay.direction, res.HitNormal), target->lighting.ior);
 
 			if (probability <= fresnel) {
@@ -72,13 +76,19 @@ namespace Tracer {
 			else {
 				// Take refraction path
 
-				targetRay.origin = res.HitPos + (previousRay.direction * 0.001f); // Nudge into the refraction medium
-			
-				
-				bool internalReflection = refract(previousRay.direction, res.HitNormal, target->lighting.ior, targetRay.direction);
+				targetRay.origin = res.HitPos + (res.HitNormal * 0.001f);
 
-				if (internalReflection) {
+
+				bool refracted = refract(previousRay.direction, res.HitNormal, target->lighting.ior, targetRay.direction);
+
+				if (!refracted) {
 					SpecularBRDF::SampleWorld(res, local_rand_state, extraRand, previousRay, attenuation, targetRay, target);
+					attenuation *= fresnel;
+				}
+				else {
+					targetRay.origin = res.HitPos + (previousRay.direction * 0.001f); // Nudge into the refraction medium
+
+					attenuation = (target->color * target->emission) * (1.f - fresnel);
 				}
 			}
 

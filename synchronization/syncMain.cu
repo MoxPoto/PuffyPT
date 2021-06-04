@@ -118,11 +118,51 @@ LUA_FUNCTION(SYNC_UploadMesh) {
 
 
 
-	Sync::Prop newProp;
-	newProp.gameID = gameID;
-	newProp.tracerID = ourID;
 
-	Sync::props.push_back(newProp);
+	return 0;
+}
+
+LUA_FUNCTION(SYNC_UploadSphere) {
+	using namespace Tracer;
+
+	LUA->CheckType(-5, Lua::Type::Number); // BRDF
+	LUA->CheckType(-4, Lua::Type::Number); // Emission
+	LUA->CheckType(-3, Lua::Type::Vector); // Color
+	LUA->CheckType(-2, Lua::Type::Vector); // Center
+	LUA->CheckType(-1, Lua::Type::Number); // Size
+
+	int ourID = CPU::AddTracerObject(CPU::Sphere);
+
+	int brdfType = static_cast<int>(LUA->GetNumber(-5));
+	float emission = static_cast<float>(LUA->GetNumber(-4));
+	Vector color = LUA->GetVector(-3);
+	Vector pos = LUA->GetVector(-2);
+	float size = static_cast<float>(LUA->GetNumber(-1));
+
+	CPU::CommandError cmdErr = CPU::SetColorEmission(ourID, vec3(color.x, color.y, color.z), emission);
+
+	if (cmdErr != CPU::CommandError::Success) {
+		std::cout << "Command error hit on line " << __LINE__ << "!!!\n";
+	}
+
+	CPU::CommandError cmdErr1 = CPU::SetBRDF(ourID, static_cast<BRDF>(brdfType));
+
+	if (cmdErr1 != CPU::CommandError::Success) {
+		std::cout << "Command error hit on line " << __LINE__ << "!!!\n";
+	}
+
+	CPU::CommandError cmdErr2 = CPU::SetObjectPosition(ourID, vec3(pos.x, pos.y, pos.z));
+
+	if (cmdErr2 != CPU::CommandError::Success) {
+		std::cout << "Command error hit on line " << __LINE__ << "!!!\n";
+	}
+
+	CPU::CommandError cmdErr3 = CPU::SetSphereSize(ourID, size);
+
+	if (cmdErr3 != CPU::CommandError::Success) {
+		std::cout << "Command error hit on line " << __LINE__ << "!!!\n";
+	}
+
 
 	return 0;
 }
@@ -139,6 +179,7 @@ namespace Tracer {
 
 			TABLE_FUNC("SetCameraPos", SYNC_SetCameraPos);
 			TABLE_FUNC("SetCameraAngles", SYNC_SetCameraAngles);
+			TABLE_FUNC("UploadSphere", SYNC_UploadSphere);
 			TABLE_FUNC("UploadMesh", SYNC_UploadMesh);
 
 			LUA->SetTable(-3);
