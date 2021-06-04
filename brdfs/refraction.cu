@@ -62,14 +62,17 @@ namespace Tracer {
 		__device__ void SampleWorld(const HitResult& res, curandState* local_rand_state, float extraRand, const Ray& previousRay, vec3& attenuation, Ray& targetRay, Object* target) {
 			using SpecularBRDF::schlick;
 
-			float probability = curand_uniform(local_rand_state);
+			float uniform = curand_uniform(local_rand_state);
 
-			if (probability <= 0) // the ray shouldn't exist..
+			float fresnel = schlick(dot(-previousRay.direction, res.HitNormal), target->lighting.ior);
+			/*
+			if (5 == 5) {
+				attenuation = vec3(fresnel, fresnel, fresnel);
 				return;
+			}
+			*/
 
-			float fresnel = schlick(dot(previousRay.direction, res.HitNormal), target->lighting.ior);
-
-			if (probability <= fresnel) {
+			if (uniform <= fresnel) {
 				// Take reflection path
 				SpecularBRDF::SampleWorld(res, local_rand_state, extraRand, previousRay, attenuation, targetRay, target);
 			}
@@ -83,16 +86,15 @@ namespace Tracer {
 
 				if (!refracted) {
 					SpecularBRDF::SampleWorld(res, local_rand_state, extraRand, previousRay, attenuation, targetRay, target);
-					attenuation *= fresnel;
+					attenuation /= fresnel;
 				}
 				else {
 					targetRay.origin = res.HitPos + (previousRay.direction * 0.001f); // Nudge into the refraction medium
 
-					attenuation = (target->color * target->emission) * (1.f - fresnel);
+					attenuation = (target->color * target->emission) / (1.f - fresnel);
 				}
 			}
 
-			attenuation /= probability;
 		}
 	}
 }
