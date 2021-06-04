@@ -75,6 +75,8 @@ namespace Tracer {
 			if (uniform <= fresnel) {
 				// Take reflection path
 				SpecularBRDF::SampleWorld(res, local_rand_state, extraRand, previousRay, attenuation, targetRay, target);
+
+				attenuation /= fresnel;
 			}
 			else {
 				// Take refraction path
@@ -91,7 +93,7 @@ namespace Tracer {
 				else {
 					targetRay.origin = res.HitPos + (previousRay.direction * 0.001f); // Nudge into the refraction medium
 
-					attenuation = (target->color * target->emission) / (1.f - fresnel);
+					attenuation /= (1.f - fresnel);
 				}
 			}
 

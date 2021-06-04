@@ -97,7 +97,15 @@ __device__ Tracer::Object* traceScene(int count, Tracer::Object** world, const T
         }
     }
 
-    output.HitPos = ray.origin + (ray.direction * output.t);
+    // Fix our shading normal and compute HitPos
+    if (hitObject != NULL) {
+        output.HitPos = ray.origin + (ray.direction * output.t);
+
+        bool inverted = dot(ray.direction, output.HitNormal) > 0.f;
+        if (inverted) {
+            output.HitNormal = -output.HitNormal;
+        }
+    }
 
     return hitObject;
 }
