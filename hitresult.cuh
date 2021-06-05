@@ -10,6 +10,7 @@ namespace Tracer {
 		vec3 HitNormal;
 		float t, u, v;
 		int objId;
+		bool backface = false;
 
 		__host__ __device__ HitResult() {};
 	};

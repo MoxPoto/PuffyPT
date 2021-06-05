@@ -102,6 +102,8 @@ __device__ Tracer::Object* traceScene(int count, Tracer::Object** world, const T
         output.HitPos = ray.origin + (ray.direction * output.t);
 
         bool inverted = dot(ray.direction, output.HitNormal) > 0.f;
+        output.backface = inverted;
+
         if (inverted) {
             output.HitNormal = -output.HitNormal;
         }

@@ -81,20 +81,17 @@ namespace Tracer {
 			else {
 				// Take refraction path
 
-				targetRay.origin = res.HitPos + (res.HitNormal * 0.001f);
+				
+				targetRay.origin = res.backface ? res.HitPos + (-res.HitNormal * 0.01f) : res.HitPos - (res.HitNormal * 0.01f);
 
 
 				bool refracted = refract(previousRay.direction, res.HitNormal, target->lighting.ior, targetRay.direction);
 
 				if (!refracted) {
 					SpecularBRDF::SampleWorld(res, local_rand_state, extraRand, previousRay, attenuation, targetRay, target);
-					attenuation /= fresnel;
 				}
-				else {
-					targetRay.origin = res.HitPos + (previousRay.direction * 0.001f); // Nudge into the refraction medium
-
-					attenuation /= (1.f - fresnel);
-				}
+				
+				attenuation /= (1.f - fresnel);
 			}
 
 		}
