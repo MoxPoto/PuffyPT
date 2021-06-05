@@ -321,7 +321,7 @@ __global__ void DXHook::render(DXHook::RenderOptions options) {
 
     int samples = options.samples;
     int max_depth = options.max_depth;
-    /*
+    
     if (hitObject != NULL) {
         Ray newRay = ourRay;
         newRay.origin = newRay.origin + (result.HitNormal * 0.001f);
@@ -342,12 +342,7 @@ __global__ void DXHook::render(DXHook::RenderOptions options) {
             b = skyColor.b();
         }
     }
-    */
-
-    vec3 pixelColor = options.hdri->getPixel(i, j, options.hdriData);
-    r = pixelColor.r() * 0.2f;
-    g = pixelColor.g() * 0.2f;
-    b = pixelColor.b() * 0.2f;
+    
 
     if (hitObject != NULL) {
         /*
@@ -418,7 +413,6 @@ __global__ void DXHook::registerRands(int max_x, int max_y, curandState* rand_st
 }
 
 __global__ void createHDRIGPU(Tracer::HDRI* targetHDRI, float* imageData) {
-    targetHDRI = new Tracer::HDRI();
 
     if (imageData == nullptr) {
         NULLPTR_HIT("createHDRIGPU: hit a nullptr on imageData!!");
@@ -506,7 +500,7 @@ GMOD_MODULE_OPEN()
     int width = HDRI_RESX;
     int height = HDRI_RESY;
     int comps = 3;
-    float* hdriImg = stbi_loadf(HDRI_LOCATION, &width, &height, &comps, 0);
+    float* hdriImg = stbi_loadf(HDRI_LOCATION, &width, &height, &comps, 3);
 
 
     if (hdriImg != NULL) {
@@ -515,7 +509,7 @@ GMOD_MODULE_OPEN()
         int startIdx = (3 * (1 * HDRI_RESX + 1));
         HOST_DEBUG("R: %.2f, G: %.2f, B: %.2f\n", hdriImg[startIdx], hdriImg[startIdx + 1], hdriImg[startIdx + 2]);
 
-        checkCudaErrors(cudaMemcpy(&DXHook::hdriData[0], &hdriImg[0], imageSize, cudaMemcpyHostToDevice));
+        checkCudaErrors(cudaMemcpy(DXHook::hdriData, hdriImg, imageSize, cudaMemcpyHostToDevice));
         DEBUGHOST("Done, instantiating HDRI on gpu now..");
         std::cout << "[host]: image size = " << sizeof(hdriImg) << ", imageSize = " << imageSize << "\n";
         

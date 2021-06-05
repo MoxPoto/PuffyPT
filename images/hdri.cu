@@ -55,6 +55,7 @@ namespace Tracer {
 
 		
 		vec3 color = getPixel(x, y, imagePtr);
+		color = color * 0.1f;
 
 		return color;
 	}
