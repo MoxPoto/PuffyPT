@@ -90,8 +90,10 @@ namespace Tracer {
 				if (!refracted) {
 					SpecularBRDF::SampleWorld(res, local_rand_state, extraRand, previousRay, attenuation, targetRay, target);
 				}
+
 				
-				attenuation /= (1.f - fresnel);
+				float weight = (1.f - fresnel);
+				attenuation = vec3(weight, weight, weight);
 			}
 
 		}
