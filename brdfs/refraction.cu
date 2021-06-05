@@ -49,7 +49,7 @@ __device__ static bool refract(vec3 incidence, vec3 normal, float ior, vec3& out
 	float eta = etaI / etaT;
 	float k = 1.f - powf(eta, 2) * (1.f - powf(cosI, 2));
 
-	if (k < 0.f) {
+	if (k <= 0.f) {
 		return false;
 	} else {
 		outputVector = eta * incidence + (eta * cosI - sqrtf(k)) * normal;
@@ -61,10 +61,12 @@ namespace Tracer {
 	namespace RefractBRDF {
 		__device__ void SampleWorld(const HitResult& res, curandState* local_rand_state, float extraRand, const Ray& previousRay, vec3& attenuation, Ray& targetRay, Object* target) {
 			using SpecularBRDF::schlick;
+			using SpecularBRDF::reflect;
 
 			float uniform = curand_uniform(local_rand_state);
+			float currentIOR = res.backface ? 1.00f : target->lighting.ior;
 
-			float fresnel = schlick(dot(-previousRay.direction, res.HitNormal), target->lighting.ior);
+			float fresnel = schlick(dot(-previousRay.direction, res.HitNormal), currentIOR);
 			/*
 			if (5 == 5) {
 				attenuation = vec3(fresnel, fresnel, fresnel);
@@ -74,9 +76,11 @@ namespace Tracer {
 
 			if (uniform <= fresnel) {
 				// Take reflection path
-				SpecularBRDF::SampleWorld(res, local_rand_state, extraRand, previousRay, attenuation, targetRay, target);
+				targetRay.origin = res.HitPos + (res.HitNormal * 0.001f);
+				targetRay.direction = reflect(previousRay.direction, res.HitNormal);
 
-				attenuation /= fresnel;
+				float weight = (fresnel);
+				attenuation = vec3(weight, weight, weight);
 			}
 			else {
 				// Take refraction path
@@ -84,11 +88,11 @@ namespace Tracer {
 				
 				targetRay.origin = res.backface ? res.HitPos + (-res.HitNormal * 0.01f) : res.HitPos - (res.HitNormal * 0.01f);
 
-
-				bool refracted = refract(previousRay.direction, res.HitNormal, target->lighting.ior, targetRay.direction);
+				bool refracted = refract(previousRay.direction, res.HitNormal, currentIOR, targetRay.direction);
 
 				if (!refracted) {
-					SpecularBRDF::SampleWorld(res, local_rand_state, extraRand, previousRay, attenuation, targetRay, target);
+					targetRay.origin = res.HitPos + (res.HitNormal * 0.001f);
+					targetRay.direction = reflect(previousRay.direction, res.HitNormal);
 				}
 
 				

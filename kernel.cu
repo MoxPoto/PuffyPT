@@ -66,13 +66,13 @@ __device__ float deg2rad(const float& degree) {
 __device__ Tracer::vec3 genSkyColor(Tracer::HDRI* mainHDRI, Tracer::SkyInfo skyInfo, float* imgData, const Tracer::vec3& dir) {
     using namespace Tracer;
 
-    
+    /*
     float t = 0.5f * (dir.z() + 1.0f);
     vec3 skyColor = (1.0f - t) * skyInfo.azimuth + t * skyInfo.zenith;
-    
-    /*
-    vec3 skyColor = mainHDRI->getPixelFromRay(dir, imgData);
     */
+    
+    vec3 skyColor = mainHDRI->getPixelFromRay(dir, imgData);
+    
     return skyColor;
 }
 
@@ -321,7 +321,7 @@ __global__ void DXHook::render(DXHook::RenderOptions options) {
 
     int samples = options.samples;
     int max_depth = options.max_depth;
-
+    /*
     if (hitObject != NULL) {
         Ray newRay = ourRay;
         newRay.origin = newRay.origin + (result.HitNormal * 0.001f);
@@ -342,6 +342,12 @@ __global__ void DXHook::render(DXHook::RenderOptions options) {
             b = skyColor.b();
         }
     }
+    */
+
+    vec3 pixelColor = options.hdri->getPixel(i, j, options.hdriData);
+    r = pixelColor.r() * 0.2f;
+    g = pixelColor.g() * 0.2f;
+    b = pixelColor.b() * 0.2f;
 
     if (hitObject != NULL) {
         /*
@@ -509,7 +515,7 @@ GMOD_MODULE_OPEN()
         int startIdx = (3 * (1 * HDRI_RESX + 1));
         HOST_DEBUG("R: %.2f, G: %.2f, B: %.2f\n", hdriImg[startIdx], hdriImg[startIdx + 1], hdriImg[startIdx + 2]);
 
-        checkCudaErrors(cudaMemcpy(DXHook::hdriData, hdriImg, imageSize, cudaMemcpyHostToDevice));
+        checkCudaErrors(cudaMemcpy(&DXHook::hdriData[0], &hdriImg[0], imageSize, cudaMemcpyHostToDevice));
         DEBUGHOST("Done, instantiating HDRI on gpu now..");
         std::cout << "[host]: image size = " << sizeof(hdriImg) << ", imageSize = " << imageSize << "\n";
         
