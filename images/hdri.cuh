@@ -7,13 +7,13 @@ namespace Tracer {
 	public:
 		int resX = 0;
 		int resY = 0;
+		float brightness = 1.f;
 
-
-		__host__ __device__ HDRI();
-		__host__ __device__ float getPitch(const vec3& N);
-		__host__ __device__ float getYaw(const vec3& N);
-		__host__ __device__ vec3 getPixel(const int& x, const int& y, float* imagePtr);
-		__host__ __device__ vec3 getPixelFromRay(const vec3& vec, float* imagePtr);
+		__device__ HDRI();
+		__device__ float getPitch(const vec3& N);
+		__device__ float getYaw(const vec3& N);
+		__device__ vec3 getPixel(const int& x, const int& y, float* imagePtr);
+		__device__ vec3 getPixelFromRay(const vec3& vec, float* imagePtr);
 	};
 }
 

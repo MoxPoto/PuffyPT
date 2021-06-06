@@ -27,6 +27,7 @@
 #include "brdfs/lambert.cuh"
 #include "brdfs/specular.cuh"
 #include "brdfs/refraction.cuh"
+#include "images/hdriUtility.cuh"
 
 #include "dxhook/mainHook.h"
 #include "postprocess/mainDenoiser.cuh"
@@ -46,9 +47,10 @@
 #define HEIGHT 270
 #define checkCudaErrors(val) DXHook::check_cuda( (val), #val, __FILE__, __LINE__ )
 #define DEBUGHOST(str) printf("[host]: %s\n", str);
-#define HDRI_LOCATION "C:\\pathtracer\\hdrs\\noon_grass_1k.hdr"
-#define HDRI_RESX 1024
-#define HDRI_RESY 512
+#define HDRI_LOCATION "C:\\pathtracer\\hdrs\\shanghai_bund_1k.hdr"
+#define HDRI_FOLDER "C:\\pathtracer\\hdrs"
+#define HDRI_RESX 2048
+#define HDRI_RESY 1024
 
 void DXHook::check_cuda(cudaError_t result, char const* const func, const char* const file, int const line) {
     if (result) {
@@ -321,6 +323,9 @@ __global__ void DXHook::render(DXHook::RenderOptions options) {
 
     int samples = options.samples;
     int max_depth = options.max_depth;
+
+    // while we're here, let's update our HDRI's brightness as told to by the Host
+    options.hdri->brightness = options.hdriBrightness;
     
     if (hitObject != NULL) {
         Ray newRay = ourRay;
@@ -412,20 +417,7 @@ __global__ void DXHook::registerRands(int max_x, int max_y, curandState* rand_st
     *(gbufferData + pixel_index) = myBuffer;
 }
 
-__global__ void createHDRIGPU(Tracer::HDRI* targetHDRI, float* imageData) {
 
-    if (imageData == nullptr) {
-        NULLPTR_HIT("createHDRIGPU: hit a nullptr on imageData!!");
-    }
-
-    // (targetHDRI)->loadData(imageData);
-    (targetHDRI)->resX = HDRI_RESX;
-    (targetHDRI)->resY = HDRI_RESY;
-}
-
-__global__ void initializeHDRI(float* hdriData, size_t imageSize) {
-    (hdriData) = new float[imageSize];
-}
 
 __global__ void freeMem(Tracer::Object** world, Tracer::vec3* origin, int worldCount) {
     for (int i = 0; i < worldCount; i++) {
@@ -497,32 +489,25 @@ GMOD_MODULE_OPEN()
 
     DEBUGHOST("Reading HDRI from disk..");
     
-    int width = HDRI_RESX;
-    int height = HDRI_RESY;
-    int comps = 3;
-    float* hdriImg = stbi_loadf(HDRI_LOCATION, &width, &height, &comps, 3);
+    bool correctLoad = LoadHDRI(HDRI_LOCATION);
 
-
-    if (hdriImg != NULL) {
-        DEBUGHOST("Loaded HDRI, copying to VRAM..");
-        DEBUGHOST("Sample R, G, B:");
-        int startIdx = (3 * (1 * HDRI_RESX + 1));
-        HOST_DEBUG("R: %.2f, G: %.2f, B: %.2f\n", hdriImg[startIdx], hdriImg[startIdx + 1], hdriImg[startIdx + 2]);
-
-        checkCudaErrors(cudaMemcpy(DXHook::hdriData, hdriImg, imageSize, cudaMemcpyHostToDevice));
-        DEBUGHOST("Done, instantiating HDRI on gpu now..");
-        std::cout << "[host]: image size = " << sizeof(hdriImg) << ", imageSize = " << imageSize << "\n";
-        
-        createHDRIGPU << <1, 1 >> > (DXHook::mainHDRI, DXHook::hdriData);
-        checkCudaErrors(cudaGetLastError());
-        checkCudaErrors(cudaDeviceSynchronize());
-
-        DEBUGHOST("HDRI created on gpu with image data intact, continuing setup..");
-    }
-    else {
-        NULLPTR_HIT("Hit nullptr on hdriImg!!");
+    if (!correctLoad) {
+        DEBUGHOST("Loading HDRI failed! Not continuing tracer loading..");
         return 0;
     }
+
+
+    FindHDRIs(HDRI_FOLDER, DXHook::hdriList, DXHook::hdriListSize);
+
+    for (int i = 0; i < DXHook::hdriListSize; i++) {
+        std::string path = DXHook::hdriList.at(i);
+
+        if (path == HDRI_LOCATION) {
+            DXHook::curHDRI = i;
+            break;
+        }
+    }
+
 
     DEBUGHOST("Starting random threads..");
 
@@ -547,9 +532,6 @@ GMOD_MODULE_OPEN()
     Sync::Initialize(LUA);
     DEBUGHOST("Finished!");
 
-    DEBUGHOST("Clearing HDRI on CPU since it's on the GPU..");
-    stbi_image_free(hdriImg);
-    DEBUGHOST("Done!");
     return 0;
 }
 

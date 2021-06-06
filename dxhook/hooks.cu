@@ -21,12 +21,18 @@
 #include <chrono>
 #include <random>
 
+#include "../images/hdriUtility.cuh"
+
+
 #define WIDTH 480
 #define HEIGHT 270
 #define checkCudaErrors(val) DXHook::check_cuda( (val), #val, __FILE__, __LINE__ )
-
+#define HDRI_FOLDER "C:\\pathtracer\\hdrs"
 #define PUFF_INCREMENT(name, variable) ImGui::Button(name); if (ImGui::IsItemActive()) { variable += 0.1f; }
 #define PUFF_DECREMENT(name, variable) ImGui::Button(name); if (ImGui::IsItemActive()) { variable -= 0.1f; }
+
+#define PUFF_INCREMENT_RESET(name, variable) ImGui::Button(name); if (ImGui::IsItemActive()) { variable += 0.1f; frameCount = 0;}
+#define PUFF_DECREMENT_RESET(name, variable) ImGui::Button(name); if (ImGui::IsItemActive()) { variable -= 0.1f; frameCount = 0;}
 
 #define VERSION "PUFFY PT - 0.08"
 
@@ -85,6 +91,11 @@ namespace DXHook {
 	bool showPathtracer = true;
 	std::chrono::steady_clock::time_point lastTime;
 	float curTime = 0.f;
+
+	int curHDRI = 0;
+	std::vector<std::string> hdriList;
+	int hdriListSize = 0;
+	float hdriBrightness = 1.f;
 
 	HRESULT __stdcall EndSceneHook(LPDIRECT3DDEVICE9 pDevice) {
 		using Tracer::vec3;
@@ -206,7 +217,32 @@ namespace DXHook {
 
 		PUFF_INCREMENT("Exposure Increase", mainCam.exposure);
 		PUFF_DECREMENT("Exposure Decrease", mainCam.exposure);
+		ImGui::TextColored(ImVec4(1, 0, 0, 1), "HDRI Index: %d", curHDRI);
+		ImGui::Text("Current HDRI: ");
+		ImGui::SameLine();
+		ImGui::Text(hdriList.at(curHDRI).c_str());
 		
+		if (ImGui::Button("Left")) {
+			curHDRI = max(min(curHDRI - 1, hdriListSize - 1), 0);
+		
+			Tracer::LoadHDRI(hdriList.at(curHDRI));
+			frameCount = 0;
+		}
+
+		if (ImGui::Button("Right")) {
+			curHDRI = max(min(curHDRI + 1, hdriListSize - 1), 0);
+
+			Tracer::LoadHDRI(hdriList.at(curHDRI));
+			frameCount = 0;
+		}
+
+		if (ImGui::Button("Refresh HDRI List")) {
+			Tracer::FindHDRIs(HDRI_FOLDER, hdriList, hdriListSize);
+		}
+
+		PUFF_INCREMENT_RESET("Increase HDRI Brightness", hdriBrightness);
+		PUFF_DECREMENT_RESET("Decrease HDRI Brightness", hdriBrightness);
+
 		ImGui::Checkbox("Enable Postprocessing?", &denoiserEnabled);
 		ImGui::Checkbox("Show Output?", &showPathtracer);
 		ImGui::Checkbox("Show Sky?", &showSky);
@@ -277,6 +313,7 @@ namespace DXHook {
 			options.skyInfo = skyInfo;
 			options.cameraDir = camDir;
 			options.aabbOverride = aabbOverride;
+			options.hdriBrightness = hdriBrightness;
 			render << <blocks, threads >> > (options);
 			checkCudaErrors(cudaGetLastError());
 			checkCudaErrors(cudaDeviceSynchronize());

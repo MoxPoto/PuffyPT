@@ -8,6 +8,7 @@
 #include <Windows.h>
 #include <vector>
 #include <chrono>
+#include <string>
 
 #include "cuda_runtime.h"
 #include "curand_kernel.h"
@@ -36,6 +37,10 @@ namespace DXHook {
 	extern Tracer::HDRI* mainHDRI;
 	extern float* hdriData;
 	extern int currentPass;
+	extern int curHDRI;
+	extern std::vector<std::string> hdriList;
+	extern int hdriListSize;
+	
 
 	extern float fov;
 	extern Tracer::vec3* origin;
@@ -68,6 +73,8 @@ namespace DXHook {
 	extern ImFont* ourFont;
 	extern int samples, max_depth;
 
+	extern float hdriBrightness;
+
 	struct RenderOptions {
 		float* frameBuffer;
 		Tracer::Object** world;
@@ -94,6 +101,7 @@ namespace DXHook {
 		float* hdriData;
 		Tracer::SkyInfo skyInfo;
 		Tracer::Post::GBuffer* gbufferPtr;
+		float hdriBrightness; // This is just to communicate wanted HDRI brightness from host to device quicker
 	};
 
 	extern __global__ void render(RenderOptions options);
