@@ -6,6 +6,6 @@
 
 namespace Tracer {
 	namespace RefractBRDF {
-		__device__ void SampleWorld(const HitResult& res, curandState* local_rand_state, float extraRand, const Ray& previousRay, vec3& attenuation, Ray& targetRay, Object* target);
+		__device__ void SampleWorld(const HitResult& res, curandState* local_rand_state, float& pdf, float extraRand, const Ray& previousRay, vec3& attenuation, Ray& targetRay, Object* target);
 	}
 }

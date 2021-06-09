@@ -7,6 +7,11 @@
 #include "hitresult.cuh"
 #include "ray.cuh"
 
+#include <glm/glm.hpp>
+#include <glm/mat3x3.hpp>
+#include <glm/vec3.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
 namespace Tracer {
 	enum BRDF {
 		Lambertian,
@@ -16,7 +21,7 @@ namespace Tracer {
 
 	struct LightingOptions {
 		float roughness = 0.0f;
-		float ior = 1.50f;
+		float ior = 2.41f;
 	};
 
 	class Object {
@@ -27,6 +32,7 @@ namespace Tracer {
 		float emission = 1.f;
 		BRDF matType = BRDF::Lambertian;
 		LightingOptions lighting;
+		glm::mat3x3 transform;
 
 		__host__ __device__ Object();
 

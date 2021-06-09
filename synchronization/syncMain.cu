@@ -117,9 +117,9 @@ LUA_FUNCTION(SYNC_UploadMesh) {
 	}
 
 
+	LUA->PushNumber(ourID);
 
-
-	return 0;
+	return 1;
 }
 
 LUA_FUNCTION(SYNC_UploadSphere) {
@@ -163,6 +163,31 @@ LUA_FUNCTION(SYNC_UploadSphere) {
 		std::cout << "Command error hit on line " << __LINE__ << "!!!\n";
 	}
 
+	LUA->PushNumber(ourID);
+
+	return 1;
+}
+
+LUA_FUNCTION(SYNC_SetLighting) {
+	using namespace Tracer;
+
+	LUA->CheckType(-3, Lua::Type::Number); // ID
+	LUA->CheckType(-2, Lua::Type::Number); // Roughness
+	LUA->CheckType(-1, Lua::Type::Number); // IoR
+
+	int id = static_cast<int>(LUA->GetNumber(-3));
+	float roughness = static_cast<float>(LUA->GetNumber(-2));
+	float ior = static_cast<float>(LUA->GetNumber(-1));
+
+	LightingOptions newOptions;
+	newOptions.roughness = roughness;
+	newOptions.ior = ior;
+
+	CPU::CommandError cmdErr = CPU::CommitObjectLighting(id, newOptions);
+
+	if (cmdErr != CPU::CommandError::Success) {
+		std::cout << "Command error hit on line " << __LINE__ << "!!!\n";
+	}
 
 	return 0;
 }
@@ -181,6 +206,7 @@ namespace Tracer {
 			TABLE_FUNC("SetCameraAngles", SYNC_SetCameraAngles);
 			TABLE_FUNC("UploadSphere", SYNC_UploadSphere);
 			TABLE_FUNC("UploadMesh", SYNC_UploadMesh);
+			TABLE_FUNC("SetObjectLighting", SYNC_SetLighting);
 
 			LUA->SetTable(-3);
 

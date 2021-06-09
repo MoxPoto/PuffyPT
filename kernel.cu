@@ -180,8 +180,14 @@ __device__ Tracer::vec3 depthColor(DXHook::RenderOptions* options, const Tracer:
         if (target != NULL) {
             // set our current ray to the new formulated one (this being perfect diffuse)
             // and attenuate our color by the albedo we hit, but we also should multiply our albedo by the objects emission
+
+            if (target->emission > EMISSIVE_MINIMUM) {
+                // just return the light
+                return currentLight * (target->color * target->emission);
+            }
+
             Ray new_ray(vec3(0, 0, 0), vec3(0, 0, 0));
-            vec3 attenuation(0, 0, 0);
+            vec3 attenuation = currentLight;
             float pdf = 1.f;
 
             switch (target->matType) {
@@ -192,13 +198,24 @@ __device__ Tracer::vec3 depthColor(DXHook::RenderOptions* options, const Tracer:
                     SpecularBRDF::SampleWorld(rec, local_rand_state, options->curtime, cur_ray, attenuation, new_ray, target);
                     break;
                 case (BRDF::Refraction):
-                    RefractBRDF::SampleWorld(rec, local_rand_state, options->curtime, cur_ray, attenuation, new_ray, target);
+                    RefractBRDF::SampleWorld(rec, local_rand_state, pdf, options->curtime, cur_ray, attenuation, new_ray, target);
                     break;
                 default:
                     break;
             }
 
             currentLight *= attenuation / pdf;
+            
+            // russian roulette to terminate paths that barely contain any visible contribution
+            // from: https://computergraphics.stackexchange.com/a/5808
+            float prob = max(currentLight.x(), max(currentLight.y(), currentLight.z()));
+
+            if (curand_uniform(local_rand_state) > prob) {
+                return currentLight;
+            }
+
+            // ok, now we add the energy lost from russian rouletting:
+            currentLight *= 1 / prob;
 
             cur_ray = new_ray;
             
@@ -209,7 +226,7 @@ __device__ Tracer::vec3 depthColor(DXHook::RenderOptions* options, const Tracer:
             if (options->doSky) {
                 vec3 skyColor = genSkyColor(options->hdri, options->skyInfo, options->hdriData, cur_ray.direction);
 
-                return (currentLight * (skyColor * 0.20f));
+                return (currentLight * (skyColor));
             }
             else {
                 return (currentLight * vec3(0.3, 0.3, 0.3));
