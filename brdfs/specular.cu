@@ -31,10 +31,9 @@ namespace Tracer {
 
 			attenuation = (target->color * target->emission);
 
-
-			if (target->lighting.roughness > 0.05f) {
-				float fresnelApprox = schlick(dot(targetRay.direction, previousRay.direction), target->lighting.ior);
-				fresnelApprox = lerp(fresnelApprox, 0.f, 1.f - target->lighting.roughness); // Weight fresnel approximation by the roughness to pure specular
+			if (target->lighting.roughness > 0.03f) {
+				float fresnelApprox = schlick(dot(-previousRay.direction, res.HitNormal), target->lighting.ior);
+				fresnelApprox = lerp(fresnelApprox, 0.f, 1.f - target->lighting.roughness * target->lighting.roughness); // Weight fresnel approximation by the roughness to pure specular
 
 				vec3 sampleDir = fresnelApprox * LambertBRDF::random_in_unit_sphere(local_rand_state, extraRand);
 

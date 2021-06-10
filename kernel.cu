@@ -208,6 +208,8 @@ __device__ Tracer::vec3 depthColor(DXHook::RenderOptions* options, const Tracer:
             
             // russian roulette to terminate paths that barely contain any visible contribution
             // from: https://computergraphics.stackexchange.com/a/5808
+
+            /*
             float prob = max(currentLight.x(), max(currentLight.y(), currentLight.z()));
 
             if (curand_uniform(local_rand_state) > prob) {
@@ -216,6 +218,7 @@ __device__ Tracer::vec3 depthColor(DXHook::RenderOptions* options, const Tracer:
 
             // ok, now we add the energy lost from russian rouletting:
             currentLight *= 1 / prob;
+            */
 
             cur_ray = new_ray;
             
