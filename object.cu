@@ -9,6 +9,13 @@ namespace Tracer {
 		emission = 1.f;
 	}
 
+	__host__ __device__ vec3 Object::getColor(const HitResult& rayThatHit) {
+		if (!texture.initialized) 
+			return texture.GetPixel(rayThatHit.u, rayThatHit.v);
+
+		return texture.GetPixel(rayThatHit.u, rayThatHit.v) * color;
+	}
+
 	__host__ __device__ bool Object::tryHit(const Ray& ray, HitResult& result) {
 		return false;
 	}

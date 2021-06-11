@@ -6,6 +6,7 @@
 #include "vec3.cuh"
 #include "hitresult.cuh"
 #include "ray.cuh"
+#include "images/texture.cuh"
 
 #include <glm/glm.hpp>
 #include <glm/mat3x3.hpp>
@@ -33,9 +34,11 @@ namespace Tracer {
 		BRDF matType = BRDF::Lambertian;
 		LightingOptions lighting;
 		glm::mat3x3 transform;
+		Texture texture;
 
 		__host__ __device__ Object();
 
+		__host__ __device__ vec3 getColor(const HitResult& rayThatHit);
 		__host__ __device__ bool virtual tryHit(const Ray& ray, HitResult& result);
 		__host__ __device__ bool virtual anyHit(const Ray& ray);
 	};

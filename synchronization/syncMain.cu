@@ -11,7 +11,11 @@
 
 using namespace GarrysMod;
 
-
+static struct Vertex {
+	Vector position;
+	float u;
+	float v;
+};
 
 LUA_FUNCTION(SYNC_SetCameraPos) {
 	using namespace Tracer;
@@ -35,6 +39,7 @@ LUA_FUNCTION(SYNC_SetCameraAngles) {
 
 LUA_FUNCTION(SYNC_UploadMesh) {
 	using namespace Tracer;
+	LUA->CheckType(-9, Lua::Type::String); // Texture Name
 	LUA->CheckType(-8, Lua::Type::Vector); // Position
 	LUA->CheckType(-7, Lua::Type::Number); // BRDF
 	LUA->CheckType(-6, Lua::Type::Vector); // AABB Min
@@ -44,15 +49,24 @@ LUA_FUNCTION(SYNC_UploadMesh) {
 	LUA->CheckType(-2, Lua::Type::Number); // Game Id
 	LUA->CheckType(-1, Lua::Type::Table); // Vertices
 
+	const char* textureName = LUA->GetString(-9);
+	Pixel* deviceTexturePtr = NULL;
+
+	if (IsTextureCached(textureName)) {
+		deviceTexturePtr = RetrieveCachedTexture(textureName);
+	}
+
 	int ourID = CPU::AddTracerObject(CPU::TriangleMesh);
 
 	size_t len = LUA->ObjLen();
 	printf("[host] Received table with length: %s\n", std::to_string(len).c_str());
-	std::vector<Vector> verts;
+	std::vector<Vertex> verts;
 
-	for (int index = 0; index <= len; index++) {
+	for (int index = 0; index <= len; index+=3) {
 		// Our actual index will be +1 because Lua 1 indexes tables.
 		int actualIndex = index + 1;
+		Vertex vert; // Create vertex to work on
+
 		// Push our target index to the stack.
 		LUA->PushNumber(actualIndex);
 		// Get the table data at this index (and not get the table, which is what I thought this did.)
@@ -60,22 +74,44 @@ LUA_FUNCTION(SYNC_UploadMesh) {
 		// Check for the sentinel nil element.
 		if (LUA->GetType(-1) == GarrysMod::Lua::Type::Nil) break;
 		// Get it's value.
-		verts.push_back(LUA->GetVector());
+		vert.position = LUA->GetVector();
 		// Pop it off again.
 		LUA->Pop(1);
+
+		LUA->PushNumber(actualIndex + 1);
+		LUA->GetTable(-2);
+		if (LUA->GetType(-1) == GarrysMod::Lua::Type::Nil) break;
+		vert.u = static_cast<float>(LUA->GetNumber()); // get our U
+		LUA->Pop(1);
+		
+		LUA->PushNumber(actualIndex + 2);
+		LUA->GetTable(-2);
+		if (LUA->GetType(-1) == GarrysMod::Lua::Type::Nil) break;
+		vert.v = static_cast<float>(LUA->GetNumber()); // get our V
+		LUA->Pop(1);
+
+		verts.push_back(vert);
 	}
 
 	printf("[host] Pushed %d triangles\n", verts.size());
 
 	for (size_t i = 0; i < verts.size(); i += 3) {
-		vec3 v1(verts[i].x, verts[i].y, verts[i].z);
-		vec3 v2(verts[i + 1].x, verts[i + 1].y, verts[i + 1].z);
-		vec3 v3(verts[i + 2].x, verts[i + 2].y, verts[i + 2].z);
+		vec3 v1(verts[i].position.x, verts[i].position.y, verts[i].position.z);
+		vec3 v2(verts[i + 1].position.x, verts[i + 1].position.y, verts[i + 1].position.z);
+		vec3 v3(verts[i + 2].position.x, verts[i + 2].position.y, verts[i + 2].position.z);
+
+		float u1 = verts[i].u;
+		float u2 = verts[i + 1].u;
+		float u3 = verts[i + 2].u;
+
+		float vt1 = verts[i].v;
+		float vt2 = verts[i + 1].v;
+		float vt3 = verts[i + 2].v;
 
 		// printf("[host] v1: %.2f, %.2f, %.2f\n", v1.x(), v1.y(), v1.z());
 		// printf("[host] v1 - verts : %.2f, %.2f, %.2f\n", verts[i].x, verts[i].y, verts[i].z);
 		
-		CPU::CommandError err = CPU::InsertObjectTri(ourID, v1, v2, v3);
+		CPU::CommandError err = CPU::InsertObjectTri(ourID, v1, v2, v3, u1, u2, u3, vt1, vt2, vt3);
 		if (err != CPU::CommandError::Success) {
 			std::cout << "Command error hit on line " << __LINE__ << "!!!\n";
 		}

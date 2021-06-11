@@ -29,7 +29,7 @@ namespace Tracer {
 			targetRay.origin = res.HitPos + (res.HitNormal * 0.001f);
 			targetRay.direction = reflect(previousRay.direction, res.HitNormal);
 
-			attenuation = (target->color * target->emission);
+			attenuation = (target->getColor(res) * target->emission);
 
 			if (target->lighting.roughness > 0.03f) {
 				float fresnelApprox = schlick(dot(-previousRay.direction, res.HitNormal), target->lighting.ior);

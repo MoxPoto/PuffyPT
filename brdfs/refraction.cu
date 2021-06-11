@@ -126,7 +126,7 @@ namespace Tracer {
 				}
 
 				if (res.backface) {
-					attenuation = calculateBeersLaw(target->color, res.t);
+					attenuation = calculateBeersLaw(target->getColor(res), res.t);
 				}
 				
 				float weight = (1.f - fresnel);

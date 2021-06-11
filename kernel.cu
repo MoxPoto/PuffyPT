@@ -46,7 +46,6 @@
 #define WIDTH 480
 #define HEIGHT 270
 #define checkCudaErrors(val) DXHook::check_cuda( (val), #val, __FILE__, __LINE__ )
-#define DEBUGHOST(str) printf("[host]: %s\n", str);
 #define HDRI_LOCATION "C:\\pathtracer\\hdrs\\shanghai_bund_1k.hdr"
 #define HDRI_FOLDER "C:\\pathtracer\\hdrs"
 #define HDRI_RESX 2048
@@ -147,7 +146,7 @@ __device__ Tracer::vec3 calcDirect(int count, Tracer::Object** world, Tracer::Ob
 
                 float falloff = lightPower / ((0.01 * 0.01) + powf(testResult.t, 2.f));
 
-                vec3 lightContribution = (light->color * falloff) * lightBrightness;
+                vec3 lightContribution = (light->getColor(testResult) * falloff) * lightBrightness;
 
                 lightHits++;
                 lightObtained += lightContribution;
@@ -183,7 +182,7 @@ __device__ Tracer::vec3 depthColor(DXHook::RenderOptions* options, const Tracer:
 
             if (target->emission > EMISSIVE_MINIMUM) {
                 // just return the light
-                return currentLight * (target->color * target->emission);
+                return currentLight * (target->getColor(rec) * target->emission);
             }
 
             Ray new_ray(vec3(0, 0, 0), vec3(0, 0, 0));
@@ -460,24 +459,24 @@ GMOD_MODULE_OPEN()
 
     DXHook::lastTime = std::chrono::high_resolution_clock::now();
 
-    DEBUGHOST("Querying device..");
+    HOST_DEBUG("Querying device..");
     int ourDeviceID;
     checkCudaErrors(cudaGetDevice(&ourDeviceID));
 
-    DEBUGHOST("Got device!");
+    HOST_DEBUG("Got device!");
     cudaDeviceProp properties;
 
     checkCudaErrors(cudaGetDeviceProperties(&properties, ourDeviceID));
 
-    DEBUGHOST("Got properties..");
+    HOST_DEBUG("Got properties..");
 
-    printf("[host]: Using GPU %s\n", properties.name);
-    printf("[host]: Is integrated: %d\n", properties.integrated);
-    printf("[host]: Max threads per block: %d\n", properties.maxThreadsPerBlock);
-    printf("[host]: GPU's MP count: %d\n", properties.multiProcessorCount);
-    printf("[host]: Major: %d, Minor: %d", properties.major, properties.minor);
+    HOST_DEBUG("Using GPU %s\n", properties.name);
+    HOST_DEBUG("Is integrated: %d\n", properties.integrated);
+    HOST_DEBUG("Max threads per block: %d\n", properties.maxThreadsPerBlock);
+    HOST_DEBUG("GPU's MP count: %d\n", properties.multiProcessorCount);
+    HOST_DEBUG("Major: %d, Minor: %d", properties.major, properties.minor);
 
-    DEBUGHOST("Starting memory allocation for GPU");
+    HOST_DEBUG("Starting memory allocation for GPU");
 
     int num_pixels = WIDTH * HEIGHT;
     size_t fb_size = 3 * num_pixels * sizeof(float);
@@ -487,7 +486,7 @@ GMOD_MODULE_OPEN()
     size_t imageSize = 3 * (HDRI_RESX * HDRI_RESY) * sizeof(float);
     size_t hdriSize = sizeof(Tracer::HDRI*);
 
-    DEBUGHOST("Calculated sizes..");
+    HOST_DEBUG("Calculated sizes..");
 
     checkCudaErrors(cudaMallocManaged((void**)&DXHook::fb, fb_size));
     checkCudaErrors(cudaMallocManaged((void**)&DXHook::postFB, fb_size));
@@ -499,7 +498,7 @@ GMOD_MODULE_OPEN()
     checkCudaErrors(cudaMallocManaged((void**)&DXHook::hdriData, imageSize));
     checkCudaErrors(cudaMallocManaged((void**)&DXHook::mainHDRI, hdriSize));
 
-    DEBUGHOST("Allocated all memory");
+    HOST_DEBUG("Allocated all memory");
 
     /*
     DXHook::initMem << <1, 1 >> > (DXHook::world, DXHook::origin);
@@ -507,12 +506,12 @@ GMOD_MODULE_OPEN()
     checkCudaErrors(cudaDeviceSynchronize());
     */
 
-    DEBUGHOST("Reading HDRI from disk..");
+    HOST_DEBUG("Reading HDRI from disk..");
     
     bool correctLoad = LoadHDRI(HDRI_LOCATION);
 
     if (!correctLoad) {
-        DEBUGHOST("Loading HDRI failed! Not continuing tracer loading..");
+        HOST_DEBUG("Loading HDRI failed! Not continuing tracer loading..");
         return 0;
     }
 
@@ -529,7 +528,7 @@ GMOD_MODULE_OPEN()
     }
 
 
-    DEBUGHOST("Starting random threads..");
+    HOST_DEBUG("Starting random threads..");
 
     int warpX = 16;
     int warpY = 16; // technically can be ruled out as tiled rendering
@@ -541,16 +540,16 @@ GMOD_MODULE_OPEN()
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
 
-    DEBUGHOST("Finished!");
+    HOST_DEBUG("Finished!");
     // Run all of our starting CUDA code
 
-    DEBUGHOST("Starting DXHook..");
+    HOST_DEBUG("Starting DXHook..");
     DXHook::Initialize(LUA);
-    DEBUGHOST("Finished!");
+    HOST_DEBUG("Finished!");
 
-    DEBUGHOST("Starting Synchronization Service..");
+    HOST_DEBUG("Starting Synchronization Service..");
     Sync::Initialize(LUA);
-    DEBUGHOST("Finished!");
+    HOST_DEBUG("Finished!");
 
     return 0;
 }
@@ -559,15 +558,15 @@ GMOD_MODULE_CLOSE()
 {
     using namespace Tracer;
 
-    DEBUGHOST("Closing module!");
-    DEBUGHOST("Closing DXHook..");
+    HOST_DEBUG("Closing module!");
+    HOST_DEBUG("Closing DXHook..");
     DXHook::Cleanup(LUA);
-    DEBUGHOST("Finished!");
+    HOST_DEBUG("Finished!");
 
     Sync::Deinitialize(LUA);
-    DEBUGHOST("Closed Sync..");
+    HOST_DEBUG("Closed Sync..");
 
-    DEBUGHOST("Freeing GPU memory, closing CUDA context..");
+    HOST_DEBUG("Freeing GPU memory, closing CUDA context..");
    
     Sleep(2000);
 
@@ -580,16 +579,16 @@ GMOD_MODULE_CLOSE()
     checkCudaErrors(cudaFree(DXHook::origin));
     checkCudaErrors(cudaFree(DXHook::gbufferData));
     checkCudaErrors(cudaFree(DXHook::hdriData));
-    DEBUGHOST("Freeing DirectX Resources..");
+    HOST_DEBUG("Freeing DirectX Resources..");
     DXHook::quadVertexBuffer->Release();
     DXHook::msgFont->Release();
     DXHook::pathtraceObject->Release();
     DXHook::pathtraceOutput->Release();
-    DEBUGHOST("Done!");
+    HOST_DEBUG("Done!");
 
     cudaDeviceReset();
 
-    DEBUGHOST("Cuda context freed, module down!");
+    HOST_DEBUG("Cuda context freed, module down!");
 
     FreeConsole();
         

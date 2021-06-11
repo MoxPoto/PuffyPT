@@ -83,7 +83,7 @@ namespace Tracer {
 			vec3 sampleLocalized = TransformToWorld(x, y, z, rec.HitNormal);
 			targetRay.direction = sampleLocalized;
 
-			attenuation = evaluateLambert(sampleLocalized, rec.HitNormal, (target->color * target->emission));
+			attenuation = evaluateLambert(sampleLocalized, rec.HitNormal, (target->getColor(rec) * target->emission));
 			pdf = getLambertPDF(sampleLocalized, rec.HitNormal);
 
 		}
