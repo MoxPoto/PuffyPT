@@ -37,8 +37,8 @@ namespace Tracer {
 			//return fallbackColor;
 
 		
-		int x = static_cast<int>(floorf((u - floorf(u)) * resX));
-		int y = static_cast<int>(floorf((v - floorf(v)) * resY));
+		int x = static_cast<int>(u * resX);
+		int y = static_cast<int>(v * resY);
 
 		int base_index = (3 * (y * resX + x));
 

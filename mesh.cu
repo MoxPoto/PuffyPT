@@ -21,10 +21,12 @@ __host__ __device__ static bool rayTriangleIntersect(
     const Tracer::vec3& v0, const Tracer::vec3& v1, const Tracer::vec3& v2,
     float& t, float& u, float& v)
 {
+    using Tracer::vec3;
+    /*
 #ifdef MOLLER_TRUMBORE 
-    Tracer::vec3 v0v1 = v1 - v0;
-    Tracer::vec3 v0v2 = v2 - v0;
-    Tracer::vec3 pvec = cross(dir, v0v2);
+    vec3 v0v1 = v1 - v0;
+    vec3 v0v2 = v2 - v0;
+    vec3 pvec = cross(dir, v0v2);
     float det = (float)dot(v0v1, pvec);
 #ifdef CULLING 
     // if the determinant is negative the triangle is backfacing
@@ -34,13 +36,13 @@ __host__ __device__ static bool rayTriangleIntersect(
     // ray and triangle are parallel if det is close to 0
     if (fabs(det) < kEpsilon) return false;
 #endif 
-    float invDet = 1 / det;
+    float invDet = 1.f / det;
 
-    Tracer::vec3 tvec = orig - v0;
+    vec3 tvec = orig - v0;
     u = dot(tvec, pvec) * invDet;
     if (u < 0 || u > 1) return false;
 
-    Tracer::vec3 qvec = cross(tvec, v0v1);
+    vec3 qvec = cross(tvec, v0v1);
     v = dot(dir, qvec) * invDet;
     if (v < 0 || u + v > 1) return false;
 
@@ -99,6 +101,27 @@ __host__ __device__ static bool rayTriangleIntersect(
 
     return true; // this ray hits the triangle 
 #endif 
+*/
+    const vec3 edge1 = v1 - v0;
+    const vec3 edge2 = v2 - v0;
+
+    const vec3 h = cross(dir, edge2);
+    const float a = dot(edge1, h);
+    if (a > -kEpsilon && a < kEpsilon) return false;
+
+    const float f = 1.f / a;
+    const vec3 s = orig - v0;
+    u = f * dot(s, h);
+    if (u < 0 || u > 1) return false;
+
+    const vec3 q = cross(s, edge1);
+    v = f * dot(dir, q);
+    if (v < 0 || u + v > 1) return false;
+
+    t = f * dot(edge2, q);
+    if (t > kEpsilon) return true;
+
+    return false;
 }
 
 #define MAX_TRIANGLES 9000
@@ -202,6 +225,10 @@ namespace Tracer {
                 closestHit.u = (1.f - u - v) * triHere->u1 + u * triHere->u2 + v * triHere->u3;
                 closestHit.v = (1.f - u - v) * triHere->vt1 + u * triHere->vt2 + v * triHere->vt3;
                 
+                // Account for >1 and <1 UVs
+                closestHit.u -= floorf(u);
+                closestHit.v -= floorf(v);
+
                 closestHit.HitNormal = triHere->normal;
                 closestHit.objId = objectID;
 
