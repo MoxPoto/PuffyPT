@@ -4,6 +4,7 @@
 
 #include "syncMain.cuh"
 #include "../cpugpu/objects.cuh"
+#include "../util/macros.h"
 #include <string>
 
 #define SYNC_NAME "tracerSync"
@@ -37,6 +38,45 @@ LUA_FUNCTION(SYNC_SetCameraAngles) {
 	return 0;
 }
 
+LUA_FUNCTION(SYNC_AddTexture) {
+	LUA->CheckType(-2, Lua::Type::String); // Texture Name
+	LUA->CheckType(-1, Lua::Type::Table); // Texture Data
+	
+	using namespace Tracer; 
+
+	const char* textureName = LUA->GetString(-2);
+
+	size_t len = LUA->ObjLen();
+
+	HOST_DEBUG("Texture %s received as %d", textureName, len);
+
+	Pixel* imageData = new float[len * sizeof(Pixel)];
+	int imagePtr = 0;
+
+	for (int index = 0; index <= len; index += 3) {
+		// Our actual index will be +1 because Lua 1 indexes tables.
+		int actualIndex = index + 1;
+		// Push our target index to the stack.
+		LUA->PushNumber(actualIndex);
+		// Get the table data at this index (and not get the table, which is what I thought this did.)
+		LUA->GetTable(-2);
+		// Check for the sentinel nil element.
+		if (LUA->GetType(-1) == GarrysMod::Lua::Type::Nil) break;
+		// Get it's value.
+		imageData[imagePtr++] = static_cast<Pixel>(LUA->GetNumber());
+		// Pop it off again.
+		LUA->Pop(1);
+	}
+
+	LUA->Pop(2); // Pop off the table AND the nil
+
+	CreateTextureOnDevice(imageData, textureName, len * sizeof(Pixel));
+
+	delete[] imageData;
+
+	return 0;
+}
+
 LUA_FUNCTION(SYNC_UploadMesh) {
 	using namespace Tracer;
 	LUA->CheckType(-9, Lua::Type::String); // Texture Name
@@ -50,13 +90,17 @@ LUA_FUNCTION(SYNC_UploadMesh) {
 	LUA->CheckType(-1, Lua::Type::Table); // Vertices
 
 	const char* textureName = LUA->GetString(-9);
-	Pixel* deviceTexturePtr = NULL;
+	Pixel* deviceTexturePtr = nullptr;
 
 	if (IsTextureCached(textureName)) {
+		HOST_DEBUG("Got cached texture %s", textureName);
 		deviceTexturePtr = RetrieveCachedTexture(textureName);
 	}
+	else {
+		HOST_DEBUG("No avaliable texture pointer for %s", textureName);
+	}
 
-	int ourID = CPU::AddTracerObject(CPU::TriangleMesh);
+	int ourID = CPU::AddTracerObject(CPU::TriangleMesh, deviceTexturePtr);
 
 	size_t len = LUA->ObjLen();
 	printf("[host] Received table with length: %s\n", std::to_string(len).c_str());
@@ -161,13 +205,23 @@ LUA_FUNCTION(SYNC_UploadMesh) {
 LUA_FUNCTION(SYNC_UploadSphere) {
 	using namespace Tracer;
 
+	LUA->CheckType(-6, Lua::Type::String); // Texture Name
 	LUA->CheckType(-5, Lua::Type::Number); // BRDF
 	LUA->CheckType(-4, Lua::Type::Number); // Emission
 	LUA->CheckType(-3, Lua::Type::Vector); // Color
 	LUA->CheckType(-2, Lua::Type::Vector); // Center
 	LUA->CheckType(-1, Lua::Type::Number); // Size
 
-	int ourID = CPU::AddTracerObject(CPU::Sphere);
+	const char* textureName = LUA->GetString(-6);
+
+	Pixel* deviceTexturePtr = nullptr;
+
+	if (IsTextureCached(textureName)) {
+		HOST_DEBUG("Got cached texture %s", textureName);
+		deviceTexturePtr = RetrieveCachedTexture(textureName);
+	}
+
+	int ourID = CPU::AddTracerObject(CPU::Sphere, deviceTexturePtr);
 
 	int brdfType = static_cast<int>(LUA->GetNumber(-5));
 	float emission = static_cast<float>(LUA->GetNumber(-4));
@@ -243,7 +297,7 @@ namespace Tracer {
 			TABLE_FUNC("UploadSphere", SYNC_UploadSphere);
 			TABLE_FUNC("UploadMesh", SYNC_UploadMesh);
 			TABLE_FUNC("SetObjectLighting", SYNC_SetLighting);
-
+			TABLE_FUNC("UploadTexture", SYNC_AddTexture);
 			LUA->SetTable(-3);
 
 			LUA->Pop(1); // Pop glob off

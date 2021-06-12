@@ -11,34 +11,38 @@
 namespace Tracer {
 	std::map<std::string, Pixel*> deviceTextures;
 
-	__host__ __device__ Texture::Texture() {
+	__device__ Texture::Texture() {
 		resX = 0;
 		resY = 0;
 		imageData = NULL;
 		fallbackColor = vec3(0, 0, 0);
 	}
 
-	__host__ __device__ void Texture::SetFallbackColor(vec3 newColor) {
+	__device__ void Texture::SetFallbackColor(vec3 newColor) {
 		fallbackColor = newColor;
 	}
 
-	__host__ __device__ void Texture::Initialize(int newResX, int newResY, Pixel* newImageData) {
+	__device__ void Texture::Initialize(int newResX, int newResY, Pixel* newImageData) {
+		//if (newImageData == nullptr)
+			//return;
+
 		resX = newResX;
 		resY = newResY;
 		imageData = newImageData;
 		initialized = true;
 	}
 
-	__host__ __device__ vec3 Texture::GetPixel(float u, float v) {
-		if (imageData == NULL)
-			return fallbackColor;
+	__device__ vec3 Texture::GetPixel(float u, float v) {
+		//if (imageData == nullptr)
+			//return fallbackColor;
 
+		
 		int x = static_cast<int>(floorf((u - floorf(u)) * resX));
 		int y = static_cast<int>(floorf((v - floorf(v)) * resY));
 
 		int base_index = (3 * (y * resX + x));
 
-		return vec3(imageData[base_index], imageData[base_index], imageData[base_index]);
+		return vec3(imageData[base_index], imageData[base_index + 1], imageData[base_index + 2]);
 	}
 
 	// texture management
@@ -51,10 +55,10 @@ namespace Tracer {
 
 	__host__ Pixel* RetrieveCachedTexture(const std::string& textureName) {
 		if (!IsTextureCached(textureName))
-			return NULL;
+			return nullptr;
 
 		// dev in this case stands for device
-		Pixel* devTexture = NULL;
+		Pixel* devTexture = nullptr;
 
 		try {
 			devTexture = deviceTextures.at(textureName);
@@ -77,6 +81,8 @@ namespace Tracer {
 		checkCudaErrors(cudaMemcpy(devPtr, hostPtr, textureSize, cudaMemcpyHostToDevice));
 
 		deviceTextures[textureName] = devPtr;
+
+		HOST_DEBUG("Successfully created texture %s on GPU!", textureName.c_str());
 
 		return devPtr;
 	}

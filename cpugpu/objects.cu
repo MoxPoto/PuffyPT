@@ -13,13 +13,14 @@
 
 namespace Tracer {
 	namespace CPU {
-		__global__ void addObject(Tracer::Object** world, ObjectType obj_type, int curCount) {
+		__global__ void addObject(Tracer::Object** world, ObjectType obj_type, Pixel* texturePtr, int curCount) {
 			switch (obj_type) {
 			case (ObjectType::Sphere):
 				printf("Adding sphere on GPU with curCount: %d, and obj_type: %d\n", curCount, obj_type);
 				*(world + curCount) = (new Tracer::Sphere(vec3(0, 0, 0), 1.f));
 				Tracer::Object* newObject = *(world + curCount);
 				newObject->objectID = curCount;
+				newObject->texture.Initialize(256, 256, texturePtr);
 
 				DEBUGGPU("Finished sphere instantiation on GPU!");
 
@@ -28,6 +29,7 @@ namespace Tracer {
 				*(world + curCount) = (new Tracer::Mesh());
 				Tracer::Object* newMesh = *(world + curCount);
 				newMesh->objectID = curCount;
+				newMesh->texture.Initialize(256, 256, texturePtr);
 
 				break;
 			default:
@@ -37,10 +39,10 @@ namespace Tracer {
 			DEBUGGPU("[addObject]: Finished kernel, returning to host!");
 		}
 
-		int AddTracerObject(ObjectType type) {
+		int AddTracerObject(ObjectType type, Pixel* texturePtr) {
 			DEBUGHOST("[host]: AddTracerObject called..");
 
-			addObject << <1, 1 >> > (DXHook::world, type, DXHook::world_count);
+			addObject << <1, 1 >> > (DXHook::world, type, texturePtr, DXHook::world_count);
 
 			DEBUGHOST("[host]: Executed kernel..");
 			checkCudaErrors(cudaGetLastError());

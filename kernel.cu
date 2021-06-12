@@ -579,6 +579,15 @@ GMOD_MODULE_CLOSE()
     checkCudaErrors(cudaFree(DXHook::origin));
     checkCudaErrors(cudaFree(DXHook::gbufferData));
     checkCudaErrors(cudaFree(DXHook::hdriData));
+
+    for (std::pair<std::string, Pixel*> devPtr : deviceTextures) {
+        HOST_DEBUG("Cleaning %s", devPtr.first.c_str());
+
+        checkCudaErrors(cudaFree(devPtr.second));
+    }
+
+    deviceTextures.clear();
+
     HOST_DEBUG("Freeing DirectX Resources..");
     DXHook::quadVertexBuffer->Release();
     DXHook::msgFont->Release();

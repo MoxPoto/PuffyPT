@@ -21,9 +21,9 @@ namespace Tracer {
 		};
 
 		// Internal function to add a object into the GPU
-		extern __global__ void addObject(Tracer::Object** world, ObjectType obj_type, int curCount);
+		extern __global__ void addObject(Tracer::Object** world, ObjectType obj_type, Pixel* texturePtr, int curCount);
 		// Function that adds an object to the GPU and returns the ID of it
-		extern int AddTracerObject(ObjectType type);
+		extern int AddTracerObject(ObjectType type, Pixel* texturePtr);
 
 		// Object-general functions
 		extern __global__ void setObjectBRDF(Tracer::Object** world, BRDF type, int id);
