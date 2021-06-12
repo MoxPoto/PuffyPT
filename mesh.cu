@@ -154,7 +154,7 @@ namespace Tracer {
         delete triBuffer;
     }
 	__host__ __device__ void Mesh::InsertTri(vec3 v1, vec3 v2, vec3 v3, float u1, float u2, float u3, float vt1, float vt2, float vt3) {
-        Triangle* theTri = new Triangle(v1, v2, v3, u1, u2, u3, vt1, vt2, vt3);
+        Triangle* theTri = new Triangle(v1, v2, v3, u1, vt1, u2, vt2, u3, vt3);
 
         if ((size + 1) >= MAX_TRIANGLES) {
             printf("MAX TRIANGLES LIMIT REACHED!!!!");
@@ -226,8 +226,8 @@ namespace Tracer {
                 closestHit.v = (1.f - u - v) * triHere->vt1 + u * triHere->vt2 + v * triHere->vt3;
                 
                 // Account for >1 and <1 UVs
-                closestHit.u -= floorf(u);
-                closestHit.v -= floorf(v);
+                closestHit.u -= floorf(closestHit.u);
+                closestHit.v -= floorf(closestHit.v);
 
                 closestHit.HitNormal = triHere->normal;
                 closestHit.objId = objectID;

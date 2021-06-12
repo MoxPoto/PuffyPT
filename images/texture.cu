@@ -40,7 +40,7 @@ namespace Tracer {
 		int x = static_cast<int>(u * resX);
 		int y = static_cast<int>(v * resY);
 
-		int base_index = (3 * (y * resX + x));
+		int base_index = y * resX * 3 + x * 3;
 
 		return vec3(imageData[base_index], imageData[base_index + 1], imageData[base_index + 2]);
 	}
