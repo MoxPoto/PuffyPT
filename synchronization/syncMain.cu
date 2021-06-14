@@ -50,10 +50,10 @@ LUA_FUNCTION(SYNC_AddTexture) {
 
 	HOST_DEBUG("Texture %s received as %d", textureName, len);
 
-	Pixel* imageData = new float[len * sizeof(Pixel)];
+	Pixel* imageData = new Pixel[len];
 	int imagePtr = 0;
 
-	for (int index = 0; index <= len; index += 3) {
+	for (int index = 0; index < len; index += 3) {
 		// Our actual index will be +1 because Lua 1 indexes tables.
 		int actualIndex = index + 1;
 		// Push our target index to the stack.

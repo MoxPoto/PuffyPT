@@ -26,6 +26,9 @@ namespace DXHook {
 
 	extern float* fb; // Frame buffer
 	extern float* postFB; // Post Frame buffer
+	extern float* bloomFB; // Bloom Frame buffer
+	extern float* blurFB; // Pre-blur FB
+
 	extern Tracer::Camera mainCam; // Main camera
 	extern Tracer::SkyInfo skyInfo;
 

@@ -26,7 +26,8 @@ namespace Tracer {
 
 	__device__ vec3 HDRI::getPixel(const int& x, const int& y, float* imagePtr) {
 		//if (imagePtr != nullptr) {
-			int base_index = (3 * (y * resX + x));
+			int base_index = (3 * (fmaf(y, resX, x)));
+			// fmaf is a cuda intrinistic
 
 			return vec3(imagePtr[base_index], imagePtr[base_index + 1], imagePtr[base_index + 2]);
 		//}

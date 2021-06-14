@@ -4,7 +4,7 @@
 #include "vec3.cuh"
 
 namespace Tracer {
-	__host__ __device__ Triangle::Triangle(vec3 v1q, vec3 v2q, vec3 v3q, float _u1, float _v1, float _u2, float _v2, float _u3, float _v3) {
+	__device__ Triangle::Triangle(vec3 v1q, vec3 v2q, vec3 v3q, float _u1, float _v1, float _u2, float _v2, float _u3, float _v3) {
 		v1 = v1q;
 		v2 = v2q;
 		v3 = v3q;
@@ -25,7 +25,7 @@ namespace Tracer {
 
 	}
 
-	__host__ __device__ Triangle::Triangle() {
+	__device__ Triangle::Triangle() {
 		v1 = vec3();
 		v2 = vec3();
 		v3 = vec3();

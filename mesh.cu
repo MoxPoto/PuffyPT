@@ -153,7 +153,7 @@ namespace Tracer {
 
         delete triBuffer;
     }
-	__host__ __device__ void Mesh::InsertTri(vec3 v1, vec3 v2, vec3 v3, float u1, float u2, float u3, float vt1, float vt2, float vt3) {
+	__device__ void Mesh::InsertTri(vec3 v1, vec3 v2, vec3 v3, float u1, float u2, float u3, float vt1, float vt2, float vt3) {
         Triangle* theTri = new Triangle(v1, v2, v3, u1, vt1, u2, vt2, u3, vt3);
 
         if ((size + 1) >= MAX_TRIANGLES) {

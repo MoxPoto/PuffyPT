@@ -490,6 +490,9 @@ GMOD_MODULE_OPEN()
 
     checkCudaErrors(cudaMallocManaged((void**)&DXHook::fb, fb_size));
     checkCudaErrors(cudaMallocManaged((void**)&DXHook::postFB, fb_size));
+    checkCudaErrors(cudaMallocManaged((void**)&DXHook::bloomFB, fb_size));
+    checkCudaErrors(cudaMallocManaged((void**)&DXHook::blurFB, fb_size));
+
     checkCudaErrors(cudaMallocManaged((void**)&DXHook::world, world_size));
     checkCudaErrors(cudaMallocManaged((void**)&DXHook::origin, origin_size));
 
@@ -536,6 +539,22 @@ GMOD_MODULE_OPEN()
     dim3 blocks(WIDTH / warpX + 1, HEIGHT / warpY + 1);
     dim3 threads(warpX, warpY);
 
+    ClearFramebuffer << <blocks, threads >> > (DXHook::fb, WIDTH, HEIGHT);
+    checkCudaErrors(cudaGetLastError());
+    checkCudaErrors(cudaDeviceSynchronize());
+
+    ClearFramebuffer << <blocks, threads >> > (DXHook::postFB, WIDTH, HEIGHT);
+    checkCudaErrors(cudaGetLastError());
+    checkCudaErrors(cudaDeviceSynchronize());
+
+    ClearFramebuffer << <blocks, threads >> > (DXHook::blurFB, WIDTH, HEIGHT);
+    checkCudaErrors(cudaGetLastError());
+    checkCudaErrors(cudaDeviceSynchronize());
+
+    ClearFramebuffer << <blocks, threads >> > (DXHook::bloomFB , WIDTH, HEIGHT);
+    checkCudaErrors(cudaGetLastError());
+    checkCudaErrors(cudaDeviceSynchronize());
+
     DXHook::registerRands << < blocks, threads >> > (WIDTH, HEIGHT, DXHook::d_rand_state, DXHook::gbufferData);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
@@ -578,7 +597,9 @@ GMOD_MODULE_CLOSE()
     checkCudaErrors(cudaFree(DXHook::d_rand_state));
     checkCudaErrors(cudaFree(DXHook::origin));
     checkCudaErrors(cudaFree(DXHook::gbufferData));
-    checkCudaErrors(cudaFree(DXHook::hdriData));
+    checkCudaErrors(cudaFree(DXHook::blurFB));
+    checkCudaErrors(cudaFree(DXHook::bloomFB));
+    checkCudaErrors(cudaFree(DXHook::postFB));
 
     for (std::pair<std::string, Pixel*> devPtr : deviceTextures) {
         HOST_DEBUG("Cleaning %s", devPtr.first.c_str());

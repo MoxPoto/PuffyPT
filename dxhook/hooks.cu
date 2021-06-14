@@ -34,7 +34,7 @@
 #define PUFF_INCREMENT_RESET(name, variable) ImGui::Button(name); if (ImGui::IsItemActive()) { variable += 0.1f; frameCount = 0;}
 #define PUFF_DECREMENT_RESET(name, variable) ImGui::Button(name); if (ImGui::IsItemActive()) { variable -= 0.1f; frameCount = 0;}
 
-#define VERSION "PUFFY PT - 0.08"
+#define VERSION "PUFFY PT - 0.2"
 
 struct Vertex
 {
@@ -57,6 +57,8 @@ namespace DXHook {
 
 	float* fb;
 	float* postFB;
+	float* bloomFB;
+	float* blurFB;
 	Tracer::Camera mainCam;
 	Tracer::SkyInfo skyInfo;
 
@@ -124,7 +126,7 @@ namespace DXHook {
 
 			HRESULT failCode3 = D3DXCreateFont(
 				pDevice,
-				18,
+				36,
 				0,
 				FW_NORMAL,
 				1,
@@ -133,7 +135,7 @@ namespace DXHook {
 				OUT_DEFAULT_PRECIS,
 				ANTIALIASED_QUALITY,
 				DEFAULT_PITCH | FF_DONTCARE,
-				"Terminal",
+				"CoolveticaRg-Regular",
 				&msgFont
 			);
 
@@ -379,9 +381,9 @@ namespace DXHook {
 
 				if (msgFont) {
 					RECT msgRect;
-					SetRect(&msgRect, 0, 15, 1920, 120);
+					SetRect(&msgRect, 0, 1010, 1920, 120);
 
-					msgFont->DrawText(NULL, VERSION, -1, &msgRect, DT_CENTER | DT_NOCLIP, D3DCOLOR_ARGB(255, 10, 10, 10));
+					msgFont->DrawText(NULL, VERSION, -1, &msgRect, DT_CENTER | DT_NOCLIP, D3DCOLOR_ARGB(90, 255, 255, 255));
 
 
 				}
