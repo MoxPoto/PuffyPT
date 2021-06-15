@@ -141,7 +141,7 @@ namespace Tracer {
 			const int REAL_SIZE = 10;
 			const vec3 ourPosition(i, j, 0);
 
-			const float MINIMUM = 2.7f;
+			const float MINIMUM = 1226400.f;
 
 			vec3 newBrightness(0, 0, 0);
 			int passes = 0;
@@ -159,7 +159,7 @@ namespace Tracer {
 						float brightness = luminance(frameColor);
 
 						if (brightness > MINIMUM) {
-							newBrightness += frameColor;
+							newBrightness += frameColor * (brightness - MINIMUM);
 							passes++;
 						}
 					}
@@ -198,7 +198,7 @@ namespace Tracer {
 
 	__host__ void ApplyPostprocess(int width, int height, dim3 blocks, dim3 threads) {
 		using namespace Post;
-
+		/*
 		bloom << <blocks, threads >> > (DXHook::fb, DXHook::bloomFB, width, height);
 		checkCudaErrors(cudaGetLastError());
 		checkCudaErrors(cudaDeviceSynchronize());
@@ -211,6 +211,7 @@ namespace Tracer {
 		copy << <blocks, threads >> > (DXHook::blurFB, DXHook::bloomFB, width, height);
 		checkCudaErrors(cudaGetLastError());
 		checkCudaErrors(cudaDeviceSynchronize());
+		*/
 
 		tonemap << <blocks, threads >> > (DXHook::fb, DXHook::mainCam, DXHook::postFB, DXHook::bloomFB, width, height);
 		checkCudaErrors(cudaGetLastError());

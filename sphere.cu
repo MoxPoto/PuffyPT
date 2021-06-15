@@ -7,6 +7,7 @@
 
 #include "cuda_runtime.h"
 #include "stdio.h"
+#include "math_constants.h"
 
 constexpr float FLOATE_MAX = 100000.f;
 
@@ -31,6 +32,10 @@ namespace Tracer {
                 output.t = temp;
                 output.HitPos = ray.origin + (ray.direction * output.t);
                 output.HitNormal = (output.HitPos - position) / radius;
+
+                output.u = (1 + atan2(output.HitNormal.y(), output.HitNormal.x()) / CUDART_PI) * 0.5;
+                output.v = acosf(output.HitNormal.z()) / CUDART_PI;
+
                 return true;
             }
             temp = (-b + sqrt(discriminant)) / a;
@@ -38,6 +43,10 @@ namespace Tracer {
                 output.t = temp;
                 output.HitPos = ray.origin + (ray.direction * output.t);
                 output.HitNormal = (output.HitPos - position) / radius;
+
+                output.u = (1 + atan2(output.HitNormal.y(), output.HitNormal.x()) / CUDART_PI) * 0.5;
+                output.v = acosf(output.HitNormal.z()) / CUDART_PI;
+
                 return true;
             }
         }

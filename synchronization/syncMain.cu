@@ -53,7 +53,7 @@ LUA_FUNCTION(SYNC_AddTexture) {
 	Pixel* imageData = new Pixel[len];
 	int imagePtr = 0;
 
-	for (int index = 0; index < len; index += 3) {
+	for (int index = 0; index <= len; index++) {
 		// Our actual index will be +1 because Lua 1 indexes tables.
 		int actualIndex = index + 1;
 		// Push our target index to the stack.

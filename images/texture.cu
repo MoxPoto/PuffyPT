@@ -23,8 +23,8 @@ namespace Tracer {
 	}
 
 	__device__ void Texture::Initialize(int newResX, int newResY, Pixel* newImageData) {
-		//if (newImageData == nullptr)
-			//return;
+		if (newImageData == nullptr)
+			return;
 
 		resX = newResX;
 		resY = newResY;
@@ -33,14 +33,15 @@ namespace Tracer {
 	}
 
 	__device__ vec3 Texture::GetPixel(float u, float v) {
-		//if (imageData == nullptr)
-			//return fallbackColor;
+		if (imageData == nullptr)
+			return fallbackColor;
 
-		
-		int x = static_cast<int>(u * resX);
-		int y = static_cast<int>(v * resY);
+			
+		int x = static_cast<int>(fminf(u * resX, resX - 1));
+		int y = static_cast<int>(fminf(v * resY, resY - 1));
 
-		int base_index = (3 * (y * resX + x));
+
+		int base_index = (3 * (y * resY + x));
 
 		return vec3(imageData[base_index], imageData[base_index + 1], imageData[base_index + 2]);
 	}
