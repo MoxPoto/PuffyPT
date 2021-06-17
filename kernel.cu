@@ -194,7 +194,7 @@ __device__ Tracer::vec3 depthColor(DXHook::RenderOptions* options, const Tracer:
                     LambertBRDF::SampleWorld(rec, local_rand_state, options->curtime, pdf, attenuation, new_ray, target);
                     break;
                 case (BRDF::Specular):
-                    SpecularBRDF::SampleWorld(rec, local_rand_state, options->curtime, cur_ray, attenuation, new_ray, target);
+                    SpecularBRDF::SampleWorld(rec, local_rand_state, options->curtime, pdf, cur_ray, attenuation, new_ray, target);
                     break;
                 case (BRDF::Refraction):
                     RefractBRDF::SampleWorld(rec, local_rand_state, pdf, options->curtime, cur_ray, attenuation, new_ray, target);
