@@ -480,7 +480,7 @@ GMOD_MODULE_OPEN()
 
     int num_pixels = WIDTH * HEIGHT;
     size_t fb_size = 3 * num_pixels * sizeof(float);
-    size_t world_size = 90 * sizeof(Tracer::Object*);
+    size_t world_size = 260 * sizeof(Tracer::Object*);
     size_t origin_size = sizeof(Tracer::vec3*);
     size_t gbuffer_size = num_pixels * sizeof(Tracer::Post::GBuffer);
     size_t imageSize = 3 * (HDRI_RESX * HDRI_RESY) * sizeof(float);

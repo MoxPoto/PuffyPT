@@ -11,6 +11,8 @@
 
 using namespace Tracer;
 
+#define PROTECTZERO(statement) fmaxf(0.001f, statement)
+
 // from: https://computergraphics.stackexchange.com/questions/4979/what-is-importance-sampling/4993
 __device__ static vec3 TransformToWorld(const float& x, const float& y, const float& z, const vec3& normal)
 {
@@ -55,22 +57,25 @@ __device__ static float GGXDistribution(float width, float thetaM, float phiM, c
 
 	float numerator = alphaSquared * chi(dot(microfacet, hitNormal));
 	float tanThetaM = tanf(thetaM);
-	float term2 = (alphaSquared + powf(tanThetaM, 2), 2);
+	float term2 = (alphaSquared + powf(tanThetaM, 2));
 
-	float denominator = (CUDART_PI * powf(cosf(thetaM), 4.f) * (term2 * term2));
+	float denominator = (static_cast<float>(CUDART_PI) * powf(cosf(thetaM), 4.f) * (term2 * term2));
 
 	return numerator / denominator;
 }
 
 // G1(v, m)
 __device__ static float GGXGeometry(const vec3& v, const vec3& n, const vec3& m, float width) {
-	float chiOfDot = chi((dot(v, m)) / (dot(v, n)));
+	float vdotm = fmaxf(0.001f, dot(v, m));
+	float vdotn = fmaxf(0.001f, dot(v, n));
+
+	float chiOfDot = chi(vdotm / vdotn);
 	float alphaSquared = (width * width);
 	float thetaOfV = thetaFromVec(v);
 	float tanPart = tanf(thetaOfV);
-	float denominator = 1 + sqrtf(1 + (alphaSquared * (tanPart * tanPart)));
+	float denominator = 1.f + sqrtf(1.f + (alphaSquared * (tanPart * tanPart)));
 
-	return chiOfDot * (2 / denominator);
+	return chiOfDot * (2.f / denominator);
 }
 
 
@@ -100,7 +105,7 @@ namespace Tracer {
 			float alpha = fmaxf(0.001f, target->lighting.roughness * target->lighting.roughness);
 
 			float thetaM = atanf((alpha * sqrtf(u1)) / sqrt(1.f - u1));
-			float phiM = (2 * CUDART_PI * u2);
+			float phiM = (2.f * static_cast<float>(CUDART_PI) * u2);
 
 			vec3 m = TransformToWorld(sinf(thetaM) * cosf(phiM), sinf(thetaM) * sinf(phiM), cosf(thetaM), res.HitNormal);
 			m.make_unit_vector();
@@ -110,12 +115,12 @@ namespace Tracer {
 			}
 
 			targetRay.origin = res.HitPos + (res.HitNormal * 0.001f);
-			targetRay.direction = (2.f * fabsf(dot(wo, m)) * m - wo);
+			targetRay.direction = (2.f * PROTECTZERO(fabsf(dot(wo, m))) * m - wo);
 
-			pdf = GGXDistribution(alpha, thetaM, phiM, res.HitNormal, m) * fabsf(dot(m, res.HitNormal)) / (4.f * fabsf(dot(targetRay.direction, m)));
+			pdf = GGXDistribution(alpha, thetaM, phiM, res.HitNormal, m) * fabsf(PROTECTZERO(dot(m, res.HitNormal))) / (4.f * fabsf(PROTECTZERO(dot(targetRay.direction, m))));
 			
 			// evaluate cook-torrance
-			float denominator = 4.f * fabsf(dot(wo, res.HitNormal)) * fabsf(dot(targetRay.direction, res.HitNormal));
+			float denominator = 4.f * fabsf(PROTECTZERO(dot(wo, res.HitNormal))) * fabsf(PROTECTZERO(dot(targetRay.direction, res.HitNormal)));
 			attenuation = target->color * GGXGeometry(wo, res.HitNormal, m, alpha) * GGXGeometry(targetRay.direction, res.HitNormal, m, alpha) * GGXDistribution(alpha, thetaM, phiM, res.HitNormal, m) / denominator;
 			attenuation *= 1.f - schlick(dot(wo, m), target->lighting.ior);
 			// frensel term being wacky..

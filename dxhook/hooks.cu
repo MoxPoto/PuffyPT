@@ -370,7 +370,7 @@ namespace DXHook {
 				D3DXMATRIX transformation;
 
 				D3DXMatrixIdentity(&transformation);
-				D3DXMatrixScaling(&transformation, 4, 4, 1);
+				D3DXMatrixScaling(&transformation, 1920 / WIDTH, 1080 / HEIGHT, 1);
 
 				if (showPathtracer) {
 					pathtraceObject->Begin(D3DXSPRITE_SORT_DEPTH_FRONTTOBACK);

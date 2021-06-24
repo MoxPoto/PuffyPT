@@ -35,6 +35,9 @@ static __global__ void blur(float* framebuffer, float* blurFB, int width, int he
 
 			if (fX > 0 && fX < width && fY > 0 && fY < height) {
 				int pixel_index = fY * width * 3 + fX * 3;
+
+				if (fX == i && fY == j)
+					continue;
 				vec3 frameColor = vec3(framebuffer[pixel_index], framebuffer[pixel_index + 1], framebuffer[pixel_index + 2]);
 
 				if (!isnan(frameColor.r()) && !isnan(frameColor.g()) && !isnan(frameColor.b())) {
@@ -111,12 +114,12 @@ namespace Tracer {
 			vec3 frameColor = vec3(framebuffer[pixel_index], framebuffer[pixel_index + 1], framebuffer[pixel_index + 2]) * mainCam.exposure;
 			vec3 bloomColor = vec3(bloomFB[pixel_index], bloomFB[pixel_index + 1], bloomFB[pixel_index + 2]);
 
-			frameColor = (frameColor + bloomColor) / 2;
-
-			frameColor *= 0.5f;
+			//frameColor = (frameColor + bloomColor) / 2;
+			
+			frameColor *= 0.98f;
 			float a = 2.51f;
 			float b = 0.03f;
-			float c = 2.43f;
+			float c = 1.43f;
 			float d = 0.59f;
 			float e = 0.14f;
 			vec3 tonemapped = (frameColor * (a * frameColor + vec3(b, b, b))) / (frameColor * (c * frameColor + vec3(d, d, d)) + vec3(e, e, e));
@@ -124,6 +127,7 @@ namespace Tracer {
 			tonemapped.clamp();
 
 			tonemapped = LinearTosRGB(tonemapped);
+
 		
 			postFB[pixel_index] = tonemapped.r();
 			postFB[pixel_index + 1] = tonemapped.g();
@@ -141,7 +145,7 @@ namespace Tracer {
 			const int REAL_SIZE = 10;
 			const vec3 ourPosition(i, j, 0);
 
-			const float MINIMUM = 1226400.f;
+			const float MINIMUM = 1.4f;
 
 			vec3 newBrightness(0, 0, 0);
 			int passes = 0;
@@ -167,9 +171,9 @@ namespace Tracer {
 			}
 
 			if (passes <= 0) {
-				postFB[pixel_index] = frameColor.r();
-				postFB[pixel_index + 1] = frameColor.g();
-				postFB[pixel_index + 2] = frameColor.b();
+				postFB[pixel_index] = 0.f;
+				postFB[pixel_index + 1] = 0.f;
+				postFB[pixel_index + 2] = 0.f;
 				return;
 			}
 
@@ -198,6 +202,7 @@ namespace Tracer {
 
 	__host__ void ApplyPostprocess(int width, int height, dim3 blocks, dim3 threads) {
 		using namespace Post;
+		
 		/*
 		bloom << <blocks, threads >> > (DXHook::fb, DXHook::bloomFB, width, height);
 		checkCudaErrors(cudaGetLastError());
