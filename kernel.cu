@@ -139,7 +139,6 @@ __device__ Tracer::vec3 calcDirect(int count, Tracer::Object** world, Tracer::Ob
 
             Tracer::Object* hitObject = traceScene(count, world, testRay, testResult);
 
-
             // A path from the sampled position and the light has been found
             if (hitObject != NULL && hitObject->objectID == light->objectID && testResult.t <= lightPower) {
                 // float normalizedRange = (distance / lightPower);
