@@ -22,6 +22,7 @@ namespace Tracer {
         __host__ __device__ inline vec3 operator-() const { return vec3(-e[0], -e[1], -e[2]); }
         __host__ __device__ inline float operator[](int i) const { return e[i]; }
         __host__ __device__ inline float& operator[](int i) { return e[i]; };
+        __host__ __device__ inline bool operator==(const vec3& other) { return e[0] == other.x() && e[1] == other.y() && e[2] == other.z(); };
 
         __host__ __device__ inline vec3& operator+=(const vec3& v2);
         __host__ __device__ inline vec3& operator-=(const vec3& v2);

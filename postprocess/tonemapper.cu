@@ -216,6 +216,11 @@ namespace Tracer {
 		copy << <blocks, threads >> > (DXHook::blurFB, DXHook::bloomFB, width, height);
 		checkCudaErrors(cudaGetLastError());
 		checkCudaErrors(cudaDeviceSynchronize());
+		
+
+		denoise << <blocks, threads >> > (DXHook::gbufferData, DXHook::fb, DXHook::bloomFB, width, height);
+		checkCudaErrors(cudaGetLastError());
+		checkCudaErrors(cudaDeviceSynchronize());
 		*/
 
 		tonemap << <blocks, threads >> > (DXHook::fb, DXHook::mainCam, DXHook::postFB, DXHook::bloomFB, width, height);

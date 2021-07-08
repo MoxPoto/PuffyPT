@@ -128,7 +128,7 @@ __device__ Tracer::vec3 calcDirect(int count, Tracer::Object** world, Tracer::Ob
         Tracer::Object* light = *(world + i);
 
         if (light->emission >= EMISSIVE_MINIMUM) {
-            float lightPower = 2760.f + ((light->emission - EMISSIVE_MINIMUM) * 2.f); // The more intense emission is, more range is added
+            float lightPower = 300.f + ((light->emission - EMISSIVE_MINIMUM) * 2.f); // The more intense emission is, more range is added
             float lightBrightness = 1.f;
 
             vec3 newOrigin = rec.HitPos + (rec.HitNormal * 0.001f);
@@ -281,7 +281,7 @@ __global__ void DXHook::render(DXHook::RenderOptions options) {
 
     curand_init(options.frameCount * options.max_x * options.max_y + j * options.max_x + i, 1, 0, &local_rand_state);
 
-    //Denoising::GBuffer* gbuffer = ((options.gbufferPtr + random_idx)); // serves as a gbuffer access index too!!
+    Post::GBuffer* gbuffer = ((options.gbufferPtr + random_idx)); // serves as a gbuffer access index too!!
 
     float r = 0.f;
     float g = 0.f;
@@ -369,20 +369,20 @@ __global__ void DXHook::render(DXHook::RenderOptions options) {
     
 
     if (hitObject != NULL) {
-        /*
-        gbuffer->albedo = hitObject->color;
+        
+        gbuffer->albedo = hitObject->getColor(result);
         gbuffer->normal = result.HitNormal;
         gbuffer->objectID = result.objId;
         gbuffer->brdfType = hitObject->matType;
-        */
+        
     }
 
-    /*
+    
     gbuffer->position = result.HitPos;
     gbuffer->depth = result.t;
     gbuffer->diffuse = vec3(r, g, b);
     gbuffer->isSky = (hitObject == NULL);
-    */
+    
 
     vec3 previousFrame = vec3(options.frameBuffer[pixel_index + 0], options.frameBuffer[pixel_index + 1], options.frameBuffer[pixel_index + 2]);
     vec3 curFrame = vec3(r, g, b);
