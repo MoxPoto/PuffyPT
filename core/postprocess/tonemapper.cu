@@ -114,7 +114,7 @@ namespace Post {
 
 		//frameColor = (frameColor + bloomColor) / 2;
 			
-		frameColor *= 0.98f;
+		frameColor *= 0.5f;
 		float a = 2.51f;
 		float b = 0.03f;
 		float c = 1.43f;
