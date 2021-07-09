@@ -609,7 +609,6 @@ GMOD_MODULE_CLOSE()
     deviceTextures.clear();
 
     HOST_DEBUG("Freeing DirectX Resources..");
-    DXHook::quadVertexBuffer->Release();
     DXHook::msgFont->Release();
     DXHook::pathtraceObject->Release();
     DXHook::pathtraceOutput->Release();

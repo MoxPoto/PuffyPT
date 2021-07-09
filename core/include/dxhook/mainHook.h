@@ -35,7 +35,6 @@ namespace DXHook {
 	extern Object** world;
 	extern curandState* d_rand_state;
 	extern IDirect3DTexture9* pathtraceOutput;
-	extern IDirect3DVertexBuffer9* quadVertexBuffer;
 	extern ID3DXSprite* pathtraceObject;
 	extern HDRI* mainHDRI;
 	extern float* hdriData;

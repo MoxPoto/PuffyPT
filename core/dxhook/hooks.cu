@@ -37,16 +37,6 @@
 
 #define VERSION "PUFFY PT - 2.0"
 
-struct Vertex
-{
-	float _x, _y, _z;
-	float _nx, _ny, _nz;
-	float _u, _v; // texture coordinates
-	static const DWORD FVF;
-};
-
-const DWORD Vertex::FVF = D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_TEX1;
-
 std::default_random_engine randEngine;
 std::uniform_real_distribution<float> unif(0.0, 1.0);
 
@@ -66,7 +56,6 @@ namespace DXHook {
 	Object** world;
 	curandState* d_rand_state;
 	IDirect3DTexture9* pathtraceOutput = NULL;
-	IDirect3DVertexBuffer9* quadVertexBuffer = NULL;
 	ID3DXSprite* pathtraceObject = NULL;
 	ID3DXFont* msgFont = NULL;
 	float fov = 114.f;
@@ -143,20 +132,6 @@ namespace DXHook {
 				std::cout << "Failed to create font for the pathtracer.. Code: " << failCode3 << "\nD3DERR_INVALIDCALL: " <<
 					D3DERR_INVALIDCALL << std::endl;
 			}
-
-			pDevice->CreateVertexBuffer(6 * sizeof(Vertex), D3DUSAGE_WRITEONLY, Vertex::FVF, D3DPOOL_DEFAULT, &quadVertexBuffer, 0);
-
-			Vertex* v;
-			quadVertexBuffer->Lock(0, 0, (void**)&v, 0);
-
-			// quad built from two triangles, note texture coordinates:
-			v[0] = { -1.0f, -1.0f, 1.25f, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f }; // was Vertex()
-			v[1] = { -1.0f, 1.0f, 1.25f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f };
-			v[2] = { 1.0f, 1.0f, 1.25f, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f };
-			v[3] = { -1.0f, -1.0f, 1.25f, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f };
-			v[4] = { 1.0f, 1.0f, 1.25f, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f };
-			v[5] = { 1.0f, -1.0f, 1.25f, 0.0f, 0.0f, -1.0f, 1.0f, 1.0f };
-			quadVertexBuffer->Unlock();
 
 			ImGui_ImplDX9_Init(device);
 		}
