@@ -20,7 +20,7 @@
 #include <tchar.h>
 #include <dwmapi.h>
 
-#include "../dxhook/mainHook.h"
+#include <dxhook/mainHook.h>
 #include <iostream>
 
 // Configuration flags to add in your imconfig.h file:

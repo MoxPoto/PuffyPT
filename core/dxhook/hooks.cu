@@ -35,7 +35,7 @@
 #define PUFF_INCREMENT_RESET(name, variable) ImGui::Button(name); if (ImGui::IsItemActive()) { variable += 0.1f; frameCount = 0;}
 #define PUFF_DECREMENT_RESET(name, variable) ImGui::Button(name); if (ImGui::IsItemActive()) { variable -= 0.1f; frameCount = 0;}
 
-#define VERSION "PUFFY PT - 0.2"
+#define VERSION "PUFFY PT - 2.0"
 
 struct Vertex
 {
@@ -101,8 +101,6 @@ namespace DXHook {
 	float hdriBrightness = 1.f;
 
 	HRESULT __stdcall EndSceneHook(LPDIRECT3DDEVICE9 pDevice) {
-		using vec3;
-
 		if (!gotDevice) {
 			gotDevice = true;
 			device = pDevice;

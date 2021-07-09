@@ -1,5 +1,5 @@
-﻿#include "hdri.cuh"
-#include "hdriUtility.cuh"
+﻿#include <images/hdri.cuh>
+#include <images/hdriUtility.cuh>
 
 #include <iostream>
 #include <vector>

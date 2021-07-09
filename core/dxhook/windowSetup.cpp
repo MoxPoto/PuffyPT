@@ -1,4 +1,4 @@
-#include "mainHook.h"
+#include <dxhook/mainHook.h>
 #include <d3d9.h>
 #include <Windows.h>
 

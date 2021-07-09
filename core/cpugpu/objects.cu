@@ -17,7 +17,7 @@ namespace CPU {
 		switch (obj_type) {
 		case (ObjectType::Sphere):
 			printf("Adding sphere on GPU with curCount: %d, and obj_type: %d\n", curCount, obj_type);
-			*(world + curCount) = (new Sphere(vec3(0, 0, 0), 1.f));
+			*(world + curCount) = (new ::Sphere(vec3(0, 0, 0), 1.f));
 			Object* newObject = *(world + curCount);
 			newObject->objectID = curCount;
 			newObject->texture.Initialize(256, 256, texturePtr);
@@ -213,7 +213,7 @@ namespace CPU {
 	}
 
 	__global__ void setSphereSize(Object** world, int id, float newSize) {
-		Sphere* ourSphere = static_cast<Sphere*>(*(world + id));
+		::Sphere* ourSphere = static_cast<::Sphere*>(*(world + id));
 		ourSphere->radius = newSize;
 	}
 
