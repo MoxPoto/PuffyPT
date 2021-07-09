@@ -14,28 +14,28 @@
 #define _USE_MATH_DEFINES
 #include <cmath>
 
-#include "ray.cuh"
-#include "mesh.cuh"
-#include "sphere.cuh"
-#include "vec3.cuh"
-#include "object.cuh"
-#include "triangle.cuh"
-#include "hitresult.cuh"
-#include "camera.cuh"
+#include <classes/ray.cuh>
+#include <classes/mesh.cuh>
+#include <classes/sphere.cuh>
+#include <classes/vec3.cuh>
+#include <classes/object.cuh>
+#include <classes/triangle.cuh>
+#include <classes/hitresult.cuh>
+#include <classes/camera.cuh>
 
-#include "util/macros.h"
-#include "brdfs/lambert.cuh"
-#include "brdfs/specular.cuh"
-#include "brdfs/refraction.cuh"
-#include "images/hdriUtility.cuh"
+#include <util/macros.h>
+#include <brdfs/lambert.cuh>
+#include <brdfs/specular.cuh>
+#include <brdfs/refraction.cuh>
+#include <images/hdriUtility.cuh>
 
-#include "dxhook/mainHook.h"
-#include "postprocess/mainDenoiser.cuh"
-#include "cpugpu/objects.cuh"
-#include "synchronization/syncMain.cuh"
+#include <dxhook/mainHook.h>
+#include <postprocess/mainDenoiser.cuh>
+#include <cpugpu/objects.cuh>
+#include <synchronization/syncMain.cuh>
 
 #define STB_IMAGE_IMPLEMENTATION
-#include "../vendor/stb_image.h"
+#include <vendor/stb_image.h>
 
 #define GLM_FORCE_CUDA
 #include <glm/glm.hpp>
@@ -64,8 +64,8 @@ __device__ float deg2rad(const float& degree) {
     return degree * M_PI / 180.f;
 }
 
-__device__ Tracer::vec3 genSkyColor(Tracer::HDRI* mainHDRI, Tracer::SkyInfo skyInfo, float* imgData, const Tracer::vec3& dir) {
-    using namespace Tracer;
+__device__ vec3 genSkyColor(HDRI* mainHDRI, SkyInfo skyInfo, float* imgData, const vec3& dir) {
+    
 
     /*
     float t = 0.5f * (dir.z() + 1.0f);
@@ -77,15 +77,15 @@ __device__ Tracer::vec3 genSkyColor(Tracer::HDRI* mainHDRI, Tracer::SkyInfo skyI
     return skyColor;
 }
 
-__device__ Tracer::Object* traceScene(int count, Tracer::Object** world, const Tracer::Ray& ray, Tracer::HitResult& output, bool aabbOverride = false) {
-    using namespace Tracer;
+__device__ Object* traceScene(int count, Object** world, const Ray& ray, HitResult& output, bool aabbOverride = false) {
+    
 
     Object* hitObject = NULL;
 
     output.t = FLT_MAX;
 
     for (int i = 0; i < count; i++) {
-        Tracer::Object* target = *(world + i);
+        Object* target = *(world + i);
 
         if (i == ray.ignoreID) continue;
 
@@ -118,14 +118,14 @@ __device__ const int EMISSIVE_MINIMUM = 15; // Minimum emission to be considered
 #define min(a,b) ((a)<(b)?(a):(b))
 #define max(a,b) ((a)>(b)?(a):(b))
 
-__device__ Tracer::vec3 calcDirect(int count, Tracer::Object** world, Tracer::Object* firstHit, const Tracer::Ray& ray, const Tracer::HitResult& rec) {
-    using namespace Tracer;
+__device__ vec3 calcDirect(int count, Object** world, Object* firstHit, const Ray& ray, const HitResult& rec) {
+    
 
     vec3 lightObtained(0, 0, 0);
     int lightHits = 0;
 
     for (int i = 0; i < count; i++) {
-        Tracer::Object* light = *(world + i);
+        Object* light = *(world + i);
 
         if (light->emission >= EMISSIVE_MINIMUM) {
             float lightPower = 300.f + ((light->emission - EMISSIVE_MINIMUM) * 2.f); // The more intense emission is, more range is added
@@ -137,7 +137,7 @@ __device__ Tracer::vec3 calcDirect(int count, Tracer::Object** world, Tracer::Ob
             Ray testRay(newOrigin, testDirection);
             HitResult testResult;
 
-            Tracer::Object* hitObject = traceScene(count, world, testRay, testResult);
+            Object* hitObject = traceScene(count, world, testRay, testResult);
 
             // A path from the sampled position and the light has been found
             if (hitObject != NULL && hitObject->objectID == light->objectID && testResult.t <= lightPower) {
@@ -163,8 +163,8 @@ __device__ Tracer::vec3 calcDirect(int count, Tracer::Object** world, Tracer::Ob
 
 }
 
-__device__ Tracer::vec3 depthColor(DXHook::RenderOptions* options, const Tracer::Ray& ray, curandState* local_rand_state) {
-    using namespace Tracer;
+__device__ vec3 depthColor(DXHook::RenderOptions* options, const Ray& ray, curandState* local_rand_state) {
+    
 
     Ray cur_ray = ray;
     vec3 currentLight(1, 1, 1);
@@ -173,7 +173,7 @@ __device__ Tracer::vec3 depthColor(DXHook::RenderOptions* options, const Tracer:
 
     for (int i = 0; i < options->max_depth; i++) {
         HitResult rec;
-        Tracer::Object* target = traceScene(options->count, options->world, cur_ray, rec);
+        Object* target = traceScene(options->count, options->world, cur_ray, rec);
 
         if (target != NULL) {
             // set our current ray to the new formulated one (this being perfect diffuse)
@@ -237,13 +237,13 @@ __device__ Tracer::vec3 depthColor(DXHook::RenderOptions* options, const Tracer:
     return vec3(0.0, 0.0, 0.0); // exceeded recursion
 }
 
-__device__ Tracer::vec3 pathtrace(DXHook::RenderOptions* options, const Tracer::Ray& ray, curandState* local_rand_state) {
-    using namespace Tracer;
+__device__ vec3 pathtrace(DXHook::RenderOptions* options, const Ray& ray, curandState* local_rand_state) {
+    
     vec3 indirectLighting(0, 0, 0);
     vec3 directLighting(0, 0, 0); 
 
     HitResult result;
-    Tracer::Object* hitObject = traceScene(options->count, options->world, ray, result);
+    Object* hitObject = traceScene(options->count, options->world, ray, result);
 
     if (hitObject != NULL) {
         directLighting = calcDirect(options->count, options->world, hitObject, ray, result);
@@ -268,7 +268,7 @@ __device__ Tracer::vec3 pathtrace(DXHook::RenderOptions* options, const Tracer::
 }
 
 __global__ void DXHook::render(DXHook::RenderOptions options) {
-    using namespace Tracer;
+    
 
     int i = threadIdx.x + blockIdx.x * blockDim.x;
     int j = threadIdx.y + blockIdx.y * blockDim.y;
@@ -337,7 +337,7 @@ __global__ void DXHook::render(DXHook::RenderOptions options) {
     Ray ourRay(origin, dir);
 
     HitResult result;
-    Tracer::Object* hitObject = traceScene(options.count, options.world, ourRay, result);
+    Object* hitObject = traceScene(options.count, options.world, ourRay, result);
 
     int samples = options.samples;
     int max_depth = options.max_depth;
@@ -399,30 +399,30 @@ __global__ void DXHook::render(DXHook::RenderOptions options) {
     options.frameBuffer[pixel_index + 2] = accumulated.b();
 }
 
-__global__ void DXHook::initMem(Tracer::Object** world, Tracer::vec3* origin) {
-    using namespace Tracer; 
+__global__ void DXHook::initMem(Object** world, vec3* origin) {
+     
 
-    origin = (new Tracer::vec3(0, 0, 0));
+    origin = (new vec3(0, 0, 0));
 
-    *(world) = (new Tracer::Sphere(vec3(10, 0, 0), .2f));
-    Tracer::Object* objOne = *(world);
+    *(world) = (new Sphere(vec3(10, 0, 0), .2f));
+    Object* objOne = *(world);
     objOne->color = vec3(1, 1, 1);
     objOne->emission = 1.f;
     objOne->lighting.ior = 1.2f;
 
-    *(world + 1) = (new Tracer::Sphere(vec3(10, 0, -3.2), 3.f));
-    Tracer::Object* objTwo = *(world + 1);
+    *(world + 1) = (new Sphere(vec3(10, 0, -3.2), 3.f));
+    Object* objTwo = *(world + 1);
     objTwo->color = vec3(1.f, 0.5f, 0.5f);
     objTwo->emission = 1.f;
 
-    *(world + 2) = (new Tracer::Sphere(vec3(11, 3, 1), 0.7f));
-    Tracer::Object* objThree = *(world + 2);
+    *(world + 2) = (new Sphere(vec3(11, 3, 1), 0.7f));
+    Object* objThree = *(world + 2);
     objThree->color = vec3(1.f, 1.f, 1.f);
     objThree->emission = 50.f;
 
 }
 
-__global__ void DXHook::registerRands(int max_x, int max_y, curandState* rand_state, Tracer::Post::GBuffer* gbufferData) {
+__global__ void DXHook::registerRands(int max_x, int max_y, curandState* rand_state, Post::GBuffer* gbufferData) {
     int i = threadIdx.x + blockIdx.x * blockDim.x;
     int j = threadIdx.y + blockIdx.y * blockDim.y;
     if ((i >= max_x) || (j >= max_y)) return;
@@ -430,14 +430,14 @@ __global__ void DXHook::registerRands(int max_x, int max_y, curandState* rand_st
     //Each thread gets same seed, a different sequence number, no offset
     curand_init(1984 + pixel_index, pixel_index, 0, &rand_state[pixel_index]);
     // lets also initialize our GBuffers
-    Tracer::Post::GBuffer myBuffer;
+    Post::GBuffer myBuffer;
 
     *(gbufferData + pixel_index) = myBuffer;
 }
 
 
 
-__global__ void freeMem(Tracer::Object** world, Tracer::vec3* origin, int worldCount) {
+__global__ void freeMem(Object** world, vec3* origin, int worldCount) {
     for (int i = 0; i < worldCount; i++) {
         delete* (world + i);
     }
@@ -447,7 +447,7 @@ __global__ void freeMem(Tracer::Object** world, Tracer::vec3* origin, int worldC
 
 GMOD_MODULE_OPEN()
 {
-    using namespace Tracer;
+    
 
     cudaDeviceSetLimit(cudaLimitPrintfFifoSize, 1024000 * 10);
 
@@ -479,11 +479,11 @@ GMOD_MODULE_OPEN()
 
     int num_pixels = WIDTH * HEIGHT;
     size_t fb_size = 3 * num_pixels * sizeof(float);
-    size_t world_size = 260 * sizeof(Tracer::Object*);
-    size_t origin_size = sizeof(Tracer::vec3*);
-    size_t gbuffer_size = num_pixels * sizeof(Tracer::Post::GBuffer);
+    size_t world_size = 260 * sizeof(Object*);
+    size_t origin_size = sizeof(vec3*);
+    size_t gbuffer_size = num_pixels * sizeof(Post::GBuffer);
     size_t imageSize = 3 * (HDRI_RESX * HDRI_RESY) * sizeof(float);
-    size_t hdriSize = sizeof(Tracer::HDRI*);
+    size_t hdriSize = sizeof(HDRI*);
 
     HOST_DEBUG("Calculated sizes..");
 
@@ -574,7 +574,7 @@ GMOD_MODULE_OPEN()
 
 GMOD_MODULE_CLOSE() 
 {
-    using namespace Tracer;
+    
 
     HOST_DEBUG("Closing module!");
     HOST_DEBUG("Closing DXHook..");
