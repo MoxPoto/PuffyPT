@@ -80,7 +80,7 @@ namespace LambertBRDF {
 		vec3 sampleLocalized = TransformToWorld(x, y, z, rec.HitNormal);
 		targetRay.direction = sampleLocalized;
 
-		attenuation = evaluateLambert(sampleLocalized, rec.HitNormal, (target->getColor(rec) * target->emission));
+		attenuation = evaluateLambert(sampleLocalized, rec.HitNormal, (target->GetColor(rec) * target->emission));
 		pdf = getLambertPDF(sampleLocalized, rec.HitNormal);
 
 	}

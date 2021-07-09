@@ -94,7 +94,7 @@ __host__ __device__ void Mesh::ComputeAccel(vec3 newMin, vec3 newMax) {
         
 }
 
-__host__ __device__ bool Mesh::anyHit(const Ray& ray) {
+__host__ __device__ bool Mesh::AnyHit(const Ray& ray) {
         
     vec3 nLocal = ray.invorig - ray.invdir * (minV + maxV) / 2.f;
 
@@ -125,7 +125,7 @@ __host__ __device__ bool Mesh::anyHit(const Ray& ray) {
     //return true;
 }
 
-__host__ __device__ bool Mesh::tryHit(const Ray& ray, HitResult& closestHit) {
+__host__ __device__ bool Mesh::TryHit(const Ray& ray, HitResult& closestHit) {
     bool bHit = false;
 
     for (int i = 0; i < size; i++) {

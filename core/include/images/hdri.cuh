@@ -13,7 +13,7 @@ public:
 	__device__ float getPitch(const vec3& N);
 	__device__ float getYaw(const vec3& N);
 	__device__ vec3 getPixel(const int& x, const int& y, float* imagePtr);
-	__device__ vec3 getPixelFromRay(const vec3& vec, float* imagePtr);
+	__device__ vec3 GetPixelFromRay(const vec3& vec, float* imagePtr);
 };
 
 

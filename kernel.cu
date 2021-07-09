@@ -72,7 +72,7 @@ __device__ vec3 genSkyColor(HDRI* mainHDRI, SkyInfo skyInfo, float* imgData, con
     vec3 skyColor = (1.0f - t) * skyInfo.azimuth + t * skyInfo.zenith;
     */
     
-    vec3 skyColor = mainHDRI->getPixelFromRay(dir, imgData);
+    vec3 skyColor = mainHDRI->GetPixelFromRay(dir, imgData);
     
     return skyColor;
 }
@@ -89,10 +89,10 @@ __device__ Object* traceScene(int count, Object** world, const Ray& ray, HitResu
 
         if (i == ray.ignoreID) continue;
 
-        if (target->anyHit(ray)) {
+        if (target->AnyHit(ray)) {
             // ok, then we trace the precise mesh
 
-            if (target->tryHit(ray, output)) {
+            if (target->TryHit(ray, output)) {
                 hitObject = target;
             }
         }
@@ -145,7 +145,7 @@ __device__ vec3 calcDirect(int count, Object** world, Object* firstHit, const Ra
 
                 float falloff = lightPower / ((0.01 * 0.01) + powf(testResult.t, 2.f));
 
-                vec3 lightContribution = (light->getColor(testResult) * falloff) * lightBrightness;
+                vec3 lightContribution = (light->GetColor(testResult) * falloff) * lightBrightness;
 
                 lightHits++;
                 lightObtained += lightContribution;
@@ -181,7 +181,7 @@ __device__ vec3 depthColor(DXHook::RenderOptions* options, const Ray& ray, curan
 
             if (target->emission > EMISSIVE_MINIMUM) {
                 // just return the light
-                return currentLight * (target->getColor(rec) * target->emission);
+                return currentLight * (target->GetColor(rec) * target->emission);
             }
 
             Ray new_ray(vec3(0, 0, 0), vec3(0, 0, 0));
@@ -369,7 +369,7 @@ __global__ void DXHook::render(DXHook::RenderOptions options) {
 
     if (hitObject != NULL) {
         
-        gbuffer->albedo = hitObject->getColor(result);
+        gbuffer->albedo = hitObject->GetColor(result);
         gbuffer->normal = result.HitNormal;
         gbuffer->objectID = result.objId;
         gbuffer->brdfType = hitObject->matType;

@@ -123,7 +123,7 @@ namespace RefractBRDF {
 			}
 
 			if (res.backface) {
-				attenuation = calculateBeersLaw(target->getColor(res), res.t);
+				attenuation = calculateBeersLaw(target->GetColor(res), res.t);
 			}
 				
 			float weight = (1.f - fresnel);

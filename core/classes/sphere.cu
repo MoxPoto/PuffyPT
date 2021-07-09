@@ -14,7 +14,7 @@ __host__ __device__ Sphere::Sphere(vec3 position, float radiuss) {
     center = vec3(0, 0, 0); // deprecated in favor of the new position base class variable TODO: remove
 }
 
-__device__ bool Sphere::tryHit(const Ray& ray, HitResult& output) {
+__device__ bool Sphere::TryHit(const Ray& ray, HitResult& output) {
     float t_max = output.t;
     float t_min = 0.001f;
 

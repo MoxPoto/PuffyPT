@@ -45,7 +45,7 @@ __device__ float HDRI::getYaw(const vec3& N) { // https://github.com/100PXSquare
 	return acosf(dot(base, vec3(1, 0, 0))) * sign(N.y());
 }
 
-__device__ vec3 HDRI::getPixelFromRay(const vec3& N, float* imagePtr) {
+__device__ vec3 HDRI::GetPixelFromRay(const vec3& N, float* imagePtr) {
 	// if (imagePtr == nullptr) return vec3(0, 1, 0);
 
 	float y = (1.f - getPitch(N) * M_2_PI) * resY / 2.f;
