@@ -1,4 +1,4 @@
-﻿#include <GarrysMod/Lua/Interface.h>
+#include <GarrysMod/Lua/Interface.h>
 #include <Windows.h>
 
 #include "cuda_runtime.h"
