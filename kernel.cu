@@ -1,4 +1,4 @@
-﻿#include <GarrysMod/Lua/Interface.h>
+#include <GarrysMod/Lua/Interface.h>
 #include <Windows.h>
 
 #include "cuda_runtime.h"
@@ -49,17 +49,10 @@ void DXHook::check_cuda(cudaError_t result, char const* const func, const char* 
         std::cout << "CUDA error = " << static_cast<unsigned int>(result) << " at " <<
             file << ":" << line << " '" << func << "' \n" << "CUDA_ERROR_STRING: " << cudaGetErrorString(result) << "\n" <<
             cudaGetErrorName(result) << "\n";
-
     }
 }
 
-__device__ float deg2rad(const float& degree) {
-    return degree * M_PI / 180.f;
-}
-
 __global__ void DXHook::render(DXHook::RenderOptions options) {
-    
-
     int i = threadIdx.x + blockIdx.x * blockDim.x;
     int j = threadIdx.y + blockIdx.y * blockDim.y;
     if ((i >= options.max_x) || (j >= options.max_y)) return;
@@ -72,9 +65,7 @@ __global__ void DXHook::render(DXHook::RenderOptions options) {
 
     Post::GBuffer* gbuffer = ((options.gbufferPtr + random_idx)); // serves as a gbuffer access index too!!
 
-    float r = 0.f;
-    float g = 0.f;
-    float b = 0.f;
+    vec3 frameColor;
 
     float DISTANCE = 1.f;
 
@@ -118,40 +109,31 @@ __global__ void DXHook::render(DXHook::RenderOptions options) {
         newRay.origin = newRay.origin + (result.HitNormal * 0.001f);
 
         vec3 indirect = pathtrace(&options, newRay, &local_rand_state);
-        indirect.clamp();
 
-        r = (indirect.r());
-        g = (indirect.g());
-        b = (indirect.b());
+        frameColor = indirect;
     }
     else {
         if (options.doSky) {
             vec3 skyColor = genSkyColor(options.hdri, options.skyInfo, options.hdriData, dir);
 
-            r = skyColor.r();
-            g = skyColor.g();
-            b = skyColor.b();
+            frameColor = skyColor;
         }
     }
     
     if (hitObject != NULL) {
-        
         gbuffer->albedo = hitObject->GetColor(result);
         gbuffer->normal = result.HitNormal;
         gbuffer->objectID = result.objId;
         gbuffer->brdfType = hitObject->matType;
-        
     }
     
     gbuffer->position = result.HitPos;
     gbuffer->depth = result.t;
-    gbuffer->diffuse = vec3(r, g, b);
+    gbuffer->diffuse = frameColor;
     gbuffer->isSky = (hitObject == NULL);
     
     vec3 previousFrame = vec3(options.frameBuffer[pixel_index + 0], options.frameBuffer[pixel_index + 1], options.frameBuffer[pixel_index + 2]);
-    vec3 curFrame = vec3(r, g, b);
-
-    vec3 accumulated = (curFrame + previousFrame * options.frameCount) / (options.frameCount + 1);
+    vec3 accumulated = (frameColor + previousFrame * options.frameCount) / (options.frameCount + 1);
 
     // Accumulation can give way to NaN frames which result in black dots
     // so, check if our new pixel is nan--if it is, then restore old frame
@@ -260,7 +242,6 @@ GMOD_MODULE_OPEN()
         }
     }
 
-
     HOST_DEBUG("Starting random threads..");
 
     int warpX = 16;
@@ -274,10 +255,6 @@ GMOD_MODULE_OPEN()
     checkCudaErrors(cudaDeviceSynchronize());
 
     ClearFramebuffer << <blocks, threads >> > (DXHook::postFB, WIDTH, HEIGHT);
-    checkCudaErrors(cudaGetLastError());
-    checkCudaErrors(cudaDeviceSynchronize());
-
-    ClearFramebuffer << <blocks, threads >> > (DXHook::blurFB, WIDTH, HEIGHT);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
 
@@ -305,8 +282,6 @@ GMOD_MODULE_OPEN()
 
 GMOD_MODULE_CLOSE() 
 {
-    
-
     HOST_DEBUG("Closing module!");
     HOST_DEBUG("Closing DXHook..");
     DXHook::Cleanup(LUA);
@@ -348,7 +323,7 @@ GMOD_MODULE_CLOSE()
     cudaDeviceReset();
 
     HOST_DEBUG("Cuda context freed, module down!");
-
+    HOST_DEBUG("You can close this window now!");
     FreeConsole();
         
     return 0;
