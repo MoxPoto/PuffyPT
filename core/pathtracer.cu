@@ -16,7 +16,7 @@
 
 #pragma region Utility
 
-__device__ Object* traceScene(int count, Object** world, const Ray& ray, HitResult& output, bool aabbOverride = false) {
+__device__ Object* traceScene(int count, Object** world, const Ray& ray, HitResult& output, bool aabbOverride) {
     Object* hitObject = NULL;
 
     output.t = FLT_MAX;

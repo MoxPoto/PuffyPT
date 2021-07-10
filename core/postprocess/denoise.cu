@@ -28,7 +28,7 @@ namespace Post {
 		vec3 denoisedResult = ourBuffer->diffuse;
 		int passes = 1;
 		float brightness = 0.0f;
-		int DIFFUSE_FILTER = 3;
+		int DIFFUSE_FILTER = 4;
 		const vec3 thisPos(i, j, 0);
 
 		float brightness_factor = 0.006f;
@@ -39,8 +39,8 @@ namespace Post {
 		}
 
 
-			for (int fX = i - DIFFUSE_FILTER; fX < (i + DIFFUSE_FILTER); fX++) {
-				for (int fY = j - DIFFUSE_FILTER; fY < (j + DIFFUSE_FILTER); fY++) {
+			for (int fX = i - DIFFUSE_FILTER; fX <= (i + DIFFUSE_FILTER); fX++) {
+				for (int fY = j - DIFFUSE_FILTER; fY <= (j + DIFFUSE_FILTER); fY++) {
 					if ((fX >= 0 && fX < width) && (fY >= 0 && fY < height)) {
 						GBuffer* gBufferThere = GBUFFER_AT(fX, fY);
 
@@ -64,7 +64,6 @@ namespace Post {
 
 		denoisedResult /= (float)passes;
 		denoisedResult = (ourBuffer->albedo * (denoisedResult));
-		denoisedResult.clamp();
 
 		framebuffer[pixel_index + 0] = denoisedResult.r();
 		framebuffer[pixel_index + 1] = denoisedResult.g();
