@@ -35,7 +35,7 @@
 #define PUFF_INCREMENT_RESET(name, variable) ImGui::Button(name); if (ImGui::IsItemActive()) { variable += 0.1f; frameCount = 0;}
 #define PUFF_DECREMENT_RESET(name, variable) ImGui::Button(name); if (ImGui::IsItemActive()) { variable -= 0.1f; frameCount = 0;}
 
-#define VERSION "PUFFY PT - 2.0"
+#define VERSION "PUFFY PT - 2.1"
 
 std::default_random_engine randEngine;
 std::uniform_real_distribution<float> unif(0.0, 1.0);

@@ -8,6 +8,12 @@
 
 #define GBUFFER_AT(x, y) (gbufferData + (y * width + x));
 
+static float c_phi = 1.f;
+static float n_phi = 1.f;
+static float p_phi = 1.f;
+static float stepwidth = 2.f;
+
+
 namespace Post {
 	__global__ void denoise(GBuffer* gbufferData, float* realFB, float* framebuffer, int width, int height) {
 		int i = threadIdx.x + blockIdx.x * blockDim.x;
@@ -17,53 +23,9 @@ namespace Post {
 		int gbuffer_idx = j * width + i;
 
 		GBuffer* ourBuffer = GBUFFER_AT(i, j);
-
-		if (ourBuffer->isSky) {
-			framebuffer[pixel_index + 0] = ourBuffer->diffuse.r();
-			framebuffer[pixel_index + 1] = ourBuffer->diffuse.g();
-			framebuffer[pixel_index + 2] = ourBuffer->diffuse.b();
-			return;
-		}
-
-		vec3 denoisedResult = ourBuffer->diffuse;
-		int passes = 1;
-		float brightness = 0.0f;
-		int DIFFUSE_FILTER = 4;
-		const vec3 thisPos(i, j, 0);
-
-		float brightness_factor = 0.006f;
-
-		if (ourBuffer->brdfType == BRDF::Specular) {
-			DIFFUSE_FILTER = 3; // Lower filtering for specular surfaces
-			brightness_factor = 0.04f;
-		}
+		vec3 denoisedResult(0, 0, 0);
 
 
-			for (int fX = i - DIFFUSE_FILTER; fX <= (i + DIFFUSE_FILTER); fX++) {
-				for (int fY = j - DIFFUSE_FILTER; fY <= (j + DIFFUSE_FILTER); fY++) {
-					if ((fX >= 0 && fX < width) && (fY >= 0 && fY < height)) {
-						GBuffer* gBufferThere = GBUFFER_AT(fX, fY);
-
-						if (gBufferThere->objectID == ourBuffer->objectID && !gBufferThere->isSky) {
-							float normalDiff = (gBufferThere->normal - ourBuffer->normal).length();
-							float depthDiff = (gBufferThere->depth - ourBuffer->depth);
-
-							if (normalDiff > 0.01f || depthDiff > 15.f) {
-								continue; 
-							}
-
-							denoisedResult += gBufferThere->diffuse;
-							brightness += luminance(gbufferData->diffuse);
-							passes++;
-						}
-					}
-				}
-			}
-
-			float albedoBrightness = luminance(ourBuffer->albedo);
-
-		denoisedResult /= (float)passes;
-		denoisedResult = (ourBuffer->albedo * (denoisedResult));
 
 		framebuffer[pixel_index + 0] = denoisedResult.r();
 		framebuffer[pixel_index + 1] = denoisedResult.g();

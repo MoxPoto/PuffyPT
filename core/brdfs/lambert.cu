@@ -13,6 +13,11 @@
 
 static constexpr float M_1_PI = 0.318309886183790671538f;
 
+__device__ static inline vec3 lerpVectors(vec3 a, vec3 b, float f)
+{
+	return (a * (1.0f - f)) + (b * f);
+}
+
 // from: https://computergraphics.stackexchange.com/questions/4979/what-is-importance-sampling/4993
 __device__ static vec3 TransformToWorld(const float& x, const float& y, const float& z, const vec3& normal)
 {
@@ -58,10 +63,7 @@ namespace LambertBRDF {
 	}
 		
 	__device__ void SampleWorld(const HitResult& rec, curandState* local_rand_state, float extraRand, float& pdf, vec3& attenuation, Ray& targetRay, Object* target) {
-		/*vec3 newDirPos = rec.HitPos + rec.HitNormal + random_in_unit_sphere(local_rand_state, extraRand);
-		targetRay.origin = rec.HitPos;
-		targetRay.direction = unit_vector(newDirPos - rec.HitPos);
-		*/
+		vec3 BLACK = vec3(0.f);
 
 		targetRay.origin = rec.HitPos + (rec.HitNormal * 0.001f);
 
@@ -80,7 +82,11 @@ namespace LambertBRDF {
 		vec3 sampleLocalized = TransformToWorld(x, y, z, rec.HitNormal);
 		targetRay.direction = sampleLocalized;
 
-		attenuation = evaluateLambert(sampleLocalized, rec.HitNormal, (target->GetColor(rec) * target->emission));
+		// Specular metallics and diffuse metallics come from: https://github.com/NVIDIAGameWorks/Falcor/blob/master/Source/Falcor/Scene/Shading.slang#L185
+
+		vec3 albedo = lerpVectors(target->GetColor(rec), BLACK, target->lighting.metalness);
+
+		attenuation = evaluateLambert(sampleLocalized, rec.HitNormal, (albedo * target->emission));
 		pdf = getLambertPDF(sampleLocalized, rec.HitNormal);
 
 	}

@@ -252,17 +252,22 @@ LUA_FUNCTION(SYNC_UploadSphere) {
 }
 
 LUA_FUNCTION(SYNC_SetLighting) {
-	LUA->CheckType(-3, Lua::Type::Number); // ID
-	LUA->CheckType(-2, Lua::Type::Number); // Roughness
-	LUA->CheckType(-1, Lua::Type::Number); // IoR
+	LUA->CheckType(-5, Lua::Type::Number); // ID
+	LUA->CheckType(-4, Lua::Type::Number); // Roughness
+	LUA->CheckType(-3, Lua::Type::Number); // IoR
+	LUA->CheckType(-2, Lua::Type::Number); // Metalness
+	LUA->CheckType(-1, Lua::Type::Number); // BRDF
 
-	int id = static_cast<int>(LUA->GetNumber(-3));
-	float roughness = static_cast<float>(LUA->GetNumber(-2));
-	float ior = static_cast<float>(LUA->GetNumber(-1));
+	int id = static_cast<int>(LUA->GetNumber(-5));
+	float roughness = static_cast<float>(LUA->GetNumber(-4));
+	float ior = static_cast<float>(LUA->GetNumber(-3));
+	float metalness = static_cast<float>(LUA->GetNumber(-2));
+	BRDF newBRDF = static_cast<BRDF>(LUA->GetNumber(-1));
 
 	LightingOptions newOptions;
 	newOptions.roughness = roughness;
 	newOptions.ior = ior;
+	newOptions.metalness = metalness;
 
 	CPU::CommandError cmdErr = CPU::CommitObjectLighting(id, newOptions);
 
@@ -270,12 +275,19 @@ LUA_FUNCTION(SYNC_SetLighting) {
 		std::cout << "Command error hit on line " << __LINE__ << "!!!\n";
 	}
 
+	CPU::CommandError cmdErr1 = CPU::SetBRDF(id, newBRDF);
+
+	if (cmdErr1 != CPU::CommandError::Success) {
+		std::cout << "Command error hit on line " << __LINE__ << "!!!\n";
+	}
+
+
 	return 0;
 }
 
 namespace Sync {
 	std::vector<Prop> props;
-
+		
 	void Initialize(Lua::ILuaBase* LUA) {
 		LUA->PushSpecial(Lua::SPECIAL_GLOB);
 		LUA->PushString(SYNC_NAME);

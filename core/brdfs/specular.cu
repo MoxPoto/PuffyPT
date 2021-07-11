@@ -41,6 +41,11 @@ __device__ static inline float lerp(float a, float b, float f)
 	return (a * (1.0f - f)) + (b * f);
 }
 
+__device__ static inline vec3 lerpVectors(vec3 a, vec3 b, float f)
+{
+	return (a * (1.0f - f)) + (b * f);
+}
+
 __device__ static float thetaFromVec(vec3 vec) {
 	return atanf(sqrtf(vec.x() * vec.x() + vec.y() * vec.y()) / vec.z());
 }
@@ -77,6 +82,10 @@ __device__ static float GGXGeometry(const vec3& v, const vec3& n, const vec3& m,
 	return chiOfDot * (2.f / denominator);
 }
 
+
+__device__ static vec3 coloredSchlick(vec3 r0, float cosine, float ref_idx) {
+	return r0 + (vec3(1.0f) - r0) * powf((1.0 - cosine), 5.0f);
+}
 
 namespace SpecularBRDF {
 	__device__ vec3 reflect(const vec3& direction, const vec3& normal) {
@@ -121,8 +130,19 @@ namespace SpecularBRDF {
 			
 		// evaluate cook-torrance
 		float denominator = 4.f * fabsf(PROTECTZERO(dot(wo, res.HitNormal))) * fabsf(PROTECTZERO(dot(targetRay.direction, res.HitNormal)));
-		attenuation = target->color * GGXGeometry(wo, res.HitNormal, m, alpha) * GGXGeometry(targetRay.direction, res.HitNormal, m, alpha) * GGXDistribution(alpha, thetaM, phiM, res.HitNormal, m) / denominator;
-		attenuation *= 1.f - schlick(dot(wo, m), target->lighting.ior);
+		attenuation = GGXGeometry(wo, res.HitNormal, m, alpha) * GGXGeometry(targetRay.direction, res.HitNormal, m, alpha) * GGXDistribution(alpha, thetaM, phiM, res.HitNormal, m) / denominator;
+		
+		float f = (target->lighting.ior - 1.f) / (target->lighting.ior + 1.f);
+		// in my schlick's function, f0 is represented as r0
+		float F0 = (f * f);
+
+		// TODO: pufy pt 2.1 will make refraction and specular work with textures soon
+		// basically, that means to deprecate usage of target->color and use target->GetColor
+
+		vec3 finalSchlicksInput = lerpVectors(vec3(F0), target->GetColor(res), target->lighting.metalness);
+
+		attenuation *= coloredSchlick(finalSchlicksInput, dot(wo, m), target->lighting.ior);
+
 		// frensel term being wacky..
 	}
 }
