@@ -214,7 +214,7 @@ LUA_FUNCTION(SYNC_UploadSphere) {
 		deviceTexturePtr = RetrieveCachedTexture(textureName);
 	}
 
-	int ourID = CPU::AddTracerObject(CPU::Sphere, deviceTexturePtr);
+	int ourID = CPU::AddTracerObject(CPU::SphereMesh, deviceTexturePtr);
 
 	int brdfType = static_cast<int>(LUA->GetNumber(-5));
 	float emission = static_cast<float>(LUA->GetNumber(-4));

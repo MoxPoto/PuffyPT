@@ -52,7 +52,7 @@ __device__ static float thetaFromVec(vec3 vec) {
 
 // χ+(a)
 __device__ static float chi(float num) {
-	return num > 0.f ? 1.f : 0.f;
+	return num >= 0.f ? 1.f : 0.f;
 }
 
 // D(m)
@@ -70,8 +70,8 @@ __device__ static float GGXDistribution(float width, float thetaM, float phiM, c
 
 // G1(v, m)
 __device__ static float GGXGeometry(const vec3& v, const vec3& n, const vec3& m, float width) {
-	float vdotm = fmaxf(0.001f, dot(v, m));
-	float vdotn = fmaxf(0.001f, dot(v, n));
+	float vdotm = dot(v, m);
+	float vdotn = dot(v, n);
 
 	float chiOfDot = chi(vdotm / vdotn);
 	float alphaSquared = (width * width);
@@ -123,25 +123,24 @@ namespace SpecularBRDF {
 			m = reflect(-m, res.HitNormal);
 		}
 
-		targetRay.origin = res.HitPos + (res.HitNormal * 0.001f);
+		targetRay.origin = res.HitPos + (res.HitNormal * 0.01f);
 		targetRay.direction = (2.f * PROTECTZERO(fabsf(dot(wo, m))) * m - wo);
 
-		pdf = GGXDistribution(alpha, thetaM, phiM, res.HitNormal, m) * fabsf(PROTECTZERO(dot(m, res.HitNormal))) / (4.f * fabsf(PROTECTZERO(dot(targetRay.direction, m))));
+		pdf = GGXDistribution(alpha, thetaM, phiM, res.HitNormal, m) * fabsf((dot(m, res.HitNormal))) / (4.f * fabsf((dot(targetRay.direction, m))));
 			
 		// evaluate cook-torrance
-		float denominator = 4.f * fabsf(PROTECTZERO(dot(wo, res.HitNormal))) * fabsf(PROTECTZERO(dot(targetRay.direction, res.HitNormal)));
-		attenuation = GGXGeometry(wo, res.HitNormal, m, alpha) * GGXGeometry(targetRay.direction, res.HitNormal, m, alpha) * GGXDistribution(alpha, thetaM, phiM, res.HitNormal, m) / denominator;
-		
+
 		float f = (target->lighting.ior - 1.f) / (target->lighting.ior + 1.f);
 		// in my schlick's function, f0 is represented as r0
 		float F0 = (f * f);
 
-		// TODO: pufy pt 2.1 will make refraction and specular work with textures soon
-		// basically, that means to deprecate usage of target->color and use target->GetColor
-
 		vec3 finalSchlicksInput = lerpVectors(vec3(F0), target->GetColor(res), target->lighting.metalness);
+		vec3 fresnelTerm = coloredSchlick(finalSchlicksInput, dot(wo, m), target->lighting.ior);
 
-		attenuation *= coloredSchlick(finalSchlicksInput, dot(wo, m), target->lighting.ior);
+		vec3 numerator = GGXDistribution(alpha, thetaM, phiM, res.HitNormal, m) * fresnelTerm * GGXGeometry(targetRay.direction, res.HitNormal, m, alpha);
+		float denominator = 4.f * (dot(res.HitNormal, wi) * dot(res.HitNormal, wo));
+
+		attenuation = numerator / denominator;
 
 		// frensel term being wacky..
 	}

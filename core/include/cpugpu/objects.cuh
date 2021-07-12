@@ -11,7 +11,7 @@
 namespace CPU {
 	enum ObjectType {
 		TriangleMesh,
-		Sphere
+		SphereMesh
 	};
 
 	enum CommandError {

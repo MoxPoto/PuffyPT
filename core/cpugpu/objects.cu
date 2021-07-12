@@ -15,9 +15,9 @@
 namespace CPU {
 	__global__ void addObject(Object** world, ObjectType obj_type, Pixel* texturePtr, int curCount) {
 		switch (obj_type) {
-		case (ObjectType::Sphere):
+		case (ObjectType::SphereMesh):
 			printf("Adding sphere on GPU with curCount: %d, and obj_type: %d\n", curCount, obj_type);
-			*(world + curCount) = (new ::Sphere(vec3(0, 0, 0), 1.f));
+			*(world + curCount) = (new Sphere(vec3(0, 0, 0), 15.f));
 			Object* newObject = *(world + curCount);
 			newObject->objectID = curCount;
 			newObject->texture.Initialize(256, 256, texturePtr);
@@ -151,7 +151,7 @@ namespace CPU {
 		theMesh->InsertTri(v1, v2, v3, u1, u2, u3, vt1, vt2, vt3);
 		DEBUGGPU("Inserted triangle (from what I see)");
 	}
-
+	
 	CommandError InsertObjectTri(int id, vec3 v1, vec3 v2, vec3 v3, float u1, float u2, float u3, float vt1, float vt2, float vt3) {
 		CommandError err = CommandError::Success;
 
@@ -213,8 +213,8 @@ namespace CPU {
 	}
 
 	__global__ void setSphereSize(Object** world, int id, float newSize) {
-		::Sphere* ourSphere = static_cast<::Sphere*>(*(world + id));
-		ourSphere->radius = newSize;
+		Sphere* ourSphere = reinterpret_cast<Sphere*>(*(world + id));
+		ourSphere->radius = 45.f;
 	}
 
 	CommandError SetSphereSize(int id, float newSize) {
