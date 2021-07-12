@@ -9,12 +9,7 @@ __device__ Triangle::Triangle(const TrianglePayload& payload) {
 	u1 = payload.u1, u2 = payload.u2, u3 = payload.u3;
 	vt1 = payload.vt1, vt2 = payload.vt2, vt3 = payload.vt3;
 
-	vec3 theU = (v2 - v1);
-	vec3 theV = (v3 - v1);
-		
-	normal = cross(theV, theU);
-	normal.make_unit_vector(); // wtf
-
+	n1 = payload.n1, n2 = payload.n2, n3 = payload.n3;
 }
 
 __device__ Triangle::Triangle() {
@@ -30,5 +25,7 @@ __device__ Triangle::Triangle() {
 	vt2 = 0.0f;
 	vt3 = 0.0f;
 
-	normal = vec3();
+	n1 = vec3();
+	n2 = vec3();
+	n3 = vec3();
 }

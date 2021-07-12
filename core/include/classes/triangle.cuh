@@ -10,6 +10,10 @@ struct TrianglePayload {
 	vec3 v2;
 	vec3 v3;
 
+	vec3 n1;
+	vec3 n2;
+	vec3 n3;
+
 	float u1;
 	float u2;
 	float u3;
@@ -25,7 +29,10 @@ public:
 	vec3 v1;
 	vec3 v2;
 	vec3 v3;
-	vec3 normal;
+	
+	vec3 n1;
+	vec3 n2;
+	vec3 n3;
 
 	float u1, u2, u3;
 	float vt1, vt2, vt3; 

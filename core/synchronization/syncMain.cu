@@ -18,6 +18,7 @@ static struct Vertex {
 	Vector position;
 	float u;
 	float v;
+	Vector normal;
 };
 
 LUA_FUNCTION(SYNC_SetCameraPos) {
@@ -103,7 +104,7 @@ LUA_FUNCTION(SYNC_UploadMesh) {
 	printf("[host] Received table with length: %s\n", std::to_string(len).c_str());
 	std::vector<Vertex> verts;
 
-	for (int index = 0; index <= len; index+=3) {
+	for (int index = 0; index <= len; index += 4) {
 		// Our actual index will be +1 because Lua 1 indexes tables.
 		int actualIndex = index + 1;
 		Vertex vert; // Create vertex to work on
@@ -131,6 +132,12 @@ LUA_FUNCTION(SYNC_UploadMesh) {
 		vert.v = static_cast<float>(LUA->GetNumber()); // get our V
 		LUA->Pop(1);
 
+		LUA->PushNumber(actualIndex + 3);
+		LUA->GetTable(-2);
+		if (LUA->GetType(-1) == GarrysMod::Lua::Type::Nil) break;
+		vert.normal = (LUA->GetVector()); // get our vertex normal
+		LUA->Pop(1);
+
 		verts.push_back(vert);
 	}
 
@@ -140,6 +147,10 @@ LUA_FUNCTION(SYNC_UploadMesh) {
 		vec3 v1(verts[i].position.x, verts[i].position.y, verts[i].position.z);
 		vec3 v2(verts[i + 1].position.x, verts[i + 1].position.y, verts[i + 1].position.z);
 		vec3 v3(verts[i + 2].position.x, verts[i + 2].position.y, verts[i + 2].position.z);
+
+		vec3 n1(verts[i].normal.x, verts[i].normal.y, verts[i].normal.z);
+		vec3 n2(verts[i + 1].normal.x, verts[i + 1].normal.y, verts[i + 1].normal.z);
+		vec3 n3(verts[i + 2].normal.x, verts[i + 2].normal.y, verts[i + 2].normal.z);
 
 		float u1 = verts[i].u;
 		float u2 = verts[i + 1].u;
@@ -161,6 +172,10 @@ LUA_FUNCTION(SYNC_UploadMesh) {
 		ourPayload.vt1 = vt1;
 		ourPayload.vt2 = vt2;
 		ourPayload.vt3 = vt3;
+
+		ourPayload.n1 = n1;
+		ourPayload.n2 = n2;
+		ourPayload.n3 = n3;
 		
 		CPU::CommandError err = CPU::InsertObjectTri(ourID, ourPayload);
 		if (err != CPU::CommandError::Success) {

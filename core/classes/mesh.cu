@@ -141,7 +141,10 @@ __host__ __device__ bool Mesh::TryHit(const Ray& ray, HitResult& closestHit) {
             closestHit.u -= floorf(closestHit.u);
             closestHit.v -= floorf(closestHit.v);
 
-            closestHit.HitNormal = triHere->normal;
+            // Interpolate vertex normals (we are dealing with source assets.. pretty low poly)
+
+            closestHit.HitNormal = (1.f - u - v) * triHere->n1 + u * triHere->n2 + v * triHere->n3;
+            
             closestHit.objId = objectID;
 
             bHit = true;
