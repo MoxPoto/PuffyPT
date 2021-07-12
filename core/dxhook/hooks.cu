@@ -35,7 +35,15 @@
 #define PUFF_INCREMENT_RESET(name, variable) ImGui::Button(name); if (ImGui::IsItemActive()) { variable += 0.1f; frameCount = 0;}
 #define PUFF_DECREMENT_RESET(name, variable) ImGui::Button(name); if (ImGui::IsItemActive()) { variable -= 0.1f; frameCount = 0;}
 
-#define VERSION "PUFFY PT - 2.1"
+#define VERSION "PUFFY PT - 2.2"
+
+// note to self:
+// CUDA's compiler (nvcc) is shit (or me using it)
+// for the past 8 hours, most of the features in my tracer wouldnt work
+// i couldnt understand why at all, looked perfect
+// reason?
+// cuda wasn't compiling the new object files
+// rebuild all and it works perfectly.. sigh
 
 std::default_random_engine randEngine;
 std::uniform_real_distribution<float> unif(0.0, 1.0);

@@ -84,7 +84,7 @@ __device__ static float GGXGeometry(const vec3& v, const vec3& n, const vec3& m,
 
 
 __device__ static vec3 coloredSchlick(vec3 r0, float cosine, float ref_idx) {
-	return r0 + (vec3(1.0f) - r0) * powf((1.0 - cosine), 5.0f);
+	return r0 + (vec3(1.0f) - r0) * powf((1.0 - cosine), 2.0f);
 }
 
 namespace SpecularBRDF {
