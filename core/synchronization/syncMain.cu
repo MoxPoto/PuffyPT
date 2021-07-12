@@ -7,6 +7,8 @@
 #include <util/macros.h>
 #include <string>
 
+#include <classes/triangle.cuh>
+
 #define SYNC_NAME "tracerSync"
 #define TABLE_FUNC(name, cfuncName) LUA->PushString(name); LUA->PushCFunction(cfuncName); LUA->SetTable(-3);
 
@@ -147,10 +149,20 @@ LUA_FUNCTION(SYNC_UploadMesh) {
 		float vt2 = verts[i + 1].v;
 		float vt3 = verts[i + 2].v;
 
-		// printf("[host] v1: %.2f, %.2f, %.2f\n", v1.x(), v1.y(), v1.z());
-		// printf("[host] v1 - verts : %.2f, %.2f, %.2f\n", verts[i].x, verts[i].y, verts[i].z);
+		TrianglePayload ourPayload;
+		ourPayload.v1 = v1;
+		ourPayload.v2 = v2;
+		ourPayload.v3 = v3;
+
+		ourPayload.u1 = u1;
+		ourPayload.u2 = u2;
+		ourPayload.u3 = u3;
 		
-		CPU::CommandError err = CPU::InsertObjectTri(ourID, v1, v2, v3, u1, u2, u3, vt1, vt2, vt3);
+		ourPayload.vt1 = vt1;
+		ourPayload.vt2 = vt2;
+		ourPayload.vt3 = vt3;
+		
+		CPU::CommandError err = CPU::InsertObjectTri(ourID, ourPayload);
 		if (err != CPU::CommandError::Success) {
 			std::cout << "Command error hit on line " << __LINE__ << "!!!\n";
 		}

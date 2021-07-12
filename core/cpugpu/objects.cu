@@ -141,18 +141,15 @@ namespace CPU {
 		return err;
 	}
 
-	__global__ void insertCPUTri(Object** world, int id, float u1, float u2, float u3, float vt1, float vt2, float vt3, float x1, float y1, float z1, float x2, float y2, float z2, float x3, float y3, float z3) {
+	__global__ void insertCPUTri(Object** world, int id, TrianglePayload payload) {
 		DEBUGGPU("Starting insertCPUTri");
 		Mesh* theMesh = reinterpret_cast<Mesh*>(*(world + id));
-		vec3 v1(x1, y1, z1);
-		vec3 v2(x2, y2, z2);
-		vec3 v3(x3, y3, z3);
 
-		theMesh->InsertTri(v1, v2, v3, u1, u2, u3, vt1, vt2, vt3);
+		theMesh->InsertTri(payload);
 		DEBUGGPU("Inserted triangle (from what I see)");
 	}
 	
-	CommandError InsertObjectTri(int id, vec3 v1, vec3 v2, vec3 v3, float u1, float u2, float u3, float vt1, float vt2, float vt3) {
+	CommandError InsertObjectTri(int id, TrianglePayload payload) {
 		CommandError err = CommandError::Success;
 
 		if (id >= DXHook::world_count) {
@@ -160,7 +157,7 @@ namespace CPU {
 			return err;
 		}
 
-		insertCPUTri << <1, 1 >> > (DXHook::world, id, u1, u2, u3, vt1, vt2, vt3, v1.x(), v1.y(), v1.z(), v2.x(), v2.y(), v2.z(), v3.x(), v3.y(), v3.z());
+		insertCPUTri << <1, 1 >> > (DXHook::world, id, payload);
 		checkCudaErrors(cudaDeviceSynchronize());
 		checkCudaErrors(cudaGetLastError());
 
@@ -214,7 +211,7 @@ namespace CPU {
 
 	__global__ void setSphereSize(Object** world, int id, float newSize) {
 		Sphere* ourSphere = reinterpret_cast<Sphere*>(*(world + id));
-		ourSphere->radius = 45.f;
+		ourSphere->radius = newSize;
 	}
 
 	CommandError SetSphereSize(int id, float newSize) {

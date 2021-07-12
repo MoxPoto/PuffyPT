@@ -68,15 +68,12 @@ __host__ __device__ Mesh::~Mesh() {
 
     delete triBuffer;
 }
-__device__ void Mesh::InsertTri(vec3 v1, vec3 v2, vec3 v3, float u1, float u2, float u3, float vt1, float vt2, float vt3) {
-    Triangle* theTri = new Triangle(v1, v2, v3, u1, vt1, u2, vt2, u3, vt3);
+__device__ void Mesh::InsertTri(const TrianglePayload& payload) {
+    Triangle* theTri = new Triangle(payload);
 
     if ((size + 1) >= MAX_TRIANGLES) {
         printf("MAX TRIANGLES LIMIT REACHED!!!!");
         return;
-    }
-    else {
-        printf("[gpu]: Triangle inserted on GPU!.. i think v1: %.2f, %.2f, %2.f\n", v1.x(), v1.y(), v1.z());
     }
 
     triBuffer[size++] = theTri;

@@ -39,8 +39,8 @@ namespace CPU {
 
 	// Object-specific functions
 
-	extern __global__ void insertCPUTri(Object** world, int id, float u1, float u2, float u3, float vt1, float vt2, float vt3, float x1, float y1, float z1, float x2, float y2, float z2, float x3, float y3, float z3);
-	extern CommandError InsertObjectTri(int id, vec3 v1, vec3 v2, vec3 v3, float u1, float u2, float u3, float vt1, float vt2, float vt3);
+	extern __global__ void insertCPUTri(Object** world, int id, TrianglePayload payload);
+	extern CommandError InsertObjectTri(int id, TrianglePayload payload);
 
 	extern __global__ void computeTriAccel(Object** world, int id, vec3 nMin, vec3 nMax);
 	extern CommandError ComputeMeshAccel(int id, vec3 newMin, vec3 newMax);

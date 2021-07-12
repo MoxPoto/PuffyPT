@@ -13,7 +13,6 @@
 #include <glm/vec3.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-
 enum BRDF {
 	Lambertian,
 	Specular,
@@ -23,8 +22,8 @@ enum BRDF {
 struct LightingOptions {
 	float roughness = 0.0f;
 	float ior = 1.5f;
-	float metalness = 0.f;
 	float transmission = 0.f;
+	float metalness = 0.f;
 };
 
 class Object {

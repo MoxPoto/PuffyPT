@@ -3,7 +3,22 @@
 
 #include "cuda_runtime.h"
 #include "math.h"
-#include "vec3.cuh"
+#include <classes/vec3.cuh>
+
+struct TrianglePayload {
+	vec3 v1;
+	vec3 v2;
+	vec3 v3;
+
+	float u1;
+	float u2;
+	float u3;
+
+	float vt1;
+	float vt2;
+	float vt3;
+};
+
 
 class Triangle {
 public:
@@ -15,7 +30,7 @@ public:
 	float u1, u2, u3;
 	float vt1, vt2, vt3; 
 
-	__device__ Triangle(vec3 v1q, vec3 v2q, vec3 v3q, float _u1, float _v1, float _u2, float _v2, float _u3, float _v3);
+	__device__ Triangle(const TrianglePayload& payload);
 	__device__ Triangle();
 };
 
