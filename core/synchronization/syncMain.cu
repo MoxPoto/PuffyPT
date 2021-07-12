@@ -251,23 +251,41 @@ LUA_FUNCTION(SYNC_UploadSphere) {
 	return 1;
 }
 
-LUA_FUNCTION(SYNC_SetLighting) {
-	LUA->CheckType(-5, Lua::Type::Number); // ID
-	LUA->CheckType(-4, Lua::Type::Number); // Roughness
-	LUA->CheckType(-3, Lua::Type::Number); // IoR
-	LUA->CheckType(-2, Lua::Type::Number); // Metalness
-	LUA->CheckType(-1, Lua::Type::Number); // BRDF
 
-	int id = static_cast<int>(LUA->GetNumber(-5));
-	float roughness = static_cast<float>(LUA->GetNumber(-4));
-	float ior = static_cast<float>(LUA->GetNumber(-3));
-	float metalness = static_cast<float>(LUA->GetNumber(-2));
+LUA_FUNCTION(SYNC_SetLighting) {
+	LUA->CheckType(-2, Lua::Type::Number); // ID
+	LUA->CheckType(-1, Lua::Type::Table); // Lighting Options
+
+	int id = static_cast<int>(LUA->GetNumber(-2));
+	
+	LUA->GetField(-1, "Roughness");
+	float roughness = static_cast<float>(LUA->GetNumber(-1));
+	LUA->Pop(1);
+
+	LUA->GetField(-1, "IOR");
+	float ior = static_cast<float>(LUA->GetNumber(-1));
+	LUA->Pop(1);
+
+	LUA->GetField(-1, "Metalness");
+	float metalness = static_cast<float>(LUA->GetNumber(-1));
+	LUA->Pop(1);
+
+	LUA->GetField(-1, "Transmission");
+	float transmission = static_cast<float>(LUA->GetNumber(-1));
+	LUA->Pop(1);
+
+	LUA->GetField(-1, "BRDF");
 	BRDF newBRDF = static_cast<BRDF>(LUA->GetNumber(-1));
+	LUA->Pop(2);
+	// 2 because of that id float we didnt pop
+
+	std::cout << "Received " << transmission << " for Transmission.." << "\n";
 
 	LightingOptions newOptions;
 	newOptions.roughness = roughness;
 	newOptions.ior = ior;
 	newOptions.metalness = metalness;
+	newOptions.transmission = transmission;
 
 	CPU::CommandError cmdErr = CPU::CommitObjectLighting(id, newOptions);
 

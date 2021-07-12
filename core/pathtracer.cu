@@ -152,7 +152,12 @@ static __device__ vec3 depthColor(DXHook::RenderOptions* options, const Ray& ray
             }
             */
 
-            MixedBxDF::SampleWorld(rec, local_rand_state, options->curtime, pdf, attenuation, cur_ray, new_ray, target);
+            bool validSample = MixedBxDF::SampleWorld(rec, local_rand_state, options->curtime, pdf, attenuation, cur_ray, new_ray, target);
+
+            if (!validSample) {
+                // Nothing was chosen from our BxDF, so continue onwards
+                continue;
+            }
 
             currentLight *= attenuation / pdf;
 
