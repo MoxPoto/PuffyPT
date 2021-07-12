@@ -11,6 +11,7 @@
 #include <brdfs/lambert.cuh>
 #include <brdfs/specular.cuh>
 #include <brdfs/refraction.cuh>
+#include <brdfs/mixed.cuh>
 
 #include "math_constants.h"
 
@@ -135,6 +136,7 @@ static __device__ vec3 depthColor(DXHook::RenderOptions* options, const Ray& ray
             vec3 attenuation = currentLight;
             float pdf = 1.f;
 
+            /*
             switch (target->matType) {
             case (BRDF::Lambertian):
                 LambertBRDF::SampleWorld(rec, local_rand_state, options->curtime, pdf, attenuation, new_ray, target);
@@ -148,6 +150,9 @@ static __device__ vec3 depthColor(DXHook::RenderOptions* options, const Ray& ray
             default:
                 break;
             }
+            */
+
+            MixedBxDF::SampleWorld(rec, local_rand_state, options->curtime, pdf, attenuation, cur_ray, new_ray, target);
 
             currentLight *= attenuation / pdf;
 
