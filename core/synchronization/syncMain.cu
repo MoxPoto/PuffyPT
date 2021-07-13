@@ -9,6 +9,8 @@
 
 #include <classes/triangle.cuh>
 
+#include <vendor/stb_image.h>
+
 #define SYNC_NAME "tracerSync"
 #define TABLE_FUNC(name, cfuncName) LUA->PushString(name); LUA->PushCFunction(cfuncName); LUA->SetTable(-3);
 
@@ -16,6 +18,9 @@ using namespace GarrysMod;
 
 static struct Vertex {
 	Vector position;
+	Vector binormal;
+	Vector tangent;
+
 	float u;
 	float v;
 	Vector normal;
@@ -104,7 +109,7 @@ LUA_FUNCTION(SYNC_UploadMesh) {
 	printf("[host] Received table with length: %s\n", std::to_string(len).c_str());
 	std::vector<Vertex> verts;
 
-	for (int index = 0; index <= len; index += 4) {
+	for (int index = 0; index <= len; index += 6) {
 		// Our actual index will be +1 because Lua 1 indexes tables.
 		int actualIndex = index + 1;
 		Vertex vert; // Create vertex to work on
@@ -138,6 +143,18 @@ LUA_FUNCTION(SYNC_UploadMesh) {
 		vert.normal = (LUA->GetVector()); // get our vertex normal
 		LUA->Pop(1);
 
+		LUA->PushNumber(actualIndex + 4);
+		LUA->GetTable(-2);
+		if (LUA->GetType(-1) == GarrysMod::Lua::Type::Nil) break;
+		vert.tangent = (LUA->GetVector()); // get our vertex normal
+		LUA->Pop(1);
+
+		LUA->PushNumber(actualIndex + 5);
+		LUA->GetTable(-2);
+		if (LUA->GetType(-1) == GarrysMod::Lua::Type::Nil) break;
+		vert.binormal = (LUA->GetVector()); // get our vertex normal
+		LUA->Pop(1);
+
 		verts.push_back(vert);
 	}
 
@@ -151,6 +168,14 @@ LUA_FUNCTION(SYNC_UploadMesh) {
 		vec3 n1(verts[i].normal.x, verts[i].normal.y, verts[i].normal.z);
 		vec3 n2(verts[i + 1].normal.x, verts[i + 1].normal.y, verts[i + 1].normal.z);
 		vec3 n3(verts[i + 2].normal.x, verts[i + 2].normal.y, verts[i + 2].normal.z);
+
+		vec3 bin1(verts[i].binormal.x, verts[i].binormal.y, verts[i].binormal.z);
+		vec3 bin2(verts[i + 1].binormal.x, verts[i + 1].binormal.y, verts[i + 1].binormal.z);
+		vec3 bin3(verts[i + 2].binormal.x, verts[i + 2].binormal.y, verts[i + 2].binormal.z);
+
+		vec3 tan1(verts[i].tangent.x, verts[i].tangent.y, verts[i].tangent.z);
+		vec3 tan2(verts[i + 1].tangent.x, verts[i + 1].tangent.y, verts[i + 1].tangent.z);
+		vec3 tan3(verts[i + 2].tangent.x, verts[i + 2].tangent.y, verts[i + 2].tangent.z);
 
 		float u1 = verts[i].u;
 		float u2 = verts[i + 1].u;
@@ -176,6 +201,14 @@ LUA_FUNCTION(SYNC_UploadMesh) {
 		ourPayload.n1 = n1;
 		ourPayload.n2 = n2;
 		ourPayload.n3 = n3;
+
+		ourPayload.bin1 = bin1;
+		ourPayload.bin2 = bin2;
+		ourPayload.bin3 = bin3;
+
+		ourPayload.tan1 = tan1;
+		ourPayload.tan2 = tan2;
+		ourPayload.tan3 = tan3;
 		
 		CPU::CommandError err = CPU::InsertObjectTri(ourID, ourPayload);
 		if (err != CPU::CommandError::Success) {
@@ -328,6 +361,13 @@ LUA_FUNCTION(SYNC_SetLighting) {
 
 
 	return 0;
+}
+
+LUA_FUNCTION(SYNC_SetupPBR) {
+	LUA->CheckType(-2, Lua::Type::String); // MRAO Path
+	LUA->CheckType(-1, Lua::Type::String); // NormalMap Path
+
+
 }
 
 namespace Sync {
