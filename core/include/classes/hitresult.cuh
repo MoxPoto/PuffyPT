@@ -8,6 +8,8 @@ struct HitResult {
 	vec3 HitNormal;
 	vec3 HitAlbedo;
 
+	vec3 MRAO;
+
 	float t, u, v;
 	int objId;
 	bool backface = false;

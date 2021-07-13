@@ -111,7 +111,18 @@ namespace SpecularBRDF {
 		float u1 = curand_uniform(local_rand_state);
 		float u2 = curand_uniform(local_rand_state);
 		// random 1 and 2 in the cook-torrance paper
-		float alpha = fmaxf(0.001f, target->lighting.roughness * target->lighting.roughness);
+		float metalness = target->lighting.metalness;
+		float roughness = target->lighting.roughness;
+
+		if (target->pbrMaps.mraoMap.initialized) {
+			metalness = res.MRAO.b();
+			roughness = res.MRAO.g();
+
+			// Might be a good idea in the future to choose a specific
+			// MRAO format before just assuming that metalness = b and roughness = g
+		}
+
+		float alpha = fmaxf(0.001f, roughness * roughness);
 
 		float thetaM = atanf((alpha * sqrtf(u1)) / sqrt(1.f - u1));
 		float phiM = (2.f * static_cast<float>(CUDART_PI) * u2);
@@ -134,7 +145,7 @@ namespace SpecularBRDF {
 		// in my schlick's function, f0 is represented as r0
 		float F0 = (f * f);
 
-		vec3 finalSchlicksInput = lerpVectors(vec3(F0), target->GetColor(res), target->lighting.metalness);
+		vec3 finalSchlicksInput = lerpVectors(vec3(F0), res.HitAlbedo, metalness);
 		vec3 fresnelTerm = coloredSchlick(finalSchlicksInput, dot(wo, m), target->lighting.ior);
 
 		vec3 numerator = GGXDistribution(alpha, thetaM, phiM, res.HitNormal, m) * fresnelTerm * GGXGeometry(targetRay.direction, res.HitNormal, m, alpha);

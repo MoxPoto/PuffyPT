@@ -185,6 +185,10 @@ __host__ __device__ bool Mesh::TryHit(const Ray& ray, HitResult& closestHit) {
             closestHit.HitNormal = thisNormal;
         }
 
+        if (pbrMaps.mraoMap.initialized) {
+            closestHit.MRAO = pbrMaps.mraoMap.GetPixel(closestHit.u, closestHit.v);
+        }
+
         closestHit.HitAlbedo = GetColor(closestHit);
     }
 

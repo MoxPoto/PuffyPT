@@ -83,8 +83,13 @@ namespace LambertBRDF {
 		targetRay.direction = sampleLocalized;
 
 		// Specular metallics and diffuse metallics come from: https://github.com/NVIDIAGameWorks/Falcor/blob/master/Source/Falcor/Scene/Shading.slang#L185
+		float metalness = target->lighting.metalness;
 
-		vec3 albedo = lerpVectors(target->GetColor(rec), BLACK, target->lighting.metalness);
+		if (target->pbrMaps.mraoMap.initialized) {
+			metalness = rec.MRAO.b();
+		}
+			
+		vec3 albedo = lerpVectors(rec.HitAlbedo, BLACK, metalness);
 
 		attenuation = evaluateLambert(sampleLocalized, rec.HitNormal, (albedo * target->emission));
 		pdf = getLambertPDF(sampleLocalized, rec.HitNormal);

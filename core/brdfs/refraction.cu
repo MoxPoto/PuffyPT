@@ -119,11 +119,16 @@ namespace RefractBRDF {
 				vec3 roughnessDir = res.HitNormal + vec3(curand_uniform(local_rand_state), curand_uniform(local_rand_state), curand_uniform(local_rand_state));
 				roughnessDir.make_unit_vector();
 
-				targetRay.direction = lerpVectors(targetRay.direction, roughnessDir, target->lighting.roughness * target->lighting.roughness);
+				float roughness = target->lighting.roughness;
+				if (target->pbrMaps.mraoMap.initialized) {
+					roughness = res.MRAO.g();
+				}
+
+				targetRay.direction = lerpVectors(targetRay.direction, roughnessDir, roughness * roughness);
 			}
 
 			if (res.backface) {
-				attenuation = calculateBeersLaw(1.f - target->GetColor(res), res.t);
+				attenuation = calculateBeersLaw(1.f - res.HitAlbedo, res.t);
 			}
 				
 			float weight = (1.f - fresnel);
