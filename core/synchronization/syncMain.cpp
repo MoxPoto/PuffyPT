@@ -1,4 +1,4 @@
-﻿#include <GarrysMod/Lua/Interface.h>
+#include <GarrysMod/Lua/Interface.h>
 #include <vector>
 #include <map>
 #include <iostream>
@@ -7,6 +7,7 @@
 #include <cpugpu/objects.cuh>
 #include <util/macros.h>
 #include <string>
+#include <filesystem>
 
 #include <classes/triangle.cuh>
 
@@ -50,7 +51,7 @@ LUA_FUNCTION(SYNC_SetCameraAngles) {
 LUA_FUNCTION(SYNC_AddTexture) {
 	LUA->CheckType(-2, Lua::Type::String); // Texture Name
 	LUA->CheckType(-1, Lua::Type::Table); // Texture Data
-	
+
 	const char* textureName = LUA->GetString(-2);
 
 	size_t len = LUA->ObjLen();
@@ -133,7 +134,7 @@ LUA_FUNCTION(SYNC_UploadMesh) {
 		if (LUA->GetType(-1) == GarrysMod::Lua::Type::Nil) break;
 		vert.u = static_cast<float>(LUA->GetNumber()); // get our U
 		LUA->Pop(1);
-		
+
 		LUA->PushNumber(actualIndex + 2);
 		LUA->GetTable(-2);
 		if (LUA->GetType(-1) == GarrysMod::Lua::Type::Nil) break;
@@ -196,7 +197,7 @@ LUA_FUNCTION(SYNC_UploadMesh) {
 		ourPayload.u1 = u1;
 		ourPayload.u2 = u2;
 		ourPayload.u3 = u3;
-		
+
 		ourPayload.vt1 = vt1;
 		ourPayload.vt2 = vt2;
 		ourPayload.vt3 = vt3;
@@ -212,12 +213,12 @@ LUA_FUNCTION(SYNC_UploadMesh) {
 		ourPayload.tan1 = tan1;
 		ourPayload.tan2 = tan2;
 		ourPayload.tan3 = tan3;
-		
+
 		CPU::CommandError err = CPU::InsertObjectTri(ourID, ourPayload);
 		if (err != CPU::CommandError::Success) {
 			std::cout << "Command error hit on line " << __LINE__ << "!!!\n";
 		}
-		
+
 	}
 
 	LUA->Pop(2);
@@ -319,7 +320,7 @@ LUA_FUNCTION(SYNC_SetLighting) {
 	LUA->CheckType(-1, Lua::Type::Table); // Lighting Options
 
 	int id = static_cast<int>(LUA->GetNumber(-2));
-	
+
 	LUA->GetField(-1, "Roughness");
 	float roughness = static_cast<float>(LUA->GetNumber(-1));
 	LUA->Pop(1);
@@ -382,7 +383,9 @@ LUA_FUNCTION(SYNC_SetupPBR) {
 	Pixel* devNormalData = RetrieveCachedTexture(normalPath);
 	Pixel* devMraoData = nullptr;
 
-	if (!IsTextureCached(mraoPath)) {
+	bool doesMRAOExist = std::filesystem::exists(mraoPath);
+
+	if (!IsTextureCached(mraoPath) && doesMRAOExist) {
 		int width;
 		int height;
 		int channelsInFile;
@@ -392,7 +395,7 @@ LUA_FUNCTION(SYNC_SetupPBR) {
 		Pixel* mraoData = stbi_loadf(mraoPath, &width, &height, &channelsInFile, channels);
 
 		if (mraoData != nullptr) {
-			std::pair<int, int> res { width, height };
+			std::pair<int, int> res{ width, height };
 
 			mraoResolutions[mraoPath] = res;
 
@@ -403,20 +406,24 @@ LUA_FUNCTION(SYNC_SetupPBR) {
 		}
 	}
 	else {
-		devMraoData = RetrieveCachedTexture(mraoPath);
+		if (doesMRAOExist) {
+			devMraoData = RetrieveCachedTexture(mraoPath);
+		} 
 	}
 
 
-	std::pair<int, int> mraoRes;
+	std::pair<int, int> mraoRes { 0, 0 };
 
-	try {
-		mraoRes = mraoResolutions.at(std::string(mraoPath));
-	}
-	catch (std::exception& e) {
-		std::string errorMessage = std::string("An exception occurred while reading the resolution of the MRAO map:\n") + e.what();
+	if (doesMRAOExist) {
+		try {
+			mraoRes = mraoResolutions.at(std::string(mraoPath));
+		}
+		catch (std::exception& e) {
+			std::string errorMessage = std::string("An exception occurred while reading the resolution of the MRAO map:\n") + e.what();
 
-		LUA->ThrowError(errorMessage.c_str());
-		return 0;
+			LUA->ThrowError(errorMessage.c_str());
+			return 0;
+		}
 	}
 
 	CPU::SetPBR(id, mraoRes.first, mraoRes.second, devNormalData, devMraoData);
@@ -425,7 +432,7 @@ LUA_FUNCTION(SYNC_SetupPBR) {
 
 namespace Sync {
 	std::vector<Prop> props;
-		
+
 	void Initialize(Lua::ILuaBase* LUA) {
 		LUA->PushSpecial(Lua::SPECIAL_GLOB);
 		LUA->PushString(SYNC_NAME);
@@ -442,12 +449,12 @@ namespace Sync {
 
 		LUA->Pop(1); // Pop glob off
 	}
-		
+
 	void Deinitialize(Lua::ILuaBase* LUA) {
 		LUA->PushSpecial(Lua::SPECIAL_GLOB);
 		LUA->PushNil();
 		LUA->SetField(-2, SYNC_NAME);
-			
+
 		LUA->Pop(1); // Pop glob off
 	}
 }
