@@ -1,13 +1,13 @@
-#include <GarrysMod/Lua/Interface.h>
+﻿#include <GarrysMod/Lua/Interface.h>
 #include <vector>
 #include <map>
 #include <iostream>
 
+#include <images/hdriUtility.cuh>
 #include <synchronization/syncMain.cuh>
 #include <cpugpu/objects.cuh>
 #include <util/macros.h>
 #include <string>
-#include <filesystem>
 
 #include <classes/triangle.cuh>
 
@@ -383,7 +383,7 @@ LUA_FUNCTION(SYNC_SetupPBR) {
 	Pixel* devNormalData = RetrieveCachedTexture(normalPath);
 	Pixel* devMraoData = nullptr;
 
-	bool doesMRAOExist = std::filesystem::exists(mraoPath);
+	bool doesMRAOExist = CheckFileExists(mraoPath);
 
 	if (!IsTextureCached(mraoPath) && doesMRAOExist) {
 		int width;
@@ -408,11 +408,11 @@ LUA_FUNCTION(SYNC_SetupPBR) {
 	else {
 		if (doesMRAOExist) {
 			devMraoData = RetrieveCachedTexture(mraoPath);
-		} 
+		}
 	}
 
 
-	std::pair<int, int> mraoRes { 0, 0 };
+	std::pair<int, int> mraoRes{ 0, 0 };
 
 	if (doesMRAOExist) {
 		try {

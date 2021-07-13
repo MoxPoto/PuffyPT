@@ -12,6 +12,11 @@
 
 // Cuda doesn't support C++17, so a seperate host compilation is required
 
+// I'm also using this to import std::filesystem::exists
+
+__host__ bool CheckFileExists(const std::string& path) {
+    return std::filesystem::exists(path);
+}
 __host__ void FindHDRIs(const std::string& folder, std::vector<std::string>& hdriList, int& finalArraySize) {
     int size = 0;
     hdriList.clear();
