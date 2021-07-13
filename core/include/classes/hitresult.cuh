@@ -6,6 +6,8 @@
 struct HitResult {
 	vec3 HitPos;
 	vec3 HitNormal;
+	vec3 HitAlbedo;
+
 	float t, u, v;
 	int objId;
 	bool backface = false;

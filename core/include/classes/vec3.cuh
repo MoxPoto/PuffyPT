@@ -4,6 +4,12 @@
 #include "math.h"
 #include "cuda_runtime.h"
 
+#define GLM_FORCE_CUDA
+#include <glm/glm.hpp>
+#include <glm/mat3x3.hpp>
+#include <glm/vec3.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
 
 class vec3 {
     // from https://github.com/rogerallen/raytracinginoneweekendincuda/blob/ch05_normals_cuda/vec3.h
@@ -37,6 +43,7 @@ public:
 
     __host__ __device__ inline float length() const { return sqrt(e[0] * e[0] + e[1] * e[1] + e[2] * e[2]); }
     __host__ __device__ inline float squared_length() const { return e[0] * e[0] + e[1] * e[1] + e[2] * e[2]; }
+    __device__ inline glm::vec3 toGLM() const { return glm::vec3(e[0], e[1], e[2]); };
     __host__ __device__ inline void make_unit_vector();
     __device__ inline void clamp();
 

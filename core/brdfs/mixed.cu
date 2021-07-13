@@ -22,12 +22,12 @@ namespace MixedBxDF {
 			RefractBRDF::SampleWorld(res, local_rand_state, pdf, extraRand, previousRay, attenuation, targetRay, target);
 			return true;
 		} 
-		else if (diffuseProbability >= sampledUniform) {
-			LambertBRDF::SampleWorld(res, local_rand_state, extraRand, pdf, attenuation, targetRay, target);
-			return true;
-		}
 		else if (specularProbablilty >= sampledUniform) {
 			SpecularBRDF::SampleWorld(res, local_rand_state, extraRand, pdf, previousRay, attenuation, targetRay, target);
+			return true;
+		}
+		else if (diffuseProbability >= sampledUniform) {
+			LambertBRDF::SampleWorld(res, local_rand_state, extraRand, pdf, attenuation, targetRay, target);
 			return true;
 		}
 		

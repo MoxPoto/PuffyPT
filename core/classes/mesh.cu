@@ -9,6 +9,13 @@
 #include "stdio.h"
 #include <dxhook/mainHook.h>
 
+#define GLM_FORCE_CUDA
+#include <glm/glm.hpp>
+#include <glm/mat3x3.hpp>
+#include <glm/vec3.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
+
 constexpr float kEpsilon = 1e-8;
 constexpr float MAX_FLOAT = 1000000.0f;
 
@@ -124,6 +131,8 @@ __host__ __device__ bool Mesh::AnyHit(const Ray& ray) {
 
 __host__ __device__ bool Mesh::TryHit(const Ray& ray, HitResult& closestHit) {
     bool bHit = false;
+    Triangle* closestTri = nullptr;
+    float finalU, finalV;
 
     for (int i = 0; i < size; i++) {
         Triangle* triHere = triBuffer[i];
@@ -147,8 +156,36 @@ __host__ __device__ bool Mesh::TryHit(const Ray& ray, HitResult& closestHit) {
             
             closestHit.objId = objectID;
 
+            finalU = u;
+            finalV = v;
+
             bHit = true;
+            closestTri = triHere;
         }
+    }
+
+    if (closestTri != nullptr && bHit) {
+        if (pbrMaps.normalMap.initialized) {
+            // Proceed with normal mapping
+            vec3 bitangent = (1.f - finalU - finalV) * closestTri->bin1 + finalU * closestTri->bin2 + finalV * closestTri->bin3;
+            vec3 tangent = (1.f - finalU - finalV) * closestTri->tan1 + finalU * closestTri->tan2 + finalV * closestTri->tan2;
+
+            glm::mat3 tbnMatrix(
+                tangent.toGLM(),
+                bitangent.toGLM(),
+                closestHit.HitNormal.toGLM()
+            );
+
+            vec3 thisNormal = pbrMaps.normalMap.GetPixel(closestHit.u, closestHit.v) * 2.0f - 1.0;
+            glm::vec3 worldSpaceNormal = tbnMatrix * thisNormal.toGLM();
+
+            thisNormal = vec3(worldSpaceNormal.x, worldSpaceNormal.y, worldSpaceNormal.z);
+            thisNormal.make_unit_vector();
+
+            closestHit.HitNormal = thisNormal;
+        }
+
+        closestHit.HitAlbedo = GetColor(closestHit);
     }
 
     return bHit;

@@ -10,6 +10,8 @@ __device__ Triangle::Triangle(const TrianglePayload& payload) {
 	vt1 = payload.vt1, vt2 = payload.vt2, vt3 = payload.vt3;
 
 	n1 = payload.n1, n2 = payload.n2, n3 = payload.n3;
+	bin1 = payload.bin1, bin2 = payload.bin2, bin3 = payload.bin3;
+	tan1 = payload.tan1, tan2 = payload.tan2, tan3 = payload.tan3;
 }
 
 __device__ Triangle::Triangle() {
@@ -28,4 +30,12 @@ __device__ Triangle::Triangle() {
 	n1 = vec3();
 	n2 = vec3();
 	n3 = vec3();
+
+	bin1 = vec3();
+	bin2 = vec3();
+	bin3 = vec3();
+
+	tan1 = vec3();
+	tan2 = vec3();
+	tan3 = vec3();
 }

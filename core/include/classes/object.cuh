@@ -26,16 +26,29 @@ struct LightingOptions {
 	float metalness = 0.f;
 };
 
+// TODO:
+// add futureproofing support for transmission maps
+// aka, look for maps ending with "_transmission"
+// there isnt any avaliable so its a low priority for now
+struct PBRMap {
+	Texture normalMap;
+	Texture mraoMap;
+};
+
 class Object {
 public:
 	vec3 color = vec3(1, 1, 1);
 	vec3 position = vec3(0, 0, 0);
 	int objectID = 0;
 	float emission = 1.f;
+	// TODO:
+	// deprecate the usage of specific BRDFs, this isn't even considered in the pathtracer anymore
+	// all lighting choices are selected via the Mixed BxDF
 	BRDF matType = BRDF::Lambertian;
 	LightingOptions lighting;
 	glm::mat3x3 transform;
 	Texture texture;
+	PBRMap pbrMaps;
 
 	__host__ __device__ Object();
 
