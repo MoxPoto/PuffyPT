@@ -20,10 +20,10 @@ __device__ vec3 Object::GetColor(const HitResult& rayThatHit) {
 	//return vec3(rayThatHit.u, rayThatHit.v, 1.f - rayThatHit.u - rayThatHit.v);
 }
 
-__host__ __device__ bool Object::TryHit(const Ray& ray, HitResult& result) {
+__device__ bool Object::TryHit(const Ray& ray, HitResult& result) {
 	return false;
 }
 
-__host__ __device__ bool Object::AnyHit(const Ray& ray) {
+__device__ bool Object::AnyHit(const Ray& ray) {
 	return true; // if something simply just returns "true" on the AnyHit pass it's pretty much safe to assume it's not accelerated
 }

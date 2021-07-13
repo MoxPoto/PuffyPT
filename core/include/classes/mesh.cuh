@@ -18,8 +18,8 @@ public:
 	__host__ __device__ ~Mesh();
 	__device__ void InsertTri(const TrianglePayload& payload);
 	__host__ __device__ void Mesh::ComputeAccel(vec3 newMin, vec3 newMax);
-	__host__ __device__ bool virtual TryHit(const Ray& ray, HitResult& closestHit);
-	__host__ __device__ bool virtual AnyHit(const Ray& ray);
+	__device__ bool virtual TryHit(const Ray& ray, HitResult& closestHit);
+	__device__ bool virtual AnyHit(const Ray& ray);
 };
 
 

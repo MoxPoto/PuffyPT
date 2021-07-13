@@ -53,8 +53,8 @@ public:
 	__host__ __device__ Object();
 
 	__device__ vec3 GetColor(const HitResult& rayThatHit);
-	__host__ __device__ bool virtual TryHit(const Ray& ray, HitResult& result);
-	__host__ __device__ bool virtual AnyHit(const Ray& ray);
+	__device__ bool virtual TryHit(const Ray& ray, HitResult& result);
+	__device__ bool virtual AnyHit(const Ray& ray);
 };
 
 #endif

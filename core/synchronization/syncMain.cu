@@ -1,5 +1,6 @@
 ﻿#include <GarrysMod/Lua/Interface.h>
 #include <vector>
+#include <map>
 #include <iostream>
 
 #include <synchronization/syncMain.cuh>
@@ -15,6 +16,8 @@
 #define TABLE_FUNC(name, cfuncName) LUA->PushString(name); LUA->PushCFunction(cfuncName); LUA->SetTable(-3);
 
 using namespace GarrysMod;
+
+static std::map<std::string, std::pair<int, int>> mraoResolutions;
 
 static struct Vertex {
 	Vector position;
@@ -311,7 +314,6 @@ LUA_FUNCTION(SYNC_UploadSphere) {
 	return 1;
 }
 
-
 LUA_FUNCTION(SYNC_SetLighting) {
 	LUA->CheckType(-2, Lua::Type::Number); // ID
 	LUA->CheckType(-1, Lua::Type::Table); // Lighting Options
@@ -364,10 +366,61 @@ LUA_FUNCTION(SYNC_SetLighting) {
 }
 
 LUA_FUNCTION(SYNC_SetupPBR) {
+	LUA->CheckType(-3, Lua::Type::Number); // Object ID
 	LUA->CheckType(-2, Lua::Type::String); // MRAO Path
-	LUA->CheckType(-1, Lua::Type::String); // NormalMap Path
+	LUA->CheckType(-1, Lua::Type::String); // NormalMap Name (not path, this isn't a file, it's a texture)
+
+	int id = static_cast<int>(LUA->GetNumber(-3));
+	const char* mraoPath = LUA->GetString(-2);
+	const char* normalPath = LUA->GetString(-1);
+
+	if (!IsTextureCached(normalPath)) {
+		LUA->ThrowError("The normal map is not allocated on the GPU yet!\nThis should've been allocated already from lua..");
+		return 0;
+	}
+
+	Pixel* devNormalData = RetrieveCachedTexture(normalPath);
+	Pixel* devMraoData = nullptr;
+
+	if (!IsTextureCached(mraoPath)) {
+		int width;
+		int height;
+		int channelsInFile;
+
+		int channels = 3;
+
+		Pixel* mraoData = stbi_loadf(mraoPath, &width, &height, &channelsInFile, channels);
+
+		if (mraoData != nullptr) {
+			std::pair<int, int> res { width, height };
+
+			mraoResolutions[mraoPath] = res;
+
+			devMraoData = CreateTextureOnDevice(mraoData, mraoPath, (width * height * channels) * sizeof(Pixel));
+		}
+		else {
+			LUA->ThrowError("Couldn't load the MRAO map, an allocation or filepath error occurred..");
+		}
+	}
+	else {
+		devMraoData = RetrieveCachedTexture(mraoPath);
+	}
 
 
+	std::pair<int, int> mraoRes;
+
+	try {
+		mraoRes = mraoResolutions.at(std::string(mraoPath));
+	}
+	catch (std::exception& e) {
+		std::string errorMessage = std::string("An exception occurred while reading the resolution of the MRAO map:\n") + e.what();
+
+		LUA->ThrowError(errorMessage.c_str());
+		return 0;
+	}
+
+	CPU::SetPBR(id, mraoRes.first, mraoRes.second, devNormalData, devMraoData);
+	return 0;
 }
 
 namespace Sync {

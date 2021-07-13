@@ -51,6 +51,9 @@ namespace CPU {
 	extern __global__ void setSphereSize(Object** world, int id, float newSize);
 	extern CommandError SetSphereSize(int id, float newSize);
 
+	extern __global__ void setPBR(Object** world, int id, int mraoX, int mraoY, Pixel* normal, Pixel* mrao);
+	extern CommandError SetPBR(int id, int mraoX, int mraoY, Pixel* normal, Pixel* mrao);
+
 	extern void SetCameraPos(float x, float y, float z);
 	extern void SetCameraAngles(vec3 camDir);
 }

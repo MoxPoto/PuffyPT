@@ -3,8 +3,12 @@
 
 #include "math.h"
 #include "cuda_runtime.h"
+#include <cuda.h>
 
-#define GLM_FORCE_CUDA
+#ifdef __CUDACC__
+    #define GLM_FORCE_CUDA
+#endif
+
 #include <glm/glm.hpp>
 #include <glm/mat3x3.hpp>
 #include <glm/vec3.hpp>
@@ -43,7 +47,7 @@ public:
 
     __host__ __device__ inline float length() const { return sqrt(e[0] * e[0] + e[1] * e[1] + e[2] * e[2]); }
     __host__ __device__ inline float squared_length() const { return e[0] * e[0] + e[1] * e[1] + e[2] * e[2]; }
-    __device__ inline glm::vec3 toGLM() const { return glm::vec3(e[0], e[1], e[2]); };
+    __host__ __device__ inline glm::vec3 toGLM() const { return glm::vec3(e[0], e[1], e[2]); };
     __host__ __device__ inline void make_unit_vector();
     __device__ inline void clamp();
 

@@ -229,6 +229,28 @@ namespace CPU {
 		return err;
 	}
 
+	__global__ void setPBR(Object** world, int id, int mraoX, int mraoY, Pixel* normal, Pixel* mrao) {
+		Object* object = *(world + id);
+
+		object->pbrMaps.mraoMap.Initialize(mraoX, mraoY, mrao);
+		object->pbrMaps.normalMap.Initialize(256, 256, normal);
+	}
+
+	CommandError SetPBR(int id, int mraoX, int mraoY, Pixel* normal, Pixel* mrao) {
+		CommandError err = CommandError::Success;
+
+		if (id >= DXHook::world_count) {
+			err = CommandError::NonexistantObject;
+			return err;
+		}
+
+		setPBR << <1, 1 >> > (DXHook::world, id, mraoX, mraoY, normal, mrao);
+		checkCudaErrors(cudaDeviceSynchronize());
+		checkCudaErrors(cudaGetLastError());
+
+		return err;
+	}
+
 	void SetCameraPos(float x, float y, float z) {
 		if (DXHook::curX != x || DXHook::curY != y || DXHook::curZ != z) {
 			DXHook::frameCount = 0;
