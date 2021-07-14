@@ -48,6 +48,8 @@
 std::default_random_engine randEngine;
 std::uniform_real_distribution<float> unif(0.0, 1.0);
 
+static int accumulatedSamples = 0;
+
 namespace DXHook {
 	EndScene oldFunc;
 	void* d3d9Device[119];
@@ -180,6 +182,12 @@ namespace DXHook {
 		
 		ImGui::Text("Current FOV: %.2f", fov);
 
+		if (frameCount <= 0) {
+			accumulatedSamples = 0;
+		}
+		accumulatedSamples += samples;
+
+		ImGui::Text("Accumulated Samples: %d", accumulatedSamples);
 		ImGui::Text("Current Samples: %d", samples);
 		ImGui::Text("Current Max Depth: %d", max_depth);
 		
@@ -230,8 +238,9 @@ namespace DXHook {
 		ImGui::Checkbox("Enable Postprocessing?", &denoiserEnabled);
 		ImGui::Checkbox("Show Output?", &showPathtracer);
 		ImGui::Checkbox("Show Sky?", &showSky);
-		ImGui::Checkbox("Override AABB Accel?", &aabbOverride);
+		// ImGui::Checkbox("Override AABB Accel?", &aabbOverride);
 
+		/*
 		if (ImGui::ColorPicker3("Edit Sky Azimuth", azimuth)) {
 			frameCount = 0;
 		}
@@ -242,6 +251,9 @@ namespace DXHook {
 
 		skyInfo.azimuth = vec3(azimuth[0], azimuth[1], azimuth[2]);
 		skyInfo.zenith = vec3(zenith[0], zenith[1], zenith[2]);
+		*/
+
+		// No practical use for these ^
 
 		const char* passes[] = {
 			"Direct Lighting",
