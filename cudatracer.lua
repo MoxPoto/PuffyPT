@@ -161,6 +161,7 @@ function CudaTracer:AddObjectAt()
     self:AddObject(LocalPlayer():GetEyeTrace().Entity)
 end
 
+local MRAO_ENABLED = false
 function CudaTracer:AddMyObjects()
     for k , v in pairs(ents.FindByClass("prop_physics")) do
         if (v.CPPIGetOwner) then
@@ -189,7 +190,7 @@ function CudaTracer:AddMyObjects()
                     normalMapPath = "_no_normal_map"
                 end
 
-                tracerSync.SetPBR(v.PTID, "", normalMapPath)
+                tracerSync.SetPBR(v.PTID, (MRAO_ENABLED and mraoPath or ""), normalMapPath)
             end
         end
     end
