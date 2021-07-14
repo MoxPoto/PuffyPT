@@ -17,6 +17,26 @@
 
 #pragma region Utility
 
+
+__device__ static inline vec3 lerpVectors(vec3 a, vec3 b, float f)
+{
+    return (a * (1.0f - f)) + (b * f);
+}
+
+__device__ static void adjustShadingNormal(HitResult& closestHit, vec3 dir) {
+    vec3 Ng = closestHit.GeometricNormal;
+    vec3 Ns = closestHit.HitNormal;
+
+    const float kCosThetaThreshold = 0.1f;
+    float cosTheta = dot(dir, Ns);
+
+    if (cosTheta <= kCosThetaThreshold) {
+        float t = __saturatef(cosTheta * (1.f / kCosThetaThreshold));
+        closestHit.HitNormal = lerpVectors(Ng, Ns, t);
+    }
+}
+
+
 __device__ Object* traceScene(int count, Object** world, const Ray& ray, HitResult& output, bool aabbOverride) {
     Object* hitObject = NULL;
 
@@ -40,12 +60,15 @@ __device__ Object* traceScene(int count, Object** world, const Ray& ray, HitResu
     if (hitObject != NULL) {
         output.HitPos = ray.origin + (ray.direction * output.t);
 
-        bool inverted = dot(ray.direction, output.HitNormal) > 0.f;
+        bool inverted = dot(ray.direction, output.GeometricNormal) > 0.f;
         output.backface = inverted;
 
         if (inverted) {
             output.HitNormal = -output.HitNormal;
+            output.GeometricNormal = -output.GeometricNormal;
         }
+
+        // adjustShadingNormal(output, ray.direction);
     }
 
     return hitObject;

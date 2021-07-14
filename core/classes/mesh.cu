@@ -153,7 +153,8 @@ __device__ bool Mesh::TryHit(const Ray& ray, HitResult& closestHit) {
             // Interpolate vertex normals (we are dealing with source assets.. pretty low poly)
 
             closestHit.HitNormal = (1.f - u - v) * triHere->n1 + u * triHere->n2 + v * triHere->n3;
-            
+            closestHit.GeometricNormal = closestHit.HitNormal;
+
             closestHit.objId = objectID;
 
             finalU = u;

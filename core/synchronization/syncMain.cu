@@ -375,11 +375,6 @@ LUA_FUNCTION(SYNC_SetupPBR) {
 	const char* mraoPath = LUA->GetString(-2);
 	const char* normalPath = LUA->GetString(-1);
 
-	if (!IsTextureCached(normalPath)) {
-		LUA->ThrowError("The normal map is not allocated on the GPU yet!\nThis should've been allocated already from lua..");
-		return 0;
-	}
-
 	Pixel* devNormalData = RetrieveCachedTexture(normalPath);
 	Pixel* devMraoData = nullptr;
 
@@ -445,6 +440,8 @@ namespace Sync {
 		TABLE_FUNC("UploadMesh", SYNC_UploadMesh);
 		TABLE_FUNC("SetObjectLighting", SYNC_SetLighting);
 		TABLE_FUNC("UploadTexture", SYNC_AddTexture);
+		TABLE_FUNC("SetPBR", SYNC_SetupPBR);
+
 		LUA->SetTable(-3);
 
 		LUA->Pop(1); // Pop glob off

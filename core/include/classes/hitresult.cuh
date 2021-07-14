@@ -7,6 +7,7 @@ struct HitResult {
 	vec3 HitPos;
 	vec3 HitNormal;
 	vec3 HitAlbedo;
+	vec3 GeometricNormal;
 
 	vec3 MRAO;
 
