@@ -8,6 +8,8 @@
 #include "math.h"
 #include "math_constants.h"
 
+#include <util/macros.h>
+
 #define RANDVEC3 vec3(fmodf(curand_uniform(local_rand_state) + extraRand, 1.f),fmodf(curand_uniform(local_rand_state) + extraRand, 1.f),fmodf(curand_uniform(local_rand_state) + extraRand, 1.f))
 //#define RANDVEC3 vec3(curand_uniform(local_rand_state),curand_uniform(local_rand_state),curand_uniform(local_rand_state))
 
@@ -94,5 +96,14 @@ namespace LambertBRDF {
 		attenuation = evaluateLambert(sampleLocalized, rec.HitNormal, (albedo * target->emission));
 		pdf = getLambertPDF(sampleLocalized, rec.HitNormal);
 
+	}
+
+	__device__ float PDF(const HitResult& res, Object* target, const vec3& wo, const vec3& wi) {
+		static const float kMinCosTheta = 1e-6f;
+
+		if (min(wo.z(), wi.z()) < kMinCosTheta)
+			return 0;
+
+		return M_1_PI * wi.z();
 	}
 }

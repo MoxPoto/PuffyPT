@@ -9,6 +9,7 @@
 #include "curand_kernel.h"
 #include "math_constants.h"
 
+#include <util/macros.h>
 
 #define PROTECTZERO(statement) fmaxf(0.001f, statement)
 
@@ -56,7 +57,7 @@ __device__ static float chi(float num) {
 }
 
 // D(m)
-__device__ static float GGXDistribution(float width, float thetaM, float phiM, const vec3& hitNormal, const vec3& microfacet) {
+__device__ static float GGXDistribution(float width, float thetaM, const vec3& hitNormal, const vec3& microfacet) {
 	float alphaSquared = (width * width);
 
 	float numerator = alphaSquared * chi(dot(microfacet, hitNormal));
@@ -85,6 +86,12 @@ __device__ static float GGXGeometry(const vec3& v, const vec3& n, const vec3& m,
 
 __device__ static vec3 coloredSchlick(vec3 r0, float cosine, float ref_idx) {
 	return r0 + (vec3(1.0f) - r0) * powf((1.0 - cosine), 2.0f);
+}
+
+__device__ static float FalcorNDFGGX(float alpha, float cosTheta) {
+	float a2 = alpha * alpha;
+	float d = ((cosTheta * a2 - cosTheta) * cosTheta + 1);
+	return a2 / (d * d * static_cast<float>(CUDART_PI));
 }
 
 namespace SpecularBRDF {
@@ -137,7 +144,7 @@ namespace SpecularBRDF {
 		targetRay.origin = res.HitPos + (res.HitNormal * 0.01f);
 		targetRay.direction = (2.f * PROTECTZERO(fabsf(dot(wo, m))) * m - wo);
 
-		pdf = GGXDistribution(alpha, thetaM, phiM, res.HitNormal, m) * fabsf((dot(m, res.HitNormal))) / (4.f * fabsf((dot(targetRay.direction, m))));
+		pdf = GGXDistribution(alpha, thetaM, res.HitNormal, m) * fabsf((dot(m, res.HitNormal))) / (4.f * fabsf((dot(targetRay.direction, m))));
 			
 		// evaluate cook-torrance
 
@@ -148,12 +155,31 @@ namespace SpecularBRDF {
 		vec3 finalSchlicksInput = lerpVectors(vec3(F0), res.HitAlbedo, metalness);
 		vec3 fresnelTerm = coloredSchlick(finalSchlicksInput, dot(wo, m), target->lighting.ior);
 
-		vec3 numerator = GGXDistribution(alpha, thetaM, phiM, res.HitNormal, m) * fresnelTerm * GGXGeometry(targetRay.direction, res.HitNormal, m, alpha);
+		vec3 numerator = GGXDistribution(alpha, thetaM, res.HitNormal, m) * fresnelTerm * GGXGeometry(targetRay.direction, res.HitNormal, m, alpha);
 		float denominator = 4.f * (dot(res.HitNormal, wi) * dot(res.HitNormal, wo));
 
 		attenuation = numerator / denominator;
 
 		// frensel term being wacky..
+	}
+
+	__device__ float PDF(const HitResult& res, Object* target, const vec3& wo, const vec3& wi) {
+		float alpha = target->lighting.roughness;
+		static const float kMinCosTheta = 1e-6f;
+
+		if (target->pbrMaps.mraoMap.initialized) {
+			alpha = res.MRAO.b();
+		}
+
+		if (min(wo.z(), wi.z()) < kMinCosTheta)
+			return 0.f;
+
+		vec3 h = unit_vector(wo + wi);
+		float woDotH = dot(wo, h);
+
+		float pdf = FalcorNDFGGX(alpha, h.z());
+
+		return pdf / (4 * woDotH);
 	}
 }
 

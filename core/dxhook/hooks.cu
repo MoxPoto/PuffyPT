@@ -185,6 +185,7 @@ namespace DXHook {
 		if (frameCount <= 0) {
 			accumulatedSamples = 0;
 		}
+
 		accumulatedSamples += samples;
 
 		ImGui::Text("Accumulated Samples: %d", accumulatedSamples);
