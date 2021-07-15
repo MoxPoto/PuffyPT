@@ -35,13 +35,13 @@ namespace MixedBxDF {
 			return true;
 		}
 		else if (sampledUniform < diffuseProbability + specularProbablilty) {
-			SpecularBRDF::SampleWorld(res, local_rand_state, extraRand, pdf, previousRay, attenuation, targetRay, target);
+			bool valid = SpecularBRDF::SampleWorld(res, local_rand_state, extraRand, pdf, previousRay, attenuation, targetRay, target);
 			pdf *= specularProbablilty;
 
 			if (diffuseProbability > 0)
 				pdf += diffuseProbability * LambertBRDF::PDF(res, target, wo, wi);
 
-			return true;
+			return valid;
 		}
 
 		return false;

@@ -53,7 +53,7 @@ __device__ static float thetaFromVec(vec3 vec) {
 
 // χ+(a)
 __device__ static float chi(float num) {
-	return num >= 0.f ? 1.f : 0.f;
+	return num > 0.f ? 1.f : 0.f;
 }
 
 // D(m)
@@ -85,7 +85,7 @@ __device__ static float GGXGeometry(const vec3& v, const vec3& n, const vec3& m,
 
 
 __device__ static vec3 coloredSchlick(vec3 r0, float cosine, float ref_idx) {
-	return r0 + (vec3(1.0f) - r0) * powf((1.0 - cosine), 2.0f);
+	return r0 + (vec3(1.0f) - r0) * powf((1.0 - cosine), 5.0f);
 }
 
 __device__ static float FalcorNDFGGX(float alpha, float cosTheta) {
@@ -105,7 +105,7 @@ namespace SpecularBRDF {
 		return r0 + (1.0f - r0) * powf((1.0f - cosine), 5.0f);
 	}
 
-	__device__ void SampleWorld(const HitResult& res, curandState* local_rand_state, float extraRand, float& pdf, const Ray& previousRay, vec3& attenuation, Ray& targetRay, Object* target) {
+	__device__ bool SampleWorld(const HitResult& res, curandState* local_rand_state, float extraRand, float& pdf, const Ray& previousRay, vec3& attenuation, Ray& targetRay, Object* target) {
 		// FIXME: when some rays are at a specific direction, the color returned is pure black.. most likely some dividing by zero issue.. maybe
 		
 		// wo = -previousRay.direction;
@@ -130,6 +130,7 @@ namespace SpecularBRDF {
 		}
 
 		float alpha = fmaxf(0.001f, roughness * roughness);
+		static const float kMinCosTheta = 1e-4f;
 
 		float thetaM = atanf((alpha * sqrtf(u1)) / sqrt(1.f - u1));
 		float phiM = (2.f * static_cast<float>(CUDART_PI) * u2);
@@ -137,14 +138,15 @@ namespace SpecularBRDF {
 		vec3 m = TransformToWorld(sinf(thetaM) * cosf(phiM), sinf(thetaM) * sinf(phiM), cosf(thetaM), res.HitNormal);
 		m.make_unit_vector();
 
-		if (dot(m, wo) < 0.f) {
-			m = reflect(-m, res.HitNormal);
+		if (dot(wo, m) < kMinCosTheta) {
+			return false;
 		}
 
 		targetRay.origin = res.HitPos + (res.HitNormal * 0.01f);
 		targetRay.direction = (2.f * PROTECTZERO(fabsf(dot(wo, m))) * m - wo);
 
-		pdf = GGXDistribution(alpha, thetaM, res.HitNormal, m) * fabsf((dot(m, res.HitNormal))) / (4.f * fabsf((dot(targetRay.direction, m))));
+		//pdf = GGXDistribution(alpha, thetaM, res.HitNormal, m) * fabsf((dot(m, res.HitNormal))) / (4.f * fabsf((dot(targetRay.direction, m))));
+		pdf = GGXDistribution(alpha, thetaM, res.HitNormal, m) * fabsf(dot(m, res.HitNormal));
 			
 		// evaluate cook-torrance
 
@@ -161,6 +163,7 @@ namespace SpecularBRDF {
 		attenuation = numerator / denominator;
 
 		// frensel term being wacky..
+		return true;
 	}
 
 	__device__ float PDF(const HitResult& res, Object* target, const vec3& wo, const vec3& wi) {

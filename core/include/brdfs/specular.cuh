@@ -11,7 +11,7 @@
 namespace SpecularBRDF {
 	__device__ vec3 reflect(const vec3& direction, const vec3& normal);
 	__device__ float schlick(float cosine, float ref_idx);
-	__device__ void SampleWorld(const HitResult& res, curandState* local_rand_state, float extraRand, float& pdf, const Ray& previousRay, vec3& attenuation, Ray& targetRay, Object* target);
+	__device__ bool SampleWorld(const HitResult& res, curandState* local_rand_state, float extraRand, float& pdf, const Ray& previousRay, vec3& attenuation, Ray& targetRay, Object* target);
 	__device__ float PDF(const HitResult& res, Object* target, const vec3& wo, const vec3& wi);
 }
 
