@@ -35,7 +35,7 @@
 #define PUFF_INCREMENT_RESET(name, variable) ImGui::Button(name); if (ImGui::IsItemActive()) { variable += 0.1f; frameCount = 0;}
 #define PUFF_DECREMENT_RESET(name, variable) ImGui::Button(name); if (ImGui::IsItemActive()) { variable -= 0.1f; frameCount = 0;}
 
-#define VERSION "PUFFY PT - 2.2"
+#define VERSION "PUFFY PT - 2.3"
 
 // note to self:
 // CUDA's compiler (nvcc) is shit (or me using it)

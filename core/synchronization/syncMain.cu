@@ -393,6 +393,7 @@ LUA_FUNCTION(SYNC_SetupPBR) {
 			std::pair<int, int> res{ width, height };
 
 			mraoResolutions[mraoPath] = res;
+			printf("[mrao debug]: RGB: %.2f, %.2f, %.2f\n", mraoData[0], mraoData[1], mraoData[2]);
 
 			devMraoData = CreateTextureOnDevice(mraoData, mraoPath, (width * height * channels) * sizeof(Pixel));
 		}

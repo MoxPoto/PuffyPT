@@ -14,8 +14,13 @@ namespace MixedBxDF {
 	__device__ bool SampleWorld(const HitResult& res, curandState* local_rand_state, float extraRand, float& pdf, vec3& attenuation, Ray& previousRay, Ray& targetRay, Object* target) {
 		using SpecularBRDF::reflect;
 
-		float diffuseProbability = 1.f - target->lighting.metalness;
-		float specularProbablilty = target->lighting.metalness;
+		float specularProbablilty = 1.f - target->lighting.roughness;
+		float diffuseProbability = target->lighting.roughness;
+
+		if (target->pbrMaps.mraoMap.initialized) {
+			specularProbablilty = 1.f - res.MRAO.g();
+			diffuseProbability = res.MRAO.g();
+		}
 		float transmissionProbability = 0.f; // temporary
 
 		float sampledUniform = curand_uniform(local_rand_state);

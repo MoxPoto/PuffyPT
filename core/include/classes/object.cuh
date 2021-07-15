@@ -20,7 +20,7 @@ enum BRDF {
 };
 
 struct LightingOptions {
-	float roughness = 0.0f;
+	float roughness = 1.0f;
 	float ior = 1.5f;
 	float transmission = 0.f;
 	float metalness = 0.f;

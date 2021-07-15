@@ -85,7 +85,7 @@ __device__ static float GGXGeometry(const vec3& v, const vec3& n, const vec3& m,
 
 
 __device__ static vec3 coloredSchlick(vec3 r0, float cosine, float ref_idx) {
-	return r0 + (vec3(1.0f) - r0) * powf((1.0 - cosine), 5.0f);
+	return r0 + (vec3(1.0f) - r0) * powf(fmaxf((1.0f - cosine), 0), 5.0f);
 }
 
 __device__ static float FalcorNDFGGX(float alpha, float cosTheta) {
@@ -145,22 +145,24 @@ namespace SpecularBRDF {
 		targetRay.origin = res.HitPos + (res.HitNormal * 0.01f);
 		targetRay.direction = (2.f * PROTECTZERO(fabsf(dot(wo, m))) * m - wo);
 
-		//pdf = GGXDistribution(alpha, thetaM, res.HitNormal, m) * fabsf((dot(m, res.HitNormal))) / (4.f * fabsf((dot(targetRay.direction, m))));
+		// pdf = D(m)|m * n|
+
 		pdf = GGXDistribution(alpha, thetaM, res.HitNormal, m) * fabsf(dot(m, res.HitNormal));
 			
 		// evaluate cook-torrance
 
-		float f = (target->lighting.ior - 1.f) / (target->lighting.ior + 1.f);
+		float f = fabsf((1.f - target->lighting.ior) / (1.f + target->lighting.ior));
 		// in my schlick's function, f0 is represented as r0
 		float F0 = (f * f);
 
 		vec3 finalSchlicksInput = lerpVectors(vec3(F0), res.HitAlbedo, metalness);
+
 		vec3 fresnelTerm = coloredSchlick(finalSchlicksInput, dot(wo, m), target->lighting.ior);
 
-		vec3 numerator = GGXDistribution(alpha, thetaM, res.HitNormal, m) * fresnelTerm * GGXGeometry(targetRay.direction, res.HitNormal, m, alpha);
-		float denominator = 4.f * (dot(res.HitNormal, wi) * dot(res.HitNormal, wo));
+		vec3 numerator = fresnelTerm * GGXDistribution(alpha, thetaM, res.HitNormal, m) * GGXGeometry(targetRay.direction, res.HitNormal, m, alpha);
+		float denominator = 4.f * dot(res.HitNormal, wi) * dot(res.HitNormal, wo);
 
-		attenuation = numerator / denominator;
+		attenuation = numerator;
 
 		// frensel term being wacky..
 		return true;
@@ -181,6 +183,7 @@ namespace SpecularBRDF {
 		float woDotH = dot(wo, h);
 
 		float pdf = FalcorNDFGGX(alpha, h.z());
+	    // return GGXDistribution(alpha, h.z(), res.HitNormal, h) * fabsf(dot(h, res.HitNormal));
 
 		return pdf / (4 * woDotH);
 	}
