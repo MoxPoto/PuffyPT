@@ -106,8 +106,6 @@ namespace SpecularBRDF {
 	}
 
 	__device__ bool SampleWorld(const HitResult& res, curandState* local_rand_state, float extraRand, float& pdf, const Ray& previousRay, vec3& attenuation, Ray& targetRay, Object* target) {
-		// FIXME: when some rays are at a specific direction, the color returned is pure black.. most likely some dividing by zero issue.. maybe
-		
 		// wo = -previousRay.direction;
 		// wi = reflect(-wo, hitnormal);
 
@@ -160,8 +158,6 @@ namespace SpecularBRDF {
 		vec3 fresnelTerm = coloredSchlick(finalSchlicksInput, dot(wo, m), target->lighting.ior);
 
 		vec3 numerator = fresnelTerm * GGXDistribution(alpha, thetaM, res.HitNormal, m) * GGXGeometry(targetRay.direction, res.HitNormal, m, alpha);
-		float denominator = 4.f * dot(res.HitNormal, wi) * dot(res.HitNormal, wo);
-
 		attenuation = numerator;
 
 		// frensel term being wacky..
