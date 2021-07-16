@@ -315,32 +315,25 @@ LUA_FUNCTION(SYNC_UploadSphere) {
 	return 1;
 }
 
+#define GET_LUATBL_MEMBER(type, name, member) LUA->GetField(-1, member); type name = static_cast<type>(LUA->GetNumber(-1)); LUA->Pop(1);
+#define GET_LUATBL_MEMBERV(name, member) LUA->GetField(-1, member); vec3 name = vec3(LUA->GetVector(-1)); LUA->Pop(1);
+
 LUA_FUNCTION(SYNC_SetLighting) {
 	LUA->CheckType(-2, Lua::Type::Number); // ID
 	LUA->CheckType(-1, Lua::Type::Table); // Lighting Options
 
 	int id = static_cast<int>(LUA->GetNumber(-2));
 
-	LUA->GetField(-1, "Roughness");
-	float roughness = static_cast<float>(LUA->GetNumber(-1));
-	LUA->Pop(1);
+	GET_LUATBL_MEMBER(float, roughness, "Roughness");
+	GET_LUATBL_MEMBER(float, ior, "IOR");
+	GET_LUATBL_MEMBER(float, metalness, "Metalness");
+	GET_LUATBL_MEMBER(float, transmission, "Transmission");
+	GET_LUATBL_MEMBER(float, emission, "Emission");
+	GET_LUATBL_MEMBER(BRDF, newBRDF, "BRDF");
+	GET_LUATBL_MEMBERV(color, "Color");
 
-	LUA->GetField(-1, "IOR");
-	float ior = static_cast<float>(LUA->GetNumber(-1));
 	LUA->Pop(1);
-
-	LUA->GetField(-1, "Metalness");
-	float metalness = static_cast<float>(LUA->GetNumber(-1));
-	LUA->Pop(1);
-
-	LUA->GetField(-1, "Transmission");
-	float transmission = static_cast<float>(LUA->GetNumber(-1));
-	LUA->Pop(1);
-
-	LUA->GetField(-1, "BRDF");
-	BRDF newBRDF = static_cast<BRDF>(LUA->GetNumber(-1));
-	LUA->Pop(2);
-	// 2 because of that id float we didnt pop
+	// 1 because of that id float we didnt pop
 
 	std::cout << "Received " << transmission << " for Transmission.." << "\n";
 
@@ -361,7 +354,12 @@ LUA_FUNCTION(SYNC_SetLighting) {
 	if (cmdErr1 != CPU::CommandError::Success) {
 		std::cout << "Command error hit on line " << __LINE__ << "!!!\n";
 	}
+	
+	CPU::CommandError cmdErr2 = CPU::SetColorEmission(id, color, emission);
 
+	if (cmdErr2 != CPU::CommandError::Success) {
+		std::cout << "Command error hit on line " << __LINE__ << "!!!\n";
+	}
 
 	return 0;
 }
@@ -451,7 +449,6 @@ LUA_FUNCTION(SYNC_SetupPBR) {
 	uploadData.emissionData = devEmissionData;
 	uploadData.mraoData = devMraoData;
 	uploadData.normalMap = devNormalData;
-
 
 	CPU::SetPBR(id, uploadData);
 	return 0;

@@ -1,6 +1,7 @@
 ﻿#ifndef VEC3_H
 #define VEC3_H
 
+#include <GarrysMod/Lua/SourceCompat.h>
 #include "math.h"
 #include "cuda_runtime.h"
 #include <cuda.h>
@@ -22,6 +23,8 @@ public:
     __host__ __device__ vec3() {}
     __host__ __device__ vec3(float e0, float e1, float e2) { e[0] = e0; e[1] = e1; e[2] = e2; }
     __host__ __device__ vec3(float e0) { e[0] = e0; e[1] = e0; e[2] = e0; }
+    __host__ __device__ vec3(const Vector& sourceVec) { e[0] = sourceVec.x; e[1] = sourceVec.y; e[2] = sourceVec.z; };
+
     __host__ __device__ inline float x() const { return e[0]; }
     __host__ __device__ inline float y() const { return e[1]; }
     __host__ __device__ inline float z() const { return e[2]; }

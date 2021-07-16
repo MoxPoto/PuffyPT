@@ -34,12 +34,6 @@ __device__ bool Sphere::TryHit(const Ray& ray, HitResult& output) {
             output.u = (1 + atan2(output.HitNormal.y(), output.HitNormal.x()) / CUDART_PI) * 0.5;
             output.v = acosf(output.HitNormal.z()) / CUDART_PI;
 
-            if (pbrMaps.mraoMap.initialized) {
-                output.MRAO = pbrMaps.mraoMap.GetPixel(output.u, output.v);
-            }
-
-            output.HitAlbedo = GetColor(output);
-
             return true;
         }
         temp = (-b + sqrt(discriminant)) / a;
@@ -51,12 +45,6 @@ __device__ bool Sphere::TryHit(const Ray& ray, HitResult& output) {
 
             output.u = (1 + atan2(output.HitNormal.y(), output.HitNormal.x()) / CUDART_PI) * 0.5;
             output.v = acosf(output.HitNormal.z()) / CUDART_PI;
-
-            if (pbrMaps.mraoMap.initialized) {
-                output.MRAO = pbrMaps.mraoMap.GetPixel(output.u, output.v);
-            }
-
-            output.HitAlbedo = GetColor(output);
 
             return true;
         }

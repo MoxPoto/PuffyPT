@@ -234,6 +234,7 @@ namespace CPU {
 
 		object->pbrMaps.mraoMap.Initialize(uploadData.mraoRes[0], uploadData.mraoRes[1], uploadData.mraoData);
 		object->pbrMaps.normalMap.Initialize(256, 256, uploadData.normalMap);
+		object->pbrMaps.emissionMap.Initialize(uploadData.emissionRes[0], uploadData.emissionData[1], uploadData.emissionData);
 	}
 
 	CommandError SetPBR(int id, PBRUpload uploadData) {

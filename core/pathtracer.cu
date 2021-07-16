@@ -68,6 +68,17 @@ __device__ Object* traceScene(int count, Object** world, const Ray& ray, HitResu
             output.GeometricNormal = -output.GeometricNormal;
         }
 
+        if (hitObject->pbrMaps.mraoMap.initialized) {
+            output.MRAO = hitObject->pbrMaps.mraoMap.GetPixel(output.u, output.v);
+        }
+
+        output.HitAlbedo = hitObject->GetColor(output);
+
+        if (hitObject->pbrMaps.emissionMap.initialized) {
+            vec3 emissionColorHere = hitObject->pbrMaps.emissionMap.GetPixel(output.u, output.v);
+
+            output.HitAlbedo += emissionColorHere * hitObject->emission;
+        }
         // adjustShadingNormal(output, ray.direction);
     }
 
