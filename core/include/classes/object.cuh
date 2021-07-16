@@ -33,6 +33,7 @@ struct LightingOptions {
 struct PBRMap {
 	Texture normalMap;
 	Texture mraoMap;
+	Texture emissionMap;
 };
 
 class Object {

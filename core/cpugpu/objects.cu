@@ -229,14 +229,14 @@ namespace CPU {
 		return err;
 	}
 
-	__global__ void setPBR(Object** world, int id, int mraoX, int mraoY, Pixel* normal, Pixel* mrao) {
+	__global__ void setPBR(Object** world, int id, PBRUpload uploadData) {
 		Object* object = *(world + id);
 
-		object->pbrMaps.mraoMap.Initialize(mraoX, mraoY, mrao);
-		object->pbrMaps.normalMap.Initialize(256, 256, normal);
+		object->pbrMaps.mraoMap.Initialize(uploadData.mraoRes[0], uploadData.mraoRes[1], uploadData.mraoData);
+		object->pbrMaps.normalMap.Initialize(256, 256, uploadData.normalMap);
 	}
 
-	CommandError SetPBR(int id, int mraoX, int mraoY, Pixel* normal, Pixel* mrao) {
+	CommandError SetPBR(int id, PBRUpload uploadData) {
 		CommandError err = CommandError::Success;
 
 		if (id >= DXHook::world_count) {
@@ -244,7 +244,7 @@ namespace CPU {
 			return err;
 		}
 
-		setPBR << <1, 1 >> > (DXHook::world, id, mraoX, mraoY, normal, mrao);
+		setPBR << <1, 1 >> > (DXHook::world, id, uploadData);
 		checkCudaErrors(cudaDeviceSynchronize());
 		checkCudaErrors(cudaGetLastError());
 

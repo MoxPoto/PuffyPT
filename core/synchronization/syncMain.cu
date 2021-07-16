@@ -18,7 +18,7 @@
 
 using namespace GarrysMod;
 
-static std::map<std::string, std::pair<int, int>> mraoResolutions;
+static std::map<std::string, std::pair<int, int>> diskResolutions;
 
 static struct Vertex {
 	Vector position;
@@ -366,63 +366,94 @@ LUA_FUNCTION(SYNC_SetLighting) {
 	return 0;
 }
 
-LUA_FUNCTION(SYNC_SetupPBR) {
-	LUA->CheckType(-3, Lua::Type::Number); // Object ID
-	LUA->CheckType(-2, Lua::Type::String); // MRAO Path
-	LUA->CheckType(-1, Lua::Type::String); // NormalMap Name (not path, this isn't a file, it's a texture)
+typedef std::pair<int, int> TextureRes;
 
-	int id = static_cast<int>(LUA->GetNumber(-3));
-	const char* mraoPath = LUA->GetString(-2);
-	const char* normalPath = LUA->GetString(-1);
+static struct PBRLoad {
+	std::string path;
+	Pixel* devPtr;
+	TextureRes* resolution;
+};
+// TODO: maybe this should be in a different file?
+// something has to be done about the sheer size of this file already
+
+LUA_FUNCTION(SYNC_SetupPBR) {
+	LUA->CheckType(-4, Lua::Type::Number); // Object ID
+	LUA->CheckType(-3, Lua::Type::String); // MRAO Path
+	LUA->CheckType(-2, Lua::Type::String); // NormalMap Name (not path, this isn't a file, it's a texture)
+	LUA->CheckType(-1, Lua::Type::String); // Emission Path
+
+	int id = static_cast<int>(LUA->GetNumber(-4));
+	const char* mraoPath = LUA->GetString(-3);
+	const char* normalPath = LUA->GetString(-2);
+	const char* emissionPath = LUA->GetString(-1);
 
 	Pixel* devNormalData = RetrieveCachedTexture(normalPath);
 	Pixel* devMraoData = nullptr;
+	Pixel* devEmissionData = nullptr;
 
-	bool doesMRAOExist = CheckFileExists(mraoPath);
+	TextureRes mraoRes{ 0, 0 };
+	TextureRes emissionRes{ 0, 0 };
 
-	if (!IsTextureCached(mraoPath) && doesMRAOExist) {
-		int width;
-		int height;
-		int channelsInFile;
+	// Create instructions on how to load a specific PBR texture
+	PBRLoad mraoLoad{ mraoPath, devMraoData, &mraoRes};
+	PBRLoad emissionLoad{ emissionPath, devEmissionData, &emissionRes};
 
-		int channels = 3;
+	std::vector<PBRLoad> texturesToLoad = { mraoLoad, emissionLoad };
 
-		Pixel* mraoData = stbi_loadf(mraoPath, &width, &height, &channelsInFile, channels);
+	for (PBRLoad load : texturesToLoad) {
+		bool doesTextureExist = CheckFileExists(load.path);
 
-		if (mraoData != nullptr) {
-			std::pair<int, int> res{ width, height };
+		if (!IsTextureCached(load.path) && doesTextureExist) {
+			int width;
+			int height;
+			int channelsInFile;
 
-			mraoResolutions[mraoPath] = res;
-			printf("[mrao debug]: RGB: %.2f, %.2f, %.2f\n", mraoData[0], mraoData[1], mraoData[2]);
+			int channels = 3;
 
-			devMraoData = CreateTextureOnDevice(mraoData, mraoPath, (width * height * channels) * sizeof(Pixel));
+			Pixel* texData = stbi_loadf(load.path.c_str(), &width, &height, &channelsInFile, channels);
+
+			if (texData != nullptr) {
+				std::pair<int, int> res{ width, height };
+
+				diskResolutions[load.path] = res;
+				*(load.resolution) = res; // looks a bit odd but this is for sake of simplicity when retrieving texture resolutions
+
+				load.devPtr = CreateTextureOnDevice(texData, load.path, (width * height * channels) * sizeof(Pixel));
+			}
+			else {
+				LUA->ThrowError("Couldn't load the PBR map, an allocation or filepath error occurred..");
+			}
 		}
 		else {
-			LUA->ThrowError("Couldn't load the MRAO map, an allocation or filepath error occurred..");
-		}
-	}
-	else {
-		if (doesMRAOExist) {
-			devMraoData = RetrieveCachedTexture(mraoPath);
-		}
-	}
+			if (doesTextureExist) {
+				load.devPtr = RetrieveCachedTexture(load.path);
 
+				try {
+					*(load.resolution) = diskResolutions.at(load.path);
+				}
+				catch (std::exception& e) {
+					std::string errorMessage = std::string("An exception occurred while reading the resolution of the PBR map:\n") + e.what();
 
-	std::pair<int, int> mraoRes{ 0, 0 };
-
-	if (doesMRAOExist) {
-		try {
-			mraoRes = mraoResolutions.at(std::string(mraoPath));
-		}
-		catch (std::exception& e) {
-			std::string errorMessage = std::string("An exception occurred while reading the resolution of the MRAO map:\n") + e.what();
-
-			LUA->ThrowError(errorMessage.c_str());
-			return 0;
+					LUA->ThrowError(errorMessage.c_str());
+					return 0;
+				}
+			}
 		}
 	}
 
-	CPU::SetPBR(id, mraoRes.first, mraoRes.second, devNormalData, devMraoData);
+	CPU::PBRUpload uploadData;
+	uploadData.mraoRes[0] = mraoRes.first;
+	uploadData.mraoRes[1] = mraoRes.second;
+
+	uploadData.emissionRes[0] = emissionRes.first;
+	uploadData.emissionRes[1] = emissionRes.second;
+
+	uploadData.emissionData = devEmissionData;
+	uploadData.mraoData = devMraoData;
+	uploadData.normalMap = devNormalData;
+
+
+	CPU::SetPBR(id, uploadData);
 	return 0;
 }
 
