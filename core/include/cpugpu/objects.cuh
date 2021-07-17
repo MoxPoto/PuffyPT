@@ -20,10 +20,12 @@ namespace CPU {
 	};
 
 	struct PBRUpload {
-		int mraoRes[2];
+		int mraoResX;
+		int mraoResY;
 		Pixel* mraoData;
 
-		int emissionRes[2];
+		int emissionResX;
+		int emissionResY;
 		Pixel* emissionData;
 
 		Pixel* normalMap;
@@ -61,8 +63,8 @@ namespace CPU {
 	extern __global__ void setSphereSize(Object** world, int id, float newSize);
 	extern CommandError SetSphereSize(int id, float newSize);
 
-	extern __global__ void setPBR(Object** world, PBRUpload uploadData);
-	extern CommandError SetPBR(int id, PBRUpload uploadData);
+	extern __global__ void setPBRK(Object** world, int id, PBRUpload uploadData);
+	extern CommandError SetPBR(int id, PBRUpload uploadDataD);
 
 	extern void SetCameraPos(float x, float y, float z);
 	extern void SetCameraAngles(vec3 camDir);

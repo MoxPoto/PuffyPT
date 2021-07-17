@@ -157,6 +157,9 @@ __device__ bool Mesh::TryHit(const Ray& ray, HitResult& closestHit) {
 
             closestHit.objId = objectID;
 
+            closestHit.RealU = u;
+            closestHit.RealV = v;
+
             finalU = u;
             finalV = v;
 
@@ -185,6 +188,20 @@ __device__ bool Mesh::TryHit(const Ray& ray, HitResult& closestHit) {
 
             closestHit.HitNormal = thisNormal;
         }
+
+        /*
+        if (pbrMaps.mraoMap.initialized) {
+            closestHit.MRAO = pbrMaps.mraoMap.GetPixel(closestHit.u, closestHit.v);
+        }
+
+        closestHit.HitAlbedo = GetColor(closestHit);
+
+        if (pbrMaps.emissionMap.initialized) {
+            vec3 emissionColorHere = pbrMaps.emissionMap.GetPixel(closestHit.u, closestHit.v);
+
+            closestHit.HitAlbedo += emissionColorHere * emission;
+        }
+        */
     }
 
     return bHit;

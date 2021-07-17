@@ -12,6 +12,8 @@ struct HitResult {
 	vec3 MRAO;
 
 	float t, u, v;
+	float RealU, RealV;
+
 	int objId;
 	bool backface = false;
 

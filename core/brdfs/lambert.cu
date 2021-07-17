@@ -93,7 +93,7 @@ namespace LambertBRDF {
 			
 		vec3 albedo = lerpVectors(rec.HitAlbedo, BLACK, metalness);
 
-		attenuation = evaluateLambert(sampleLocalized, rec.HitNormal, (albedo * target->emission));
+		attenuation = evaluateLambert(sampleLocalized, rec.HitNormal, albedo);
 		pdf = getLambertPDF(sampleLocalized, rec.HitNormal);
 
 	}

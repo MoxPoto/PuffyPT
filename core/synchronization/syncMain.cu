@@ -18,7 +18,12 @@
 
 using namespace GarrysMod;
 
-static std::map<std::string, std::pair<int, int>> diskResolutions;
+static struct TextureRes {
+	int x;
+	int y;
+};
+
+static std::map<std::string, TextureRes> diskResolutions;
 
 static struct Vertex {
 	Vector position;
@@ -364,11 +369,9 @@ LUA_FUNCTION(SYNC_SetLighting) {
 	return 0;
 }
 
-typedef std::pair<int, int> TextureRes;
-
 static struct PBRLoad {
 	std::string path;
-	Pixel* devPtr;
+	Pixel** devPtr;
 	TextureRes* resolution;
 };
 // TODO: maybe this should be in a different file?
@@ -393,10 +396,12 @@ LUA_FUNCTION(SYNC_SetupPBR) {
 	TextureRes emissionRes{ 0, 0 };
 
 	// Create instructions on how to load a specific PBR texture
-	PBRLoad mraoLoad{ mraoPath, devMraoData, &mraoRes};
-	PBRLoad emissionLoad{ emissionPath, devEmissionData, &emissionRes};
+	PBRLoad mraoLoad{ std::string(mraoPath), &devMraoData, &mraoRes};
+	PBRLoad emissionLoad{ std::string(emissionPath), &devEmissionData, &emissionRes};
 
-	std::vector<PBRLoad> texturesToLoad = { mraoLoad, emissionLoad };
+	std::vector<PBRLoad> texturesToLoad;
+	texturesToLoad.push_back(mraoLoad);
+	texturesToLoad.push_back(emissionLoad);
 
 	for (PBRLoad load : texturesToLoad) {
 		bool doesTextureExist = CheckFileExists(load.path);
@@ -411,12 +416,15 @@ LUA_FUNCTION(SYNC_SetupPBR) {
 			Pixel* texData = stbi_loadf(load.path.c_str(), &width, &height, &channelsInFile, channels);
 
 			if (texData != nullptr) {
-				std::pair<int, int> res{ width, height };
+				TextureRes res{ width, height };
 
 				diskResolutions[load.path] = res;
-				*(load.resolution) = res; // looks a bit odd but this is for sake of simplicity when retrieving texture resolutions
 
-				load.devPtr = CreateTextureOnDevice(texData, load.path, (width * height * channels) * sizeof(Pixel));
+				*load.resolution = res;
+
+				*load.devPtr = CreateTextureOnDevice(texData, load.path, (width * height * channels) * sizeof(Pixel));
+
+				stbi_image_free(texData);
 			}
 			else {
 				LUA->ThrowError("Couldn't load the PBR map, an allocation or filepath error occurred..");
@@ -424,7 +432,7 @@ LUA_FUNCTION(SYNC_SetupPBR) {
 		}
 		else {
 			if (doesTextureExist) {
-				load.devPtr = RetrieveCachedTexture(load.path);
+				*load.devPtr = RetrieveCachedTexture(load.path);
 
 				try {
 					*(load.resolution) = diskResolutions.at(load.path);
@@ -440,17 +448,26 @@ LUA_FUNCTION(SYNC_SetupPBR) {
 	}
 
 	CPU::PBRUpload uploadData;
-	uploadData.mraoRes[0] = mraoRes.first;
-	uploadData.mraoRes[1] = mraoRes.second;
 
-	uploadData.emissionRes[0] = emissionRes.first;
-	uploadData.emissionRes[1] = emissionRes.second;
+	printf("[mrao debug]: x: %i, y: %i\n", mraoRes.x, mraoRes.y);
+
+	uploadData.mraoResX = mraoRes.x;
+	uploadData.mraoResY = mraoRes.y;
+
+	uploadData.emissionResX = emissionRes.x;
+	uploadData.emissionResY = emissionRes.y;
 
 	uploadData.emissionData = devEmissionData;
 	uploadData.mraoData = devMraoData;
 	uploadData.normalMap = devNormalData;
 
-	CPU::SetPBR(id, uploadData);
+	CPU::CommandError cmdErr = CPU::SetPBR(id, uploadData);
+
+	if (cmdErr != CPU::CommandError::Success) {
+		std::cout << "Command error hit on line " << __LINE__ << "!!!\n";
+	}
+
+
 	return 0;
 }
 

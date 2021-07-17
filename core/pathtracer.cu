@@ -67,7 +67,7 @@ __device__ Object* traceScene(int count, Object** world, const Ray& ray, HitResu
             output.HitNormal = -output.HitNormal;
             output.GeometricNormal = -output.GeometricNormal;
         }
-
+        
         if (hitObject->pbrMaps.mraoMap.initialized) {
             output.MRAO = hitObject->pbrMaps.mraoMap.GetPixel(output.u, output.v);
         }
@@ -79,6 +79,7 @@ __device__ Object* traceScene(int count, Object** world, const Ray& ray, HitResu
 
             output.HitAlbedo += emissionColorHere * hitObject->emission;
         }
+        
         // adjustShadingNormal(output, ray.direction);
     }
 
@@ -161,7 +162,7 @@ static __device__ vec3 depthColor(DXHook::RenderOptions* options, const Ray& ray
             // set our current ray to the new formulated one (this being perfect diffuse)
             // and attenuate our color by the albedo we hit, but we also should multiply our albedo by the objects emission
 
-            if (target->emission > EMISSIVE_MINIMUM) {
+            if (!target->pbrMaps.emissionMap.initialized && target->emission > EMISSIVE_MINIMUM) {
                 // just return the light
                 return currentLight * (target->GetColor(rec) * target->emission);
             }

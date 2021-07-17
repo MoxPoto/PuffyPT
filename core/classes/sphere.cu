@@ -34,6 +34,9 @@ __device__ bool Sphere::TryHit(const Ray& ray, HitResult& output) {
             output.u = (1 + atan2(output.HitNormal.y(), output.HitNormal.x()) / CUDART_PI) * 0.5;
             output.v = acosf(output.HitNormal.z()) / CUDART_PI;
 
+            output.RealU = output.u;
+            output.RealV = output.v;
+
             return true;
         }
         temp = (-b + sqrt(discriminant)) / a;
@@ -45,6 +48,9 @@ __device__ bool Sphere::TryHit(const Ray& ray, HitResult& output) {
 
             output.u = (1 + atan2(output.HitNormal.y(), output.HitNormal.x()) / CUDART_PI) * 0.5;
             output.v = acosf(output.HitNormal.z()) / CUDART_PI;
+
+            output.RealU = output.u;
+            output.RealV = output.v;
 
             return true;
         }
