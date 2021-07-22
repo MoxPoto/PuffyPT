@@ -246,6 +246,8 @@ static __device__ PathtraceResult depthColor(DXHook::RenderOptions* options, con
             if (options->doSky) {
                 LightHit thisHit;
                 thisHit.hitPos = rec.HitPos;
+                thisHit.startPos = cur_ray.origin;
+
                 thisHit.isLight = true;
 
                 vec3 skyColor = genSkyColor(options->hdri, options->skyInfo, options->hdriData, cur_ray.direction);
@@ -261,6 +263,8 @@ static __device__ PathtraceResult depthColor(DXHook::RenderOptions* options, con
             else {
                 LightHit thisHit;
                 thisHit.hitPos = rec.HitPos;
+                thisHit.startPos = cur_ray.origin;
+
                 thisHit.isLight = true;
                 
                 const vec3 thisSkyColor = vec3(0.3, 0.3, 0.3);
