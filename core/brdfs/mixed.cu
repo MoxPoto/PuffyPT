@@ -11,7 +11,7 @@
 #include <brdfs/refraction.cuh>
 
 namespace MixedBxDF {
-	__device__ bool SampleWorld(const HitResult& res, curandState* local_rand_state, float extraRand, float& pdf, vec3& attenuation, Ray& previousRay, Ray& targetRay, Object* target) {
+	__device__ bool SampleWorld(const HitResult& res, curandState* local_rand_state, float extraRand, float& pdf, vec3& attenuation, Ray& previousRay, Ray& targetRay, Object* target, BRDF& brdfChosen) {
 		using SpecularBRDF::reflect;
 
 		float specularProbablilty = 1.f - target->lighting.roughness;
@@ -32,6 +32,8 @@ namespace MixedBxDF {
 		if (sampledUniform < diffuseProbability) {
 			LambertBRDF::SampleWorld(res, local_rand_state, extraRand, pdf, attenuation, targetRay, target);
 
+			brdfChosen = BRDF::Lambertian;
+
 			pdf *= diffuseProbability;
 
 			if (specularProbablilty > 0)
@@ -42,6 +44,8 @@ namespace MixedBxDF {
 		else if (sampledUniform < diffuseProbability + specularProbablilty) {
 			bool valid = SpecularBRDF::SampleWorld(res, local_rand_state, extraRand, pdf, previousRay, attenuation, targetRay, target);
 			pdf *= specularProbablilty;
+
+			brdfChosen = BRDF::Specular;
 
 			if (diffuseProbability > 0)
 				pdf += diffuseProbability * LambertBRDF::PDF(res, target, wo, wi);

@@ -98,6 +98,7 @@ namespace DXHook {
 	std::vector<std::string> hdriList;
 	int hdriListSize = 0;
 	float hdriBrightness = 1.f;
+	RendererType curRender = 0;
 
 	HRESULT __stdcall EndSceneHook(LPDIRECT3DDEVICE9 pDevice) {
 		if (!gotDevice) {
@@ -262,6 +263,16 @@ namespace DXHook {
 			"Combined"
 		};
 
+		const char* renderers[] = {
+			"Puffy PT",
+			"Puffy MLT",
+			"Puffy Simple RT"
+		};
+
+		if (ImGui::ListBox("Renderers", &curRender, renderers, 2)) 
+			frameCount = 0;
+		
+
 		if (ImGui::ListBox("Passes", &currentPass, passes, 3))
 			frameCount = 0;
 
@@ -311,6 +322,8 @@ namespace DXHook {
 			options.cameraDir = camDir;
 			options.aabbOverride = aabbOverride;
 			options.hdriBrightness = hdriBrightness;
+			options.renderer = curRender;
+
 			render << <blocks, threads >> > (options);
 			checkCudaErrors(cudaGetLastError());
 			checkCudaErrors(cudaDeviceSynchronize());

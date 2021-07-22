@@ -8,10 +8,6 @@
 
 #define GBUFFER_AT(x, y) (gbufferData + (y * width + x));
 
-static float c_phi = 1.f;
-static float n_phi = 1.f;
-static float p_phi = 1.f;
-static float stepwidth = 2.f;
 
 
 namespace Post {
@@ -23,9 +19,44 @@ namespace Post {
 		int gbuffer_idx = j * width + i;
 
 		GBuffer* ourBuffer = GBUFFER_AT(i, j);
-		vec3 denoisedResult(0, 0, 0);
+		vec3 denoisedResult = ourBuffer->diffuse;
+
+		int FILTER_SIZE = 11;
+
+		vec3 blurredArea(0, 0, 0);
+		int passes = 0;
+
+		float accumulatedLuminance = 0.f;
+		int lumPasses = 0;
+
+		for (int fX = i - FILTER_SIZE; fX <= i + FILTER_SIZE; fX++) {
+			for (int fY = j - FILTER_SIZE; fY <= j + FILTER_SIZE; fY++) {
+				if (!(fX > 0 && fX < width && fY > 0 && fY < height))
+					continue;
+
+				GBuffer* thisBuffer = GBUFFER_AT(fX, fY);
+				if (!(ourBuffer->normal == thisBuffer->normal) && fabsf(ourBuffer->depth - thisBuffer->depth) > 5)
+					continue;
 
 
+				accumulatedLuminance += luminance(thisBuffer->diffuse);
+				lumPasses++;
+				
+
+				blurredArea += thisBuffer->diffuse;
+				passes++;
+			}
+		}
+
+		if (passes > 0) {
+			accumulatedLuminance /= lumPasses;
+			blurredArea /= passes;
+
+			float thisLuminance = luminance(ourBuffer->diffuse);
+
+
+			denoisedResult = blurredArea * fabsf((thisLuminance - accumulatedLuminance));
+		}
 
 		framebuffer[pixel_index + 0] = denoisedResult.r();
 		framebuffer[pixel_index + 1] = denoisedResult.g();

@@ -150,10 +150,24 @@ __device__ vec3 calcDirect(int count, Object** world, Object* firstHit, const Ra
 
 }
 
-static __device__ vec3 depthColor(DXHook::RenderOptions* options, const Ray& ray, curandState* local_rand_state) {
+static __device__ PathtraceResult depthColor(DXHook::RenderOptions* options, const Ray& ray, curandState* local_rand_state) {
     Ray cur_ray = ray;
     vec3 currentLight(1, 1, 1);
     
+    PathtraceResult res;
+    res.vertices = options->max_depth + 1;
+    res.eyePath = reinterpret_cast<LightHit*>(malloc(sizeof(LightHit) * res.vertices));
+
+    res.vertices = 1;
+    // why 1? well, we need to account for the fact that, well, sometimes not all light paths are made equal
+    // some hit a light path way faster than others unfortunately..
+
+    LightHit eyePoint;
+    eyePoint.hitPos = cur_ray.origin;
+    eyePoint.isLight = false;
+
+    res.eyePath[0] = eyePoint;
+
     for (int i = 0; i < options->max_depth; i++) {
         HitResult rec;
         Object* target = traceScene(options->count, options->world, cur_ray, rec);
@@ -164,7 +178,13 @@ static __device__ vec3 depthColor(DXHook::RenderOptions* options, const Ray& ray
 
             if (!target->pbrMaps.emissionMap.initialized && target->emission > EMISSIVE_MINIMUM) {
                 // just return the light
-                return currentLight * (target->GetColor(rec) * target->emission);
+                LightHit hitPoint;
+                hitPoint.hitPos = rec.HitPos;
+                hitPoint.isLight = true;
+
+                res.eyePath[res.vertices++] = hitPoint;
+                res.color = currentLight * (target->GetColor(rec) * target->emission);
+                return res;
             }
 
             Ray new_ray(vec3(0, 0, 0), vec3(0, 0, 0));
@@ -187,7 +207,11 @@ static __device__ vec3 depthColor(DXHook::RenderOptions* options, const Ray& ray
             }
             */
 
-            bool validSample = MixedBxDF::SampleWorld(rec, local_rand_state, options->curtime, pdf, attenuation, cur_ray, new_ray, target);
+            LightHit thisHit;
+            thisHit.hitPos = rec.HitPos;
+            thisHit.isLight = false;
+
+            bool validSample = MixedBxDF::SampleWorld(rec, local_rand_state, options->curtime, pdf, attenuation, cur_ray, new_ray, target, thisHit.brdf);
 
             if (!validSample) {
                 // Nothing was chosen from our BxDF, so continue onwards
@@ -212,26 +236,46 @@ static __device__ vec3 depthColor(DXHook::RenderOptions* options, const Ray& ray
 
             cur_ray = new_ray;
 
+            res.eyePath[res.vertices++] = thisHit;
+            
         }
         else {
             // didnt hit, finish our depth trace by attenuating our final hit color by the sky color
 
             if (options->doSky) {
+                LightHit thisHit;
+                thisHit.hitPos = rec.HitPos;
+                thisHit.isLight = true;
+
                 vec3 skyColor = genSkyColor(options->hdri, options->skyInfo, options->hdriData, cur_ray.direction);
 
-                return (currentLight * (skyColor));
+                res.color = (currentLight * (skyColor));
+                res.eyePath[res.vertices++] = thisHit;
+
+                return res;
             }
             else {
-                return (currentLight * vec3(0.3, 0.3, 0.3));
+                LightHit thisHit;
+                thisHit.hitPos = rec.HitPos;
+                thisHit.isLight = true;
+
+                res.color = (currentLight * vec3(0.3, 0.3, 0.3));
+                res.eyePath[res.vertices++] = thisHit;
+
+                return res;
             }
         }
     }
-    return vec3(0.0, 0.0, 0.0); // exceeded recursion
+    res.color = vec3(0.f, 0.f, 0.f);
+
+    return res; // exceeded recursion..
 }
 
-__device__ vec3 pathtrace(DXHook::RenderOptions* options, const Ray& ray, curandState* local_rand_state) {
+__device__ PathtraceResult pathtrace(DXHook::RenderOptions* options, const Ray& ray, curandState* local_rand_state) {
     vec3 indirectLighting(0, 0, 0);
     vec3 directLighting(0, 0, 0);
+
+    PathtraceResult res;
 
     HitResult result;
     Object* hitObject = traceScene(options->count, options->world, ray, result);
@@ -241,21 +285,25 @@ __device__ vec3 pathtrace(DXHook::RenderOptions* options, const Ray& ray, curand
     }
 
     for (int i = 0; i < options->samples; i++) {
-        indirectLighting += depthColor(options, ray, local_rand_state);
+        PathtraceResult depthRes = depthColor(options, ray, local_rand_state);
+        indirectLighting += depthRes.color;
+        res.eyePath = depthRes.eyePath;
+        res.vertices = depthRes.vertices;
     }
 
     indirectLighting /= (float)options->samples;
 
-
     if (options->curPass == 0) { // Direct only
-        return directLighting;
+        res.color = directLighting;
     }
     else if (options->curPass == 1) { // Indirect only
-        return indirectLighting;
+        res.color = indirectLighting;
     }
     else {
-        return (directLighting / CUDART_PI + 2.0 * indirectLighting);
+        res.color = (directLighting / CUDART_PI + 2.0 * indirectLighting);
     }
+
+    return res;
 }
 
 #pragma endregion Shading

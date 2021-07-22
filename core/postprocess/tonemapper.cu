@@ -219,7 +219,7 @@ __host__ void ApplyPostprocess(int width, int height, dim3 blocks, dim3 threads)
 	denoise << <blocks, threads >> > (DXHook::gbufferData, DXHook::fb, DXHook::bloomFB, width, height);
 	checkCudaErrors(cudaGetLastError());
 	checkCudaErrors(cudaDeviceSynchronize());
-	*/
+	*/	
 
 	tonemap << <blocks, threads >> > (DXHook::fb, DXHook::mainCam, DXHook::postFB, DXHook::bloomFB, width, height);
 	checkCudaErrors(cudaGetLastError());

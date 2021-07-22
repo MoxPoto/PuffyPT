@@ -152,7 +152,7 @@ __device__ bool Mesh::TryHit(const Ray& ray, HitResult& closestHit) {
 
             // Interpolate vertex normals (we are dealing with source assets.. pretty low poly)
 
-            closestHit.HitNormal = (1.f - u - v) * triHere->n1 + u * triHere->n2 + v * triHere->n3;
+            closestHit.HitNormal = (1.f - closestHit.u - closestHit.v) * triHere->n1 + closestHit.u * triHere->n2 + closestHit.v * triHere->n3;
             closestHit.GeometricNormal = closestHit.HitNormal;
 
             closestHit.objId = objectID;
@@ -171,8 +171,8 @@ __device__ bool Mesh::TryHit(const Ray& ray, HitResult& closestHit) {
     if (closestTri != nullptr && bHit) {
         if (pbrMaps.normalMap.initialized) {
             // Proceed with normal mapping
-            vec3 bitangent = (1.f - finalU - finalV) * closestTri->bin1 + finalU * closestTri->bin2 + finalV * closestTri->bin3;
-            vec3 tangent = (1.f - finalU - finalV) * closestTri->tan1 + finalU * closestTri->tan2 + finalV * closestTri->tan2;
+            vec3 bitangent = (1.f - closestHit.u - closestHit.v) * closestTri->bin1 + closestHit.u * closestTri->bin2 + closestHit.v * closestTri->bin3;
+            vec3 tangent = (1.f - closestHit.u - closestHit.v) * closestTri->tan1 + closestHit.u * closestTri->tan2 + closestHit.v * closestTri->tan2;
 
             glm::mat3 tbnMatrix(
                 tangent.toGLM(),

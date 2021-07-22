@@ -26,6 +26,7 @@
 #include <synchronization/syncMain.cuh>
 
 #include <pathtracer.cuh>
+#include <mlt.cuh>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <vendor/stb_image.h>
@@ -65,7 +66,7 @@ __global__ void DXHook::render(DXHook::RenderOptions options) {
 
     Post::GBuffer* gbuffer = ((options.gbufferPtr + random_idx)); // serves as a gbuffer access index too!!
 
-    vec3 frameColor;
+    vec3 frameColor(0, 0, 0);
 
     float DISTANCE = 1.f;
 
@@ -108,9 +109,21 @@ __global__ void DXHook::render(DXHook::RenderOptions options) {
         Ray newRay = ourRay;
         newRay.origin = newRay.origin + (result.HitNormal * 0.001f);
 
-        vec3 indirect = pathtrace(&options, newRay, &local_rand_state);
+        if (options.renderer == DXHook::RendererTypes::PuffyPT) {
+            PathtraceResult indirect = pathtrace(&options, newRay, &local_rand_state);
+            free(indirect.eyePath);
 
-        frameColor = indirect;
+            frameColor = indirect.color;
+        }
+        else if (options.renderer == DXHook::RendererTypes::PuffySimpleRT) {
+            // Random sun dir
+            const vec3 SUN_DIR = vec3(1.f, 0.7f, 0.3f);
+
+            frameColor = result.HitAlbedo * ((dot(result.HitNormal, SUN_DIR) + 1) / 2);
+        }
+        else if (options.renderer == DXHook::RendererTypes::PuffyMLT) {
+            frameColor = metropolis(&options, newRay, &local_rand_state);
+        }
     }
     else {
         if (options.doSky) {

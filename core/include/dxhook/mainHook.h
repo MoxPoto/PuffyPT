@@ -19,6 +19,13 @@
 
 namespace DXHook {
 	typedef HRESULT(__stdcall* EndScene)(LPDIRECT3DDEVICE9);
+	typedef int RendererType;
+
+	enum RendererTypes {
+		PuffyPT,
+		PuffyMLT,
+		PuffySimpleRT
+	};
 
 	extern EndScene oldFunc;
 	extern void* d3d9Device[119];
@@ -63,6 +70,8 @@ namespace DXHook {
 	extern float zenith[3]; // for imgui
 	extern float azimuth[3]; // for imgui
 
+	extern RendererType curRender;
+
 	extern HWND window;
 	extern bool gotDevice;
 	extern LPDIRECT3DDEVICE9 device;
@@ -104,6 +113,7 @@ namespace DXHook {
 		SkyInfo skyInfo;
 		Post::GBuffer* gbufferPtr;
 		float hdriBrightness; // This is just to communicate wanted HDRI brightness from host to device quicker
+		RendererType renderer;
 	};
 
 	extern __global__ void render(RenderOptions options);
