@@ -7,6 +7,7 @@
 namespace MLT {
 	struct MLTPath {
 		vec3 pixel;
+		vec3 color;
 		int vertices;
 		LightHit* path;
 	};

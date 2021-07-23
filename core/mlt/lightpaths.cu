@@ -2,6 +2,10 @@
 #include <classes/vec3.cuh>
 #include <pathtracer.cuh>
 
+#include <brdfs/lambert.cuh>
+
+static const float EMISSIVE_MINIMUM = 15.f;
+
 namespace MLT {
 	// Evaluates a light path and returns the color that represents it
 	__device__ vec3 EvaluateLightPath(DXHook::RenderOptions* options, int vertices, LightHit* lightPath) {
@@ -20,20 +24,59 @@ namespace MLT {
 		cur_ray.origin = lightPath[0].startPos;
 		cur_ray.direction = lightPath[0].dir;
 
-		for (int i = 0; i < vertices; i++) {
+		for (int i = 1; i < vertices; i++) {
 			HitResult rec;
 			Object* target = traceScene(options->count, options->world, cur_ray, rec);
 
-			// Evaluate every single vertex in the path
-			LightHit thisVertex = lightPath[i];
-			/*
-			if (thisVertex.isLight) {
-				// lights dont have a pdf, which im pretty sure isnt correct..
-				return currentLight * (thisVertex.attenuation);
-			}
+            if (target != NULL) {
+                if (!target->pbrMaps.emissionMap.initialized && target->emission > EMISSIVE_MINIMUM) {
+                    // just return the light
+                    return currentLight * (target->GetColor(rec) * target->emission);
+                }
 
-			currentLight *= (thisVertex.attenuation / thisVertex.pdf);
-			*/
+                Ray new_ray(lightPath[i].startPos, lightPath[i].dir);
+
+                vec3 attenuation = currentLight;
+                float pdf = 1.f;
+
+                /*
+                    TODO:
+                    add mixed bxdf support to MLT
+                */
+                /*
+                bool validSample = MixedBxDF::SampleWorld(rec, local_rand_state, options->curtime, pdf, attenuation, cur_ray, new_ray, target, thisHit.brdf);
+
+                if (!validSample) {
+                    // Nothing was chosen from our BxDF, so continue onwards
+                    continue;
+                }
+                */
+
+                vec3 attenuation(0, 0, 0);
+                float pdf = 1.f;
+
+                LambertBRDF::Eval(rec.HitNormal, -cur_ray.direction, cur_ray.direction, rec.HitAlbedo, attenuation, pdf);
+
+                currentLight *= attenuation / pdf;
+
+                cur_ray = new_ray;
+
+            }
+            else {
+                // didnt hit, finish our depth trace by attenuating our final hit color by the sky color
+
+                if (options->doSky) {
+                    vec3 skyColor = genSkyColor(options->hdri, options->skyInfo, options->hdriData, cur_ray.direction);
+
+                    return (currentLight * (skyColor));
+                }
+                else {
+                    const vec3 thisSkyColor = vec3(0.3, 0.3, 0.3);
+
+
+                    return (currentLight * thisSkyColor);
+                }
+            }
 		}
 	
 		// If we didn't hit a light path at all while traversing our vertices, then that means this light path was mutated unsucessfully..

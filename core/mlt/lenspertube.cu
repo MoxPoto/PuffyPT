@@ -24,5 +24,10 @@ namespace MLT {
 
 		Y.pixel = vec3(newX, newY, 0);
 
+		float pathDensity = 0.f;
+
+		for (int i = 1; i < Y.vertices; i++) {
+
+		}
 	}
 }
