@@ -64,6 +64,11 @@ namespace LambertBRDF {
 		return p;
 	}
 		
+	__device__ void Eval(const vec3& normal, const vec3& wo, const vec3& wi, const vec3& albedo, vec3& attenuation, float& pdf) {
+		attenuation = evaluateLambert(wi, normal, albedo);
+		pdf = getLambertPDF(wi, normal);
+	}
+
 	__device__ void SampleWorld(const HitResult& rec, curandState* local_rand_state, float extraRand, float& pdf, vec3& attenuation, Ray& targetRay, Object* target) {
 		vec3 BLACK = vec3(0.f);
 
@@ -92,10 +97,9 @@ namespace LambertBRDF {
 		}
 			
 		vec3 albedo = lerpVectors(rec.HitAlbedo, BLACK, metalness);
+		vec3 wo = vec3(0, 0, 0); // not used
 
-		attenuation = evaluateLambert(sampleLocalized, rec.HitNormal, albedo);
-		pdf = getLambertPDF(sampleLocalized, rec.HitNormal);
-
+		Eval(rec.HitNormal, wo, sampleLocalized, albedo, attenuation, pdf);
 	}
 
 	__device__ float PDF(const HitResult& res, Object* target, const vec3& wo, const vec3& wi) {
@@ -104,6 +108,6 @@ namespace LambertBRDF {
 		if (min(wo.z(), wi.z()) < kMinCosTheta)
 			return 0;
 
-		return M_1_PI * wi.z();
+		return getLambertPDF(wi, res.HitNormal);
 	}
 }

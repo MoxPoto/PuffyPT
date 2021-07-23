@@ -105,6 +105,28 @@ namespace SpecularBRDF {
 		return r0 + (1.0f - r0) * powf((1.0f - cosine), 5.0f);
 	}
 
+	__device__ void Eval(float alpha, float metalness, Object* target, const vec3& normal, const vec3& wo, const vec3& wi, const vec3& albedo, vec3& attenuation, float& pdf) {
+		vec3 m = unit_vector((wi + wo));
+
+		float thetaM = thetaFromVec(m);
+
+		pdf = GGXDistribution(alpha, thetaM, normal, m) * fabsf(dot(m, normal));
+
+		// evaluate cook-torrance
+
+		float f = fabsf((1.f - target->lighting.ior) / (1.f + target->lighting.ior));
+		// in my schlick's function, f0 is represented as r0
+		float F0 = (f * f);
+
+		vec3 finalSchlicksInput = lerpVectors(vec3(F0), albedo, metalness);
+
+		vec3 fresnelTerm = coloredSchlick(finalSchlicksInput, dot(wo, m), target->lighting.ior);
+
+		vec3 numerator = fresnelTerm * GGXDistribution(alpha, thetaM, normal, m) * GGXGeometry(wi, normal, m, alpha);
+		attenuation = numerator;
+
+	}
+
 	__device__ bool SampleWorld(const HitResult& res, curandState* local_rand_state, float extraRand, float& pdf, const Ray& previousRay, vec3& attenuation, Ray& targetRay, Object* target) {
 		// wo = -previousRay.direction;
 		// wi = reflect(-wo, hitnormal);
@@ -145,10 +167,11 @@ namespace SpecularBRDF {
 
 		// pdf = D(m)|m * n|
 
+		/*
 		pdf = GGXDistribution(alpha, thetaM, res.HitNormal, m) * fabsf(dot(m, res.HitNormal));
 			
 		// evaluate cook-torrance
-
+		
 		float f = fabsf((1.f - target->lighting.ior) / (1.f + target->lighting.ior));
 		// in my schlick's function, f0 is represented as r0
 		float F0 = (f * f);
@@ -160,6 +183,9 @@ namespace SpecularBRDF {
 		vec3 numerator = fresnelTerm * GGXDistribution(alpha, thetaM, res.HitNormal, m) * GGXGeometry(targetRay.direction, res.HitNormal, m, alpha);
 		attenuation = numerator;
 
+		*/
+
+		Eval(alpha, metalness, target, res.HitNormal, wo, wi, res.HitAlbedo, attenuation, pdf);
 		// frensel term being wacky..
 		return true;
 	}

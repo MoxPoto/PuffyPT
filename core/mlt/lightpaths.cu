@@ -4,7 +4,7 @@
 
 namespace MLT {
 	// Evaluates a light path and returns the color that represents it
-	vec3 EvaluateLightPath(int vertices, LightHit* lightPath) {
+	__device__ vec3 EvaluateLightPath(DXHook::RenderOptions* options, int vertices, LightHit* lightPath) {
 		// First, we should check if the light path actually succeeded,
 		// this means that we need to check if the last vertex is a light
 
@@ -16,17 +16,24 @@ namespace MLT {
 		}
 
 		vec3 currentLight(1, 1, 1);
+		Ray cur_ray;
+		cur_ray.origin = lightPath[0].startPos;
+		cur_ray.direction = lightPath[0].dir;
 
 		for (int i = 0; i < vertices; i++) {
+			HitResult rec;
+			Object* target = traceScene(options->count, options->world, cur_ray, rec);
+
 			// Evaluate every single vertex in the path
 			LightHit thisVertex = lightPath[i];
-
+			/*
 			if (thisVertex.isLight) {
 				// lights dont have a pdf, which im pretty sure isnt correct..
 				return currentLight * (thisVertex.attenuation);
 			}
 
 			currentLight *= (thisVertex.attenuation / thisVertex.pdf);
+			*/
 		}
 	
 		// If we didn't hit a light path at all while traversing our vertices, then that means this light path was mutated unsucessfully..

@@ -171,11 +171,10 @@ static __device__ PathtraceResult depthColor(DXHook::RenderOptions* options, con
             if (!target->pbrMaps.emissionMap.initialized && target->emission > EMISSIVE_MINIMUM) {
                 // just return the light
                 LightHit hitPoint;
-                hitPoint.hitPos = rec.HitPos;
+                hitPoint.hitResult = rec;
                 hitPoint.startPos = cur_ray.origin;
-
-                hitPoint.attenuation = (target->GetColor(rec) * target->emission);
-                hitPoint.pdf = 1.f;
+                hitPoint.hitEntity = target;
+                hitPoint.dir = cur_ray.direction;
 
                 hitPoint.isLight = true;
 
@@ -205,9 +204,11 @@ static __device__ PathtraceResult depthColor(DXHook::RenderOptions* options, con
             */
 
             LightHit thisHit;
-            thisHit.hitPos = rec.HitPos;
+            thisHit.hitResult = rec;
             thisHit.startPos = cur_ray.origin;
             thisHit.isLight = false;
+            thisHit.hitEntity = target;
+            thisHit.dir = cur_ray.direction;
 
             bool validSample = MixedBxDF::SampleWorld(rec, local_rand_state, options->curtime, pdf, attenuation, cur_ray, new_ray, target, thisHit.brdf);
 
@@ -215,9 +216,6 @@ static __device__ PathtraceResult depthColor(DXHook::RenderOptions* options, con
                 // Nothing was chosen from our BxDF, so continue onwards
                 continue;
             }
-
-            thisHit.attenuation = attenuation;
-            thisHit.pdf = pdf;
 
             currentLight *= attenuation / pdf;
 
@@ -245,16 +243,16 @@ static __device__ PathtraceResult depthColor(DXHook::RenderOptions* options, con
 
             if (options->doSky) {
                 LightHit thisHit;
-                thisHit.hitPos = rec.HitPos;
+                thisHit.hitResult = rec;
                 thisHit.startPos = cur_ray.origin;
-
+               
                 thisHit.isLight = true;
+                thisHit.hitEntity = target;
+
+                thisHit.dir = cur_ray.direction;
 
                 vec3 skyColor = genSkyColor(options->hdri, options->skyInfo, options->hdriData, cur_ray.direction);
 
-                thisHit.attenuation = skyColor;
-                thisHit.pdf = 1.f;
-                
                 res.color = (currentLight * (skyColor));
                 res.eyePath[res.vertices++] = thisHit;
 
@@ -262,15 +260,15 @@ static __device__ PathtraceResult depthColor(DXHook::RenderOptions* options, con
             }
             else {
                 LightHit thisHit;
-                thisHit.hitPos = rec.HitPos;
+                thisHit.hitResult = rec;
                 thisHit.startPos = cur_ray.origin;
 
                 thisHit.isLight = true;
                 
+                thisHit.hitEntity = target;
+                thisHit.dir = cur_ray.direction;
                 const vec3 thisSkyColor = vec3(0.3, 0.3, 0.3);
                 
-                thisHit.attenuation = thisSkyColor;
-                thisHit.pdf = 1.f;
 
                 res.color = (currentLight * thisSkyColor);
                 res.eyePath[res.vertices++] = thisHit;

@@ -15,13 +15,14 @@ extern __device__ Object* traceScene(int count, Object** world, const Ray& ray, 
 struct LightHit {
 	// Lighting information
 	BRDF brdf;
-	vec3 attenuation;
-	float pdf = 1.f;
 	bool isLight;
 
-	// Hit information
-	vec3 hitPos;
+	// Hit information (a copy of the hitresult)
 	vec3 startPos;
+	vec3 dir;
+
+	HitResult hitResult;
+	Object* hitEntity;
 };
 
 struct PathtraceResult {
