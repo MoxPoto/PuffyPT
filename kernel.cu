@@ -104,6 +104,9 @@ __global__ void DXHook::render(DXHook::RenderOptions options) {
 
     // while we're here, let's update our HDRI's brightness as told to by the Host
     options.hdri->brightness = options.hdriBrightness;
+
+    bool gbufferOverride = false;
+    Post::GBuffer newGBuffer;
     
     if (hitObject != NULL) {
         Ray newRay = ourRay;
@@ -111,8 +114,14 @@ __global__ void DXHook::render(DXHook::RenderOptions options) {
 
         if (options.renderer == DXHook::RendererTypes::PuffyPT) {
             PathtraceResult indirect = pathtrace(&options, newRay, &local_rand_state);
-            free(indirect.eyePath);
 
+            if (indirect.specularOverride) {
+                newGBuffer = indirect.gbufferOverride;
+                gbufferOverride = true;
+            }
+#ifdef DO_MLT
+            free(indirect.eyePath);
+#endif
             frameColor = indirect.color;
         }
         else if (options.renderer == DXHook::RendererTypes::PuffySimpleRT) {
@@ -133,17 +142,29 @@ __global__ void DXHook::render(DXHook::RenderOptions options) {
         }
     }
     
-    if (hitObject != NULL) {
-        gbuffer->albedo = hitObject->GetColor(result);
-        gbuffer->normal = result.HitNormal;
-        gbuffer->objectID = result.objId;
-        gbuffer->brdfType = hitObject->matType;
+    if (!gbufferOverride) {
+        if (hitObject != NULL) {
+            gbuffer->albedo = hitObject->GetColor(result);
+            gbuffer->normal = result.HitNormal;
+            gbuffer->objectID = result.objId;
+            gbuffer->brdfType = hitObject->matType;
+        }
+
+        gbuffer->position = result.HitPos;
+        gbuffer->depth = result.t;
+        gbuffer->diffuse = frameColor;
+        gbuffer->isSky = (hitObject == NULL);
     }
-    
-    gbuffer->position = result.HitPos;
-    gbuffer->depth = result.t;
+    else {
+        gbuffer->position = newGBuffer.position;
+        gbuffer->normal = newGBuffer.normal;
+        gbuffer->depth = newGBuffer.depth;
+        gbuffer->albedo = newGBuffer.albedo;
+        gbuffer->isSky = newGBuffer.isSky;
+        gbuffer->objectID = newGBuffer.objectID;
+    }
+
     gbuffer->diffuse = frameColor;
-    gbuffer->isSky = (hitObject == NULL);
     
     vec3 previousFrame = vec3(options.frameBuffer[pixel_index + 0], options.frameBuffer[pixel_index + 1], options.frameBuffer[pixel_index + 2]);
     vec3 accumulated = (frameColor + previousFrame * options.frameCount) / (options.frameCount + 1);

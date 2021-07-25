@@ -167,7 +167,7 @@ namespace SpecularBRDF {
 
 		// pdf = D(m)|m * n|
 
-		/*
+		
 		pdf = GGXDistribution(alpha, thetaM, res.HitNormal, m) * fabsf(dot(m, res.HitNormal));
 			
 		// evaluate cook-torrance
@@ -183,9 +183,9 @@ namespace SpecularBRDF {
 		vec3 numerator = fresnelTerm * GGXDistribution(alpha, thetaM, res.HitNormal, m) * GGXGeometry(targetRay.direction, res.HitNormal, m, alpha);
 		attenuation = numerator;
 
-		*/
+		
 
-		Eval(alpha, metalness, target, res.HitNormal, wo, wi, res.HitAlbedo, attenuation, pdf);
+		//Eval(alpha, metalness, target, res.HitNormal, wo, wi, res.HitAlbedo, attenuation, pdf);
 		// frensel term being wacky..
 		return true;
 	}

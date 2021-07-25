@@ -8,7 +8,9 @@
 #include <classes/object.cuh>
 
 #include <dxhook/mainHook.h>
+#include <postprocess/mainDenoiser.cuh>
 
+// #define DO_MLT
 
 extern __device__ Object* traceScene(int count, Object** world, const Ray& ray, HitResult& output, bool aabbOverride = false);
 
@@ -27,6 +29,14 @@ struct LightHit {
 
 struct PathtraceResult {
 	vec3 color;
+
+	// This is meant for things like reflections, where the HIT normal isn't necessarily the normal that is
+	// presented to the user,
+	// this also helps immensely with denoising reflections, including rough ones
+
+	bool specularOverride;
+	Post::GBuffer gbufferOverride;
+
 	int vertices;
 	LightHit* eyePath;
 };

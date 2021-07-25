@@ -4,13 +4,13 @@
 
 #include <brdfs/lambert.cuh>
 
-static const float EMISSIVE_MINIMUM = 15.f;
 
 namespace MLT {
 	// Evaluates a light path and returns the color that represents it
 	__device__ vec3 EvaluateLightPath(DXHook::RenderOptions* options, int vertices, LightHit* lightPath) {
 		// First, we should check if the light path actually succeeded,
 		// this means that we need to check if the last vertex is a light
+        static const float EMISSIVE_MINIMUM = 15.f;
 
 		bool didFinish = (lightPath[vertices - 1].isLight == true);
 		// if it didn't just return 0, 0, 0
@@ -51,9 +51,6 @@ namespace MLT {
                     continue;
                 }
                 */
-
-                vec3 attenuation(0, 0, 0);
-                float pdf = 1.f;
 
                 LambertBRDF::Eval(rec.HitNormal, -cur_ray.direction, cur_ray.direction, rec.HitAlbedo, attenuation, pdf);
 

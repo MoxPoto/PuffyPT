@@ -50,6 +50,7 @@ namespace DXHook {
 	extern std::vector<std::string> hdriList;
 	extern int hdriListSize;
 	
+	extern bool denoiseImage; // denoise image or not
 
 	extern float fov;
 	extern vec3* origin;

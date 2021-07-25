@@ -156,12 +156,18 @@ static __device__ PathtraceResult depthColor(DXHook::RenderOptions* options, con
     
     PathtraceResult res;
     res.vertices = options->max_depth + 1;
+#ifdef DO_MLT
     res.eyePath = reinterpret_cast<LightHit*>(malloc(sizeof(LightHit) * res.vertices));
+#endif
 
     res.vertices = 0;
 
+    BRDF lastBRDF = BRDF::Lambertian;
+    res.specularOverride = false;
+
     for (int i = 0; i < options->max_depth; i++) {
         HitResult rec;
+
         Object* target = traceScene(options->count, options->world, cur_ray, rec);
 
         if (target != NULL) {
@@ -177,8 +183,9 @@ static __device__ PathtraceResult depthColor(DXHook::RenderOptions* options, con
                 hitPoint.dir = cur_ray.direction;
 
                 hitPoint.isLight = true;
-
+#ifdef DO_MLT
                 res.eyePath[res.vertices++] = hitPoint;
+#endif
                 res.color = currentLight * (target->GetColor(rec) * target->emission);
                 return res;
             }
@@ -217,6 +224,22 @@ static __device__ PathtraceResult depthColor(DXHook::RenderOptions* options, con
                 continue;
             }
 
+            if (lastBRDF == BRDF::Specular) {
+                // override the gbuffer with new data, BUT, we can't replace the diffuse color
+
+                res.specularOverride = true;
+
+                res.gbufferOverride.albedo = target->GetColor(rec);
+                res.gbufferOverride.depth = fabsf((cur_ray.origin - rec.HitPos).length());
+                res.gbufferOverride.normal = rec.HitNormal;
+                res.gbufferOverride.brdfType = thisHit.brdf;
+                res.gbufferOverride.isSky = false;
+                res.gbufferOverride.objectID = target->objectID;
+                res.gbufferOverride.position = rec.HitPos;
+                
+ 
+            } 
+
             currentLight *= attenuation / pdf;
 
             // russian roulette to terminate paths that barely contain any visible contribution
@@ -234,9 +257,10 @@ static __device__ PathtraceResult depthColor(DXHook::RenderOptions* options, con
             */
 
             cur_ray = new_ray;
-
+            lastBRDF = thisHit.brdf;
+#ifdef DO_MLT
             res.eyePath[res.vertices++] = thisHit;
-            
+#endif
         }
         else {
             // didnt hit, finish our depth trace by attenuating our final hit color by the sky color
@@ -254,11 +278,14 @@ static __device__ PathtraceResult depthColor(DXHook::RenderOptions* options, con
                 vec3 skyColor = genSkyColor(options->hdri, options->skyInfo, options->hdriData, cur_ray.direction);
 
                 res.color = (currentLight * (skyColor));
+#ifdef DO_MLT
                 res.eyePath[res.vertices++] = thisHit;
-
+#endif
                 return res;
             }
             else {
+                res.gbufferOverride.isSky = true;
+
                 LightHit thisHit;
                 thisHit.hitResult = rec;
                 thisHit.startPos = cur_ray.origin;
@@ -271,10 +298,12 @@ static __device__ PathtraceResult depthColor(DXHook::RenderOptions* options, con
                 
 
                 res.color = (currentLight * thisSkyColor);
+#ifdef DO_MLT
                 res.eyePath[res.vertices++] = thisHit;
-
+#endif
                 return res;
             }
+
         }
     }
 
@@ -300,6 +329,8 @@ __device__ PathtraceResult pathtrace(DXHook::RenderOptions* options, const Ray& 
         indirectLighting += depthRes.color;
         res.eyePath = depthRes.eyePath;
         res.vertices = depthRes.vertices;
+        res.specularOverride = depthRes.specularOverride;
+        res.gbufferOverride = depthRes.gbufferOverride;
     }
 
     indirectLighting /= (float)options->samples;

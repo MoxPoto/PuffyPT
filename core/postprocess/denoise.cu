@@ -7,7 +7,7 @@
 #include <classes/object.cuh>
 
 #define GBUFFER_AT(x, y) (gbufferData + (y * width + x));
-
+#define GET_COLOR(i, j, colName) int _pixelIdx = j * width * 3 + i * 3; vec3 colName = vec3(realFB[_pixelIdx + 0], realFB[_pixelIdx + 1], realFB[_pixelIdx + 2]);
 
 
 namespace Post {
@@ -19,14 +19,20 @@ namespace Post {
 		int gbuffer_idx = j * width + i;
 
 		GBuffer* ourBuffer = GBUFFER_AT(i, j);
+
+		if (ourBuffer->isSky) {
+			return;
+		}
+
 		vec3 denoisedResult = ourBuffer->diffuse;
 
-		int FILTER_SIZE = 11;
+		GET_COLOR(i, j, ourColor);
+
+		int FILTER_SIZE = 2;
 
 		vec3 blurredArea(0, 0, 0);
 		int passes = 0;
 
-		float accumulatedLuminance = 0.f;
 		int lumPasses = 0;
 
 		for (int fX = i - FILTER_SIZE; fX <= i + FILTER_SIZE; fX++) {
@@ -35,27 +41,26 @@ namespace Post {
 					continue;
 
 				GBuffer* thisBuffer = GBUFFER_AT(fX, fY);
-				if (!(ourBuffer->normal == thisBuffer->normal) && fabsf(ourBuffer->depth - thisBuffer->depth) > 5)
+
+				if ((thisBuffer->normal - ourBuffer->normal).length() > 0.01) {
+					continue;
+				}
+
+				if (!(thisBuffer->objectID == ourBuffer->objectID) && fabsf(ourBuffer->depth - thisBuffer->depth) > 9)
 					continue;
 
+				GET_COLOR(fX, fY, thisColor);
 
-				accumulatedLuminance += luminance(thisBuffer->diffuse);
-				lumPasses++;
-				
-
-				blurredArea += thisBuffer->diffuse;
+				blurredArea += thisColor;
 				passes++;
 			}
 		}
 
 		if (passes > 0) {
-			accumulatedLuminance /= lumPasses;
 			blurredArea /= passes;
 
-			float thisLuminance = luminance(ourBuffer->diffuse);
 
-
-			denoisedResult = blurredArea * fabsf((thisLuminance - accumulatedLuminance));
+			denoisedResult = blurredArea;
 		}
 
 		framebuffer[pixel_index + 0] = denoisedResult.r();

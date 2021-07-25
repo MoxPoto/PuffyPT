@@ -100,6 +100,8 @@ namespace DXHook {
 	float hdriBrightness = 1.f;
 	RendererType curRender = 0;
 
+	bool denoiseImage = true;
+
 	HRESULT __stdcall EndSceneHook(LPDIRECT3DDEVICE9 pDevice) {
 		if (!gotDevice) {
 			gotDevice = true;
@@ -237,6 +239,7 @@ namespace DXHook {
 		PUFF_INCREMENT_RESET("Increase HDRI Brightness", hdriBrightness);
 		PUFF_DECREMENT_RESET("Decrease HDRI Brightness", hdriBrightness);
 
+		ImGui::Checkbox("Denoise Image?", &denoiseImage);
 		ImGui::Checkbox("Enable Postprocessing?", &denoiserEnabled);
 		ImGui::Checkbox("Show Output?", &showPathtracer);
 		ImGui::Checkbox("Show Sky?", &showSky);
@@ -269,7 +272,7 @@ namespace DXHook {
 			"Puffy Simple RT"
 		};
 
-		if (ImGui::ListBox("Renderers", &curRender, renderers, 2)) 
+		if (ImGui::ListBox("Renderers", &curRender, renderers, 3)) 
 			frameCount = 0;
 		
 
@@ -331,7 +334,7 @@ namespace DXHook {
 			frameCount++;
 
 			if (denoiserEnabled) {
-				ApplyPostprocess(WIDTH, HEIGHT, blocks, threads);
+				ApplyPostprocess(WIDTH, HEIGHT, blocks, threads, denoiseImage);
 			}
 
 		}

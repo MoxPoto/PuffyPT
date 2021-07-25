@@ -5,6 +5,7 @@
 #include <classes/object.cuh>
 #include <classes/camera.cuh>
 
+
 #include "cuda_runtime.h"
 
 // originally this was denoising only
@@ -19,6 +20,28 @@ namespace Post {
 		vec3 diffuse = vec3(0, 0, 0);
 		bool isSky = false;
 		BRDF brdfType = BRDF::Lambertian;
+
+		__device__ GBuffer(const GBuffer& rhs) {
+			normal = rhs.normal;
+			position = rhs.position;
+			objectID = rhs.objectID;
+			depth = rhs.depth;
+			albedo = rhs.albedo;
+			diffuse = rhs.diffuse;
+			isSky = rhs.isSky;
+			brdfType = rhs.brdfType;
+		}
+		
+		__device__ GBuffer() {
+			normal = vec3(0, 0, 0);
+			position = vec3(0, 0, 0);
+			objectID = 0;
+			depth = 0.f;
+			albedo = vec3(0, 0, 0);
+			diffuse = vec3(0, 0, 0);
+			isSky = false;
+			brdfType = BRDF::Lambertian;
+		}
 	};
 
 	__device__ extern float luminance(vec3 rgb);
@@ -31,6 +54,6 @@ namespace Post {
 }
 
 __global__ extern void ClearFramebuffer(float* framebuffer, int width, int height);
-__host__ extern void ApplyPostprocess(int width, int height, dim3 blocks, dim3 threads);
+__host__ extern void ApplyPostprocess(int width, int height, dim3 blocks, dim3 threads, bool denoiseImage);
 
 #endif

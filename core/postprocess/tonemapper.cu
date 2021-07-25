@@ -198,7 +198,7 @@ __global__ void ClearFramebuffer(float* framebuffer, int width, int height) {
 	framebuffer[pixel_index + 2] = 0.0f;
 }
 
-__host__ void ApplyPostprocess(int width, int height, dim3 blocks, dim3 threads) {
+__host__ void ApplyPostprocess(int width, int height, dim3 blocks, dim3 threads, bool denoiseImage) {
 	using namespace Post;
 		
 	/*
@@ -224,4 +224,10 @@ __host__ void ApplyPostprocess(int width, int height, dim3 blocks, dim3 threads)
 	tonemap << <blocks, threads >> > (DXHook::fb, DXHook::mainCam, DXHook::postFB, DXHook::bloomFB, width, height);
 	checkCudaErrors(cudaGetLastError());
 	checkCudaErrors(cudaDeviceSynchronize());
+
+	if (denoiseImage) {
+		denoise << <blocks, threads >> > (DXHook::gbufferData, DXHook::postFB, DXHook::postFB, width, height);
+		checkCudaErrors(cudaGetLastError());
+		checkCudaErrors(cudaDeviceSynchronize());
+	}
 }
