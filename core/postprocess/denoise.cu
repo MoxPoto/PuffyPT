@@ -28,7 +28,7 @@ namespace Post {
 
 		GET_COLOR(i, j, ourColor);
 
-		int FILTER_SIZE = 2;
+		int FILTER_SIZE = 3;
 
 		vec3 blurredArea(0, 0, 0);
 		int passes = 0;
@@ -46,7 +46,7 @@ namespace Post {
 					continue;
 				}
 
-				if (!(thisBuffer->objectID == ourBuffer->objectID) && fabsf(ourBuffer->depth - thisBuffer->depth) > 9)
+				if (!(thisBuffer->objectID == ourBuffer->objectID) && fabsf(ourBuffer->depth - thisBuffer->depth) > 6)
 					continue;
 
 				GET_COLOR(fX, fY, thisColor);

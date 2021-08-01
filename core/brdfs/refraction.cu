@@ -75,7 +75,7 @@ __device__ static bool refract(vec3 incidence, vec3 normal, float ior, vec3& out
 }
 
 namespace RefractBRDF {
-	__device__ void SampleWorld(const HitResult& res, curandState* local_rand_state, float& pdf, float extraRand, const Ray& previousRay, vec3& attenuation, Ray& targetRay, Object* target) {
+	__device__ void SampleWorld(const HitResult& res, curandState* local_rand_state, float& pdf, float extraRand, const Ray& previousRay, vec3& attenuation, Ray& targetRay, Object* target, BRDF& brdfChosen) {
 		using SpecularBRDF::schlick;
 		using SpecularBRDF::reflect;
 
@@ -98,6 +98,8 @@ namespace RefractBRDF {
 			targetRay.origin = res.HitPos + (res.HitNormal * 0.001f);
 			targetRay.direction = reflect(previousRay.direction, res.HitNormal);
 
+			brdfChosen = BRDF::Specular;
+
 			float weight = (fresnel);
 			pdf = weight;
 		}
@@ -113,6 +115,8 @@ namespace RefractBRDF {
 			if (!refracted) {
 				targetRay.origin = res.HitPos + (res.HitNormal * 0.001f);
 				targetRay.direction = reflect(previousRay.direction, res.HitNormal);
+
+				brdfChosen = BRDF::Specular;
 			}
 			else {
 				// Calculate roughness
@@ -125,6 +129,8 @@ namespace RefractBRDF {
 				}
 
 				targetRay.direction = lerpVectors(targetRay.direction, roughnessDir, roughness * roughness);
+
+				brdfChosen = BRDF::Refraction;
 			}
 
 			if (res.backface) {
@@ -133,6 +139,8 @@ namespace RefractBRDF {
 				
 			float weight = (1.f - fresnel);
 			pdf = weight;
+
+			
 		}
 
 	}

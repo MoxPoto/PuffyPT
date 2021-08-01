@@ -217,11 +217,17 @@ static __device__ PathtraceResult depthColor(DXHook::RenderOptions* options, con
             thisHit.hitEntity = target;
             thisHit.dir = cur_ray.direction;
 
-            bool validSample = MixedBxDF::SampleWorld(rec, local_rand_state, options->curtime, pdf, attenuation, cur_ray, new_ray, target, thisHit.brdf);
+            if (target->lighting.transmission <= 0.0f) {
+                bool validSample = MixedBxDF::SampleWorld(rec, local_rand_state, options->curtime, pdf, attenuation, cur_ray, new_ray, target, thisHit.brdf);
 
-            if (!validSample) {
-                // Nothing was chosen from our BxDF, so continue onwards
-                continue;
+                if (!validSample) {
+                    // Nothing was chosen from our BxDF, so continue onwards
+                    continue;
+                }
+            }
+            else {
+                // quick patch in for refraction
+                RefractBRDF::SampleWorld(rec, local_rand_state, pdf, options->curtime, cur_ray, attenuation, new_ray, target, thisHit.brdf);
             }
 
             if (lastBRDF == BRDF::Specular) {
@@ -264,6 +270,7 @@ static __device__ PathtraceResult depthColor(DXHook::RenderOptions* options, con
         }
         else {
             // didnt hit, finish our depth trace by attenuating our final hit color by the sky color
+            res.gbufferOverride.isSky = true;
 
             if (options->doSky) {
                 LightHit thisHit;
@@ -284,8 +291,6 @@ static __device__ PathtraceResult depthColor(DXHook::RenderOptions* options, con
                 return res;
             }
             else {
-                res.gbufferOverride.isSky = true;
-
                 LightHit thisHit;
                 thisHit.hitResult = rec;
                 thisHit.startPos = cur_ray.origin;
