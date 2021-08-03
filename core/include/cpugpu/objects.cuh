@@ -66,6 +66,9 @@ namespace CPU {
 	extern __global__ void setPBRK(Object** world, int id, PBRUpload uploadData);
 	extern CommandError SetPBR(int id, PBRUpload uploadDataD);
 
+	extern __global__ void setBluenoise(Pixel* texPtr, int resX, int resY);
+	extern CommandError SetBluenoise(Pixel* texPtr, int resX, int resY);
+
 	extern void SetCameraPos(float x, float y, float z);
 	extern void SetCameraAngles(vec3 camDir);
 }

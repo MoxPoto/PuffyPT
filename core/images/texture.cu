@@ -48,6 +48,15 @@ __device__ vec3 Texture::GetPixel(float u, float v) {
 	return vec3(imageData[base_index], imageData[base_index + 1], imageData[base_index + 2]);
 }
 
+__device__ vec3 Texture::GetRawPixel(int x, int y) {
+	if (imageData == nullptr)
+		return fallbackColor;
+
+	int base_index = (3 * (y * resY + x));
+
+	return vec3(imageData[base_index], imageData[base_index + 1], imageData[base_index + 2]);
+}
+
 // texture management
 
 __host__ bool IsTextureCached(const std::string& textureName) {
@@ -83,6 +92,8 @@ __host__ Pixel* CreateTextureOnDevice(Pixel* hostPtr, const std::string& texture
 	Pixel* devPtr;
 
 	checkCudaErrors(cudaMalloc((void**)&devPtr, textureSize));
+
+	HOST_DEBUG("Uploading %s to the GPU..", textureName.c_str());
 	checkCudaErrors(cudaMemcpy(devPtr, hostPtr, textureSize, cudaMemcpyHostToDevice));
 
 	deviceTextures[textureName] = devPtr;

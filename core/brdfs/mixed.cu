@@ -30,7 +30,7 @@ namespace MixedBxDF {
 		
 		// Most of this comes from: https://github.com/NVIDIAGameWorks/Falcor/blob/master/Source/Falcor/Experimental/Scene/Material/BxDF.slang#L682-L708
 		if (sampledUniform < diffuseProbability) {
-			LambertBRDF::SampleWorld(res, local_rand_state, extraRand, pdf, attenuation, targetRay, target);
+			//LambertBRDF::SampleWorld(res, local_rand_state, extraRand, pdf, attenuation, targetRay, target);
 
 			brdfChosen = BRDF::Lambertian;
 

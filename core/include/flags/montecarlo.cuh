@@ -6,12 +6,12 @@
 #include "cuda_runtime.h"
 
 namespace Flags {
-	__device__ enum class MonteCarlo : unsigned char {
+	__host__ __device__ enum class MonteCarlo : unsigned char {
 		Normal,
 		Quasi
 	};
 	
-	__device__ MonteCarlo estimatorType = MonteCarlo::Normal;
+	extern __device__ MonteCarlo estimatorType;
 }
 
 #endif

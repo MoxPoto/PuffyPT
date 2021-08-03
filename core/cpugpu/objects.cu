@@ -3,6 +3,7 @@
 #include <classes/vec3.cuh>
 #include <classes/sphere.cuh>
 #include <cpugpu/objects.cuh>
+#include <bluenoise.cuh>
 #include <dxhook/mainHook.h>
 
 #include "cuda_runtime.h"
@@ -246,6 +247,21 @@ namespace CPU {
 		}
 
 		setPBRK << <1, 1 >> > (DXHook::world, id, uploadDataD);
+		checkCudaErrors(cudaDeviceSynchronize());
+		checkCudaErrors(cudaGetLastError());
+
+		return err;
+	}
+
+	extern __global__ void setBluenoise(Pixel* texPtr, int resX, int resY) {
+		Bluenoise::Initialize();
+		Bluenoise::blueNoiseTex->Initialize(resX, resY, texPtr);
+	}
+
+	extern CommandError SetBluenoise(Pixel* texPtr, int resX, int resY) {
+		CommandError err = CommandError::Success;
+
+		setBluenoise << <1, 1 >> > (texPtr, resX, resY);
 		checkCudaErrors(cudaDeviceSynchronize());
 		checkCudaErrors(cudaGetLastError());
 

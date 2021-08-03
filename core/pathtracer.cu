@@ -15,6 +15,9 @@
 
 #include "math_constants.h"
 
+#include <flags/montecarlo.cuh>
+#include <bluenoise.cuh>
+
 #pragma region Utility
 
 
@@ -150,7 +153,7 @@ __device__ vec3 calcDirect(int count, Object** world, Object* firstHit, const Ra
 
 }
 
-static __device__ PathtraceResult depthColor(DXHook::RenderOptions* options, const Ray& ray, curandState* local_rand_state) {
+static __device__ PathtraceResult depthColor(DXHook::RenderOptions* options, const Ray& ray, curandState* local_rand_state, vec3 thisUV) {
     Ray cur_ray = ray;
     vec3 currentLight(1, 1, 1);
     
@@ -217,17 +220,22 @@ static __device__ PathtraceResult depthColor(DXHook::RenderOptions* options, con
             thisHit.hitEntity = target;
             thisHit.dir = cur_ray.direction;
 
-            if (target->lighting.transmission <= 0.0f) {
-                bool validSample = MixedBxDF::SampleWorld(rec, local_rand_state, options->curtime, pdf, attenuation, cur_ray, new_ray, target, thisHit.brdf);
+            if (Flags::estimatorType == Flags::MonteCarlo::Normal) {
+                if (target->lighting.transmission <= 0.0f) {
+                    bool validSample = MixedBxDF::SampleWorld(rec, local_rand_state, options->curtime, pdf, attenuation, cur_ray, new_ray, target, thisHit.brdf);
 
-                if (!validSample) {
-                    // Nothing was chosen from our BxDF, so continue onwards
-                    continue;
+                    if (!validSample) {
+                        // Nothing was chosen from our BxDF, so continue onwards
+                        continue;
+                    }
+                }
+                else {
+                    // quick patch in for refraction
+                    RefractBRDF::SampleWorld(rec, local_rand_state, pdf, options->curtime, cur_ray, attenuation, new_ray, target, thisHit.brdf);
                 }
             }
-            else {
-                // quick patch in for refraction
-                RefractBRDF::SampleWorld(rec, local_rand_state, pdf, options->curtime, cur_ray, attenuation, new_ray, target, thisHit.brdf);
+            else if (Flags::estimatorType == Flags::MonteCarlo::Quasi) {
+                LambertBRDF::SampleWorld(rec, local_rand_state, options->curtime, pdf, attenuation, new_ray, target, thisUV);
             }
 
             if (lastBRDF == BRDF::Specular) {
@@ -316,9 +324,11 @@ static __device__ PathtraceResult depthColor(DXHook::RenderOptions* options, con
     return res; // exceeded recursion..
 }
 
-__device__ PathtraceResult pathtrace(DXHook::RenderOptions* options, const Ray& ray, curandState* local_rand_state) {
+__device__ PathtraceResult pathtrace(DXHook::RenderOptions* options, const Ray& ray, curandState* local_rand_state, int x, int y) {
     vec3 indirectLighting(0, 0, 0);
     vec3 directLighting(0, 0, 0);
+
+    vec3 thisUV(x, y);
 
     PathtraceResult res;
 
@@ -330,7 +340,7 @@ __device__ PathtraceResult pathtrace(DXHook::RenderOptions* options, const Ray& 
     }
 
     for (int i = 0; i < options->samples; i++) {
-        PathtraceResult depthRes = depthColor(options, ray, local_rand_state);
+        PathtraceResult depthRes = depthColor(options, ray, local_rand_state, thisUV);
         indirectLighting += depthRes.color;
         res.eyePath = depthRes.eyePath;
         res.vertices = depthRes.vertices;

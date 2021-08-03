@@ -9,6 +9,8 @@
 #include "math_constants.h"
 
 #include <util/macros.h>
+#include <flags/montecarlo.cuh>
+#include <bluenoise.cuh>
 
 #define RANDVEC3 vec3(fmodf(curand_uniform(local_rand_state) + extraRand, 1.f),fmodf(curand_uniform(local_rand_state) + extraRand, 1.f),fmodf(curand_uniform(local_rand_state) + extraRand, 1.f))
 //#define RANDVEC3 vec3(curand_uniform(local_rand_state),curand_uniform(local_rand_state),curand_uniform(local_rand_state))
@@ -69,13 +71,27 @@ namespace LambertBRDF {
 		pdf = getLambertPDF(wi, normal);
 	}
 
-	__device__ void SampleWorld(const HitResult& rec, curandState* local_rand_state, float extraRand, float& pdf, vec3& attenuation, Ray& targetRay, Object* target) {
+	__device__ void SampleWorld(const HitResult& rec, curandState* local_rand_state, float extraRand, float& pdf, vec3& attenuation, Ray& targetRay, Object* target, vec3 thisUV) {
 		vec3 BLACK = vec3(0.f);
 
 		targetRay.origin = rec.HitPos + (rec.HitNormal * 0.001f);
 
-		float r1 = curand_uniform(local_rand_state);
-		float r2 = curand_uniform(local_rand_state);
+		float r1 = 0.0f; 
+		float r2 = 0.0f;
+		
+		if (Flags::estimatorType == Flags::MonteCarlo::Normal) {
+			r1 = curand_uniform(local_rand_state);
+			r2 = curand_uniform(local_rand_state);
+		}
+		else if (Flags::estimatorType == Flags::MonteCarlo::Quasi) {
+			// blue noise sample
+
+			// TODO: give BxDFs an idea of what sample they are
+			vec3 sampleData = Bluenoise::CalculateSample(1, thisUV);
+
+			r1 = sampleData.x();
+			r2 = sampleData.y();
+		}
 
 		float r = sqrtf(r1);
 		float theta = r2 * 2.f * CUDART_PI;

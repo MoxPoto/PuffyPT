@@ -28,6 +28,8 @@
 #include <pathtracer.cuh>
 #include <mlt.cuh>
 
+#include <bluenoise.cuh>
+
 #define STB_IMAGE_IMPLEMENTATION
 #include <vendor/stb_image.h>
 
@@ -44,6 +46,8 @@
 #define HDRI_FOLDER "C:\\pathtracer\\hdrs"
 #define HDRI_RESX 2048
 #define HDRI_RESY 1024
+#define BLUENOISE_TEX "C:\\pathtracer\\bluenoise512.png"
+
 
 void DXHook::check_cuda(cudaError_t result, char const* const func, const char* const file, int const line) {
     if (result) {
@@ -107,13 +111,15 @@ __global__ void DXHook::render(DXHook::RenderOptions options) {
 
     bool gbufferOverride = false;
     Post::GBuffer newGBuffer;
-    
+
+    Bluenoise::frameNumber = options.frameCount;
+
     if (hitObject != NULL) {
         Ray newRay = ourRay;
         newRay.origin = newRay.origin + (result.HitNormal * 0.001f);
 
         if (options.renderer == DXHook::RendererTypes::PuffyPT) {
-            PathtraceResult indirect = pathtrace(&options, newRay, &local_rand_state);
+            PathtraceResult indirect = pathtrace(&options, newRay, &local_rand_state, i, j);
 
             if (indirect.specularOverride) {
                 newGBuffer = indirect.gbufferOverride;
@@ -262,6 +268,13 @@ GMOD_MODULE_OPEN()
 
     if (!correctLoad) {
         HOST_DEBUG("Loading HDRI failed! Not continuing tracer loading..");
+        return 0;
+    }
+
+    bool blueLoad = LoadBluenoise(BLUENOISE_TEX);
+
+    if (!blueLoad) {
+        HOST_DEBUG("Loading Blue Noise Texture failed! Not continuing tracer loading..");
         return 0;
     }
 

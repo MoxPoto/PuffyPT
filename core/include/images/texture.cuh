@@ -24,6 +24,7 @@ public:
 	__device__ void SetFallbackColor(vec3 newColor);
 	__device__ void Initialize(int newResX = 0, int newResY = 0, Pixel* newImageData = NULL); // remember, malloc doesn't invoke the constructor
 	__device__ vec3 GetPixel(float u, float v);
+	__device__ vec3 GetRawPixel(int x, int y);
 };
 
 // returns the dev ptr to the texture 
