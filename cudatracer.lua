@@ -1,5 +1,6 @@
 local FILE_PREFIX = "C:\\pathtracer\\pbr\\materials\\"
 local FILE_SUFFIX = "_mrao.png"
+local EMISSION_SUFFIX = "_emission.png"
 
 CudaTracer = {}
 CudaTracer.LAMBERTIAN = 0
@@ -29,9 +30,7 @@ hook.Add( "HUDPaint", "ExampleDraw", function()
 	surface.DrawTexturedRect( 0, 0, customMaterial:GetTexture( "$basetexture" ):Width(), customMaterial:GetTexture( "$basetexture" ):Height() )
 end )
 
-function CudaTracer:AddTexture(textureName, isBase)
-    isBase = isBase or false 
-
+function CudaTracer:AddTexture(textureName, isBase, srgb)
     if self.Textures[textureName] == true then
         return
     end
@@ -55,10 +54,16 @@ function CudaTracer:AddTexture(textureName, isBase)
         for y = 0, 255 do 
             for x = 0, 255 do 
                 local r, g, b = render.ReadPixel(x, y)
-
-                table.insert(rawImageData, r / 255) 
-                table.insert(rawImageData, g / 255)  
-                table.insert(rawImageData, b / 255) 
+                
+                if srgb then
+                    table.insert(rawImageData, (r / 255) ^ 2.2) 
+                    table.insert(rawImageData, (g / 255) ^ 2.2) 
+                    table.insert(rawImageData, (b / 255) ^ 2.2)
+                else
+                    table.insert(rawImageData, (r / 255))
+                    table.insert(rawImageData, (g / 255))
+                    table.insert(rawImageData, (b / 255))
+                end
 
                 surface.SetDrawColor(r, g, b, 255)
                 draw.NoTexture()
@@ -103,7 +108,9 @@ function CudaTracer:AddObject(ent)
             BRDF = 0,
             IOR = 1.5,
             Transmission = 0,
-            Roughness = 0
+            Roughness = 1,
+            Color = color,
+            Emission = emission
         }
 
         return 
@@ -148,7 +155,9 @@ function CudaTracer:AddObject(ent)
         BRDF = 0,
         IOR = 1.5,
         Transmission = 0,
-        Roughness = 0
+        Roughness = 1,
+        Color = color,
+        Emission = emission
     }
     
 end
@@ -161,7 +170,7 @@ function CudaTracer:AddObjectAt()
     self:AddObject(LocalPlayer():GetEyeTrace().Entity)
 end
 
-local MRAO_ENABLED = false
+local PBR_ENABLED = true
 function CudaTracer:AddMyObjects()
     for k , v in pairs(ents.FindByClass("prop_physics")) do
         if (v.CPPIGetOwner) then
@@ -177,20 +186,23 @@ function CudaTracer:AddMyObjects()
                 end
 
                 local mraoPath = FILE_PREFIX .. material:gsub("/", "\\") .. FILE_SUFFIX
+                local emissionPath = FILE_PREFIX .. material:gsub("/", "\\") .. EMISSION_SUFFIX
+
                 local tempMaterial = Material(material)
 
                 local normalMapPath = tempMaterial:GetString("$bumpmap")
 
-                self:AddTexture(material)
+                self:AddTexture(material, false, true)
                 self:AddObject(v)
 
                 if type(normalMapPath) == "string" then 
-                    self:AddTexture(normalMapPath, true)
+                    -- omg I was sending the normal map as if it was in sRGB
+                    self:AddTexture(normalMapPath, true, false)
                 else 
                     normalMapPath = "_no_normal_map"
                 end
 
-                tracerSync.SetPBR(v.PTID, (MRAO_ENABLED and mraoPath or ""), normalMapPath)
+                tracerSync.SetPBR(v.PTID, (PBR_ENABLED and mraoPath or ""), normalMapPath, (PBR_ENABLED and emissionPath or ""))
             end
         end
     end
