@@ -11,7 +11,7 @@
 #include <brdfs/refraction.cuh>
 
 namespace MixedBxDF {
-	__device__ bool SampleWorld(const HitResult& res, curandState* local_rand_state, float extraRand, float& pdf, vec3& attenuation, Ray& previousRay, Ray& targetRay, Object* target, BRDF& brdfChosen) {
+	__device__ bool SampleWorld(const HitResult& res, curandState* local_rand_state, float extraRand, float& pdf, vec3& attenuation, Ray& previousRay, Ray& targetRay, Object* target, BRDF& brdfChosen, vec3 uv, int sampleIndex) {
 		using SpecularBRDF::reflect;
 
 		float specularProbablilty = 1.f - target->lighting.roughness;
@@ -21,6 +21,7 @@ namespace MixedBxDF {
 			specularProbablilty = 1.f - res.MRAO.g();
 			diffuseProbability = res.MRAO.g();
 		}
+
 		float transmissionProbability = 0.f; // temporary
 
 		float sampledUniform = curand_uniform(local_rand_state);
@@ -30,7 +31,7 @@ namespace MixedBxDF {
 		
 		// Most of this comes from: https://github.com/NVIDIAGameWorks/Falcor/blob/master/Source/Falcor/Experimental/Scene/Material/BxDF.slang#L682-L708
 		if (sampledUniform < diffuseProbability) {
-			//LambertBRDF::SampleWorld(res, local_rand_state, extraRand, pdf, attenuation, targetRay, target);
+			LambertBRDF::SampleWorld(res, local_rand_state, extraRand, pdf, attenuation, targetRay, target, uv, sampleIndex);
 
 			brdfChosen = BRDF::Lambertian;
 

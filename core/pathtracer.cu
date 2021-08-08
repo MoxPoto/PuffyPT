@@ -108,54 +108,66 @@ static __device__ const int EMISSIVE_MINIMUM = 15; // Minimum emission to be con
 #define min(a,b) ((a)<(b)?(a):(b))
 #define max(a,b) ((a)>(b)?(a):(b))
 
-__device__ vec3 calcDirect(int count, Object** world, Object* firstHit, const Ray& ray, const HitResult& rec) {
+__device__ vec3 calcDirect(DXHook::RenderOptions* options, const HitResult& rec, curandState* local_rand_state) {
+    Object* lightObjects[100];
+    // Aux array to find light objects
+    // TODO: MAKE THIS BE HANDLED BY THE MESH UPLOADER!!!
 
+    int lightCount = 0;
 
-    vec3 lightObtained(0, 0, 0);
-    int lightHits = 0;
+    for (int i = 0; i < options->count; i++) {
+        if (lightCount + 1 >= 100) {
+            break;
+        }
 
-    for (int i = 0; i < count; i++) {
-        Object* light = *(world + i);
+        Object* potentialLight = options->world[i];
 
-        if (light->emission >= EMISSIVE_MINIMUM) {
-            float lightPower = 300.f + ((light->emission - EMISSIVE_MINIMUM) * 2.f); // The more intense emission is, more range is added
-            float lightBrightness = 1.f;
-
-            vec3 newOrigin = rec.HitPos + (rec.HitNormal * 0.001f);
-            vec3 testDirection = unit_vector((light->position - newOrigin));
-
-            Ray testRay(newOrigin, testDirection);
-            HitResult testResult;
-
-            Object* hitObject = traceScene(count, world, testRay, testResult);
-
-            // A path from the sampled position and the light has been found
-            if (hitObject != NULL && hitObject->objectID == light->objectID && testResult.t <= lightPower) {
-                // float normalizedRange = (distance / lightPower);
-
-                float falloff = lightPower / ((0.01 * 0.01) + powf(testResult.t, 2.f));
-
-                vec3 lightContribution = (light->GetColor(testResult) * falloff) * lightBrightness;
-
-                lightHits++;
-                lightObtained += lightContribution;
-            }
+        if (potentialLight->emission >= EMISSIVE_MINIMUM) {
+            lightObjects[lightCount++] = potentialLight;
         }
     }
 
-    if (lightHits == 0) {
-        return lightObtained;
-    }
-    else {
-        lightObtained /= static_cast<float>(lightHits);
-        return lightObtained;
+    if (lightCount <= 0)
+        return vec3(0, 0, 0);
+
+    float lightSelectionPDF = 1.f / lightCount;
+
+    float rand = curand_uniform(local_rand_state);
+    int idx = static_cast<int>(floorf(rand * (lightCount - 1)));
+
+    Object* chosenLight = lightObjects[idx];
+
+    vec3 lightDir = unit_vector(chosenLight->position - rec.HitPos);
+    vec3 startPos = rec.HitPos + (rec.HitNormal * 0.01f);
+
+    float lightPower = 60.f + ((chosenLight->emission - EMISSIVE_MINIMUM) * 2.f);
+
+    HitResult testResult;
+
+    Ray newRay;
+    newRay.origin = startPos;
+    newRay.direction = lightDir;
+
+    Object* hitObject = traceScene(options->count, options->world, newRay, testResult);
+
+    if (hitObject != NULL && hitObject->objectID == chosenLight->objectID && testResult.t <= lightPower) {
+        float falloff = lightPower / ((0.01 * 0.01) + powf(testResult.t, 2.f));
+
+        vec3 lightContrib = (chosenLight->GetColor(testResult) * falloff);
+
+        return lightContrib / lightSelectionPDF;
     }
 
+    return vec3(0, 0, 0);
 }
 
 static __device__ PathtraceResult depthColor(DXHook::RenderOptions* options, const Ray& ray, curandState* local_rand_state, vec3 thisUV) {
     Ray cur_ray = ray;
     vec3 currentLight(1, 1, 1);
+
+    /*
+    (directLighting / CUDART_PI + 2.0 * indirectLighting);  
+    */
     
     PathtraceResult res;
     res.vertices = options->max_depth + 1;
@@ -192,26 +204,29 @@ static __device__ PathtraceResult depthColor(DXHook::RenderOptions* options, con
                 res.color = currentLight * (target->GetColor(rec) * target->emission);
                 return res;
             }
+            else if (target->pbrMaps.emissionMap.initialized && target->emission > EMISSIVE_MINIMUM) {
+                vec3 lightColor = (target->pbrMaps.emissionMap.GetPixel(rec.u, rec.v) * target->emission);
+
+                if (lightColor.squared_length() > 0) {
+                    // just return the light
+                    LightHit hitPoint;
+                    hitPoint.hitResult = rec;
+                    hitPoint.startPos = cur_ray.origin;
+                    hitPoint.hitEntity = target;
+                    hitPoint.dir = cur_ray.direction;
+
+                    hitPoint.isLight = true;
+#ifdef DO_MLT
+                    res.eyePath[res.vertices++] = hitPoint;
+#endif
+                    res.color = currentLight * lightColor;
+                    return res;
+                }
+            }
 
             Ray new_ray(vec3(0, 0, 0), vec3(0, 0, 0));
             vec3 attenuation = currentLight;
             float pdf = 1.f;
-
-            /*
-            switch (target->matType) {
-            case (BRDF::Lambertian):
-                LambertBRDF::SampleWorld(rec, local_rand_state, options->curtime, pdf, attenuation, new_ray, target);
-                break;
-            case (BRDF::Specular):
-                SpecularBRDF::SampleWorld(rec, local_rand_state, options->curtime, pdf, cur_ray, attenuation, new_ray, target);
-                break;
-            case (BRDF::Refraction):
-                RefractBRDF::SampleWorld(rec, local_rand_state, pdf, options->curtime, cur_ray, attenuation, new_ray, target);
-                break;
-            default:
-                break;
-            }
-            */
 
             LightHit thisHit;
             thisHit.hitResult = rec;
@@ -222,7 +237,7 @@ static __device__ PathtraceResult depthColor(DXHook::RenderOptions* options, con
 
             if (Flags::estimatorType == Flags::MonteCarlo::Normal) {
                 if (target->lighting.transmission <= 0.0f) {
-                    bool validSample = MixedBxDF::SampleWorld(rec, local_rand_state, options->curtime, pdf, attenuation, cur_ray, new_ray, target, thisHit.brdf);
+                    bool validSample = MixedBxDF::SampleWorld(rec, local_rand_state, options->curtime, pdf, attenuation, cur_ray, new_ray, target, thisHit.brdf, thisUV, i);
 
                     if (!validSample) {
                         // Nothing was chosen from our BxDF, so continue onwards
@@ -235,7 +250,7 @@ static __device__ PathtraceResult depthColor(DXHook::RenderOptions* options, con
                 }
             }
             else if (Flags::estimatorType == Flags::MonteCarlo::Quasi) {
-                LambertBRDF::SampleWorld(rec, local_rand_state, options->curtime, pdf, attenuation, new_ray, target, thisUV);
+                LambertBRDF::SampleWorld(rec, local_rand_state, options->curtime, pdf, attenuation, new_ray, target, thisUV, i);
             }
 
             if (lastBRDF == BRDF::Specular) {
@@ -254,7 +269,12 @@ static __device__ PathtraceResult depthColor(DXHook::RenderOptions* options, con
  
             } 
 
-            currentLight *= attenuation / pdf;
+            vec3 indirect = (attenuation / pdf);
+            vec3 direct = calcDirect(options, rec, local_rand_state);
+
+            vec3 combined = (direct / CUDART_PI + 2.0 * indirect);
+
+            currentLight *= indirect;
 
             // russian roulette to terminate paths that barely contain any visible contribution
             // from: https://computergraphics.stackexchange.com/a/5808
@@ -335,10 +355,6 @@ __device__ PathtraceResult pathtrace(DXHook::RenderOptions* options, const Ray& 
     HitResult result;
     Object* hitObject = traceScene(options->count, options->world, ray, result);
 
-    if (hitObject != NULL) {
-        directLighting = calcDirect(options->count, options->world, hitObject, ray, result);
-    }
-
     for (int i = 0; i < options->samples; i++) {
         PathtraceResult depthRes = depthColor(options, ray, local_rand_state, thisUV);
         indirectLighting += depthRes.color;
@@ -351,13 +367,13 @@ __device__ PathtraceResult pathtrace(DXHook::RenderOptions* options, const Ray& 
     indirectLighting /= (float)options->samples;
 
     if (options->curPass == 0) { // Direct only
-        res.color = directLighting;
+        res.color = vec3(0, 0, 0);
     }
     else if (options->curPass == 1) { // Indirect only
         res.color = indirectLighting;
     }
     else {
-        res.color = (directLighting / CUDART_PI + 2.0 * indirectLighting);
+        res.color = indirectLighting;
     }
 
     return res;

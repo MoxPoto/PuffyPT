@@ -175,13 +175,11 @@ namespace SpecularBRDF {
 		float f = fabsf((1.f - target->lighting.ior) / (1.f + target->lighting.ior));
 		// in my schlick's function, f0 is represented as r0
 		float F0 = (f * f);
-
 		vec3 finalSchlicksInput = lerpVectors(vec3(F0), res.HitAlbedo, metalness);
-
 		vec3 fresnelTerm = coloredSchlick(finalSchlicksInput, dot(wo, m), target->lighting.ior);
-
 		vec3 numerator = fresnelTerm * GGXDistribution(alpha, thetaM, res.HitNormal, m) * GGXGeometry(targetRay.direction, res.HitNormal, m, alpha);
 		attenuation = numerator;
+
 
 		
 
@@ -207,7 +205,7 @@ namespace SpecularBRDF {
 		float pdf = FalcorNDFGGX(alpha, h.z());
 	    // return GGXDistribution(alpha, h.z(), res.HitNormal, h) * fabsf(dot(h, res.HitNormal));
 
-		return pdf / (4 * woDotH);
+		return pdf / (4.0 * woDotH);
 	}
 }
 

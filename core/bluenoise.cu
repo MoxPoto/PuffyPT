@@ -21,22 +21,25 @@ namespace Bluenoise {
 
 	// so simple!!
 	__device__ vec3 CalculateSample(int sampleIndex, vec3 uv) {
+        vec3 thisColor = blueNoiseTex->GetRawPixel(uv.x(), uv.y());
+        
         vec3 thisSample = blueNoiseDisk[sampleIndex];
-        float thisRotation = blueNoiseTex->GetRawPixel(uv.x(), uv.y()).x();
+
+        float thisRotation = thisColor.r();
 
         // Before we continue, we need to animate the rotation based on time (so we can converge)
 
         float addFactor = ((frameNumber % MAX_FRAMES) * goldenRatio);
         thisRotation = fract(addFactor + thisRotation);
 
-        float theta = thisRotation * (2 * static_cast<float>(CUDART_PI));
+        float theta = thisRotation * 2.0 * static_cast<float>(CUDART_PI);
 
         float rotatedX = thisSample.x() * cosf(theta) - thisSample.y() * sinf(theta);
         float rotatedY = thisSample.x() * sinf(theta) - thisSample.y() * cosf(theta);
 
         vec3 finalSample(rotatedX, rotatedY);
 
-        finalSample = (finalSample + 1) / 2;
+        finalSample = finalSample * 0.5 + 0.5;
 
         return finalSample;
 	}

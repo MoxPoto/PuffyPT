@@ -71,7 +71,7 @@ namespace LambertBRDF {
 		pdf = getLambertPDF(wi, normal);
 	}
 
-	__device__ void SampleWorld(const HitResult& rec, curandState* local_rand_state, float extraRand, float& pdf, vec3& attenuation, Ray& targetRay, Object* target, vec3 thisUV) {
+	__device__ void SampleWorld(const HitResult& rec, curandState* local_rand_state, float extraRand, float& pdf, vec3& attenuation, Ray& targetRay, Object* target, vec3 thisUV, int sampleIndex) {
 		vec3 BLACK = vec3(0.f);
 
 		targetRay.origin = rec.HitPos + (rec.HitNormal * 0.001f);
@@ -87,7 +87,7 @@ namespace LambertBRDF {
 			// blue noise sample
 
 			// TODO: give BxDFs an idea of what sample they are
-			vec3 sampleData = Bluenoise::CalculateSample(1, thisUV);
+			vec3 sampleData = Bluenoise::CalculateSample(sampleIndex, thisUV);
 
 			r1 = sampleData.x();
 			r2 = sampleData.y();

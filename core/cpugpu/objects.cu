@@ -233,6 +233,10 @@ namespace CPU {
 	__global__ void setPBRK(Object** world, int id, PBRUpload uploadData) {
 		Object* object = *(world + id);
 
+		if (uploadData.emissionData != nullptr) {
+			object->emission = 20.0f; // Give it some emission off the bat
+		}
+
 		object->pbrMaps.mraoMap.Initialize(uploadData.mraoResX, uploadData.mraoResY, uploadData.mraoData);
 		object->pbrMaps.normalMap.Initialize(256, 256, uploadData.normalMap);
 		object->pbrMaps.emissionMap.Initialize(uploadData.emissionResX, uploadData.emissionResY, uploadData.emissionData);
