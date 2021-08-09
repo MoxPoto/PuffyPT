@@ -57,6 +57,11 @@ void DXHook::check_cuda(cudaError_t result, char const* const func, const char* 
     }
 }
 
+// https://stackoverflow.com/a/3451607
+static __device__ float remapFloat(float value, float low1, float low2, float high1, float high2) {
+    return low2 + (value - low1) * (high2 - low2) / (high1 - low1);
+}
+
 __global__ void DXHook::render(DXHook::RenderOptions options) {
     int i = threadIdx.x + blockIdx.x * blockDim.x;
     int j = threadIdx.y + blockIdx.y * blockDim.y;
@@ -73,12 +78,15 @@ __global__ void DXHook::render(DXHook::RenderOptions options) {
     vec3 frameColor(0, 0, 0);
 
     float DISTANCE = 1.f;
+    
+    float jitteredI = i + remapFloat(curand_uniform(&local_rand_state), 0.f, -1.f, 1.f, 1.f) * 0.58f;
+    float jitteredJ = j + remapFloat(curand_uniform(&local_rand_state), 0.f, -1.f, 1.f, 1.f) * 0.58f;
 
-    float coeff = DISTANCE * tan((options.fov / 2) * (M_PI / 180)) * 2;
+    float coeff = DISTANCE * tan((options.fov / 2.f) * (M_PI / 180.0f)) * 2.f;
     vec3 camOrigin = vec3(
         DISTANCE,
-        (static_cast<float>(options.max_x - i) / static_cast<float>(options.max_x - 1) - 0.5) * coeff,
-        (coeff / static_cast<float>(options.max_x)) * static_cast<float>(options.max_y - j) - 0.5 * (coeff / static_cast<double>(options.max_x)) * static_cast<double>(options.max_y - 1)
+        (static_cast<float>(options.max_x - jitteredI) / static_cast<float>(options.max_x - 1.f) - 0.5f) * coeff,
+        (coeff / static_cast<float>(options.max_x)) * static_cast<float>(options.max_y - jitteredJ) - 0.5f * (coeff / static_cast<double>(options.max_x)) * static_cast<double>(options.max_y - 1.f)
     );
     vec3 dir = unit_vector(camOrigin);
     // NOT MY CODE!! https://github.com/100PXSquared/public-starfalls/tree/master/raytracer
