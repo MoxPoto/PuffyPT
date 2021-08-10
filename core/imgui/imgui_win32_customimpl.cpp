@@ -49,6 +49,10 @@ namespace DXHook {
 		if (io.WantCaptureMouse) { // do not ask
 			for (int keyCode : keyCodes) {
 				if ((GetKeyState(keyCode) & 0x8000) != 0) {
+					if (keyCode >= 0x41 && keyCode <= 0x5A && !io.KeysDown[keyCode]) {
+						io.AddInputCharacter(static_cast<unsigned int>(keyCode));
+					}
+
 					io.KeysDown[keyCode] = true;
 				}
 				else {

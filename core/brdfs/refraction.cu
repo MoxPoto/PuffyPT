@@ -49,6 +49,7 @@ __device__ static vec3 calculateBeersLaw(vec3 color, float distanceInsideObject)
 	return vec3(expf(result.x()), expf(result.y()), expf(result.z()));
 }
 
+
 __device__ static bool refract(vec3 incidence, vec3 normal, float ior, vec3& outputVector) {
 	float cosI = clamp(-1.f, 1.f, dot(incidence, normal));
 	float etaI = 1.f;
@@ -74,6 +75,8 @@ __device__ static bool refract(vec3 incidence, vec3 normal, float ior, vec3& out
 	}
 }
 
+
+
 namespace RefractBRDF {
 	__device__ void SampleWorld(const HitResult& res, curandState* local_rand_state, float& pdf, float extraRand, const Ray& previousRay, vec3& attenuation, Ray& targetRay, Object* target, BRDF& brdfChosen) {
 		using SpecularBRDF::schlick;
@@ -95,13 +98,20 @@ namespace RefractBRDF {
 
 		if (uniform <= fresnel) {
 			// Take reflection path
+			/*
 			targetRay.origin = res.HitPos + (res.HitNormal * 0.001f);
 			targetRay.direction = reflect(previousRay.direction, res.HitNormal);
 
 			brdfChosen = BRDF::Specular;
 
 			float weight = (fresnel);
-			pdf = weight;
+			pdf = 1;
+
+			attenuation = vec3(fresnel, fresnel, fresnel)
+			*/
+
+			SpecularBRDF::SampleWorld(res, local_rand_state, extraRand, pdf, previousRay, attenuation, targetRay, target);
+			brdfChosen = BRDF::Specular;
 		}
 		else {
 			// Take refraction path
@@ -113,12 +123,10 @@ namespace RefractBRDF {
 			bool refracted = refract(previousRay.direction, res.HitNormal, currentIOR, targetRay.direction);
 
 			if (!refracted) {
-				targetRay.origin = res.HitPos + (res.HitNormal * 0.001f);
-				targetRay.direction = reflect(previousRay.direction, res.HitNormal);
-
+				SpecularBRDF::SampleWorld(res, local_rand_state, extraRand, pdf, previousRay, attenuation, targetRay, target);
 				brdfChosen = BRDF::Specular;
 			}
-			else {
+			else {	
 				// Calculate roughness
 				vec3 roughnessDir = res.HitNormal + vec3(curand_uniform(local_rand_state), curand_uniform(local_rand_state), curand_uniform(local_rand_state));
 				roughnessDir.make_unit_vector();
@@ -126,9 +134,11 @@ namespace RefractBRDF {
 				float roughness = target->lighting.roughness;
 				if (target->pbrMaps.mraoMap.initialized) {
 					roughness = res.MRAO.g();
-				}
+				}	
 
-				targetRay.direction = lerpVectors(targetRay.direction, roughnessDir, roughness * roughness);
+				if (roughness > 0.0f) {
+					targetRay.direction = lerpVectors(targetRay.direction, roughnessDir, roughness * roughness);
+				}
 
 				brdfChosen = BRDF::Refraction;
 			}

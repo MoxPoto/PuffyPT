@@ -24,7 +24,6 @@
 
 #include <images/hdriUtility.cuh>
 
-
 #define WIDTH 480
 #define HEIGHT 270
 #define checkCudaErrors(val) DXHook::check_cuda( (val), #val, __FILE__, __LINE__ )
@@ -49,6 +48,9 @@ std::default_random_engine randEngine;
 std::uniform_real_distribution<float> unif(0.0, 1.0);
 
 static int accumulatedSamples = 0;
+
+#define MEASURE_START(id) std::chrono::steady_clock::time_point id = std::chrono::high_resolution_clock::now();
+#define MEASURE_END(id, result) double result = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - id).count();
 
 namespace DXHook {
 	EndScene oldFunc;
@@ -239,6 +241,15 @@ namespace DXHook {
 		PUFF_INCREMENT_RESET("Increase HDRI Brightness", hdriBrightness);
 		PUFF_DECREMENT_RESET("Decrease HDRI Brightness", hdriBrightness);
 
+		char imageName[100];
+
+		ImGui::Text("Type render name to save the render to disk");
+
+		if (ImGui::InputText("##Render Name", imageName, 100, ImGuiInputTextFlags_EnterReturnsTrue)) {
+			D3DXSaveTextureToFile((std::string("C:\\pathtracer\\") + std::string(imageName) + std::string(".png")).c_str(), D3DXIFF_PNG, pathtraceOutput, NULL);
+		};
+		
+
 		ImGui::Checkbox("Denoise Image?", &denoiseImage);
 		ImGui::Checkbox("Enable Postprocessing?", &denoiserEnabled);
 		ImGui::Checkbox("Show Output?", &showPathtracer);
@@ -298,6 +309,7 @@ namespace DXHook {
 		// std::chrono::steady_clock::time_point startTime = std::chrono::high_resolution_clock::now();
 
 		if (showPathtracer) {
+			MEASURE_START(pathtraceTime);
 			RenderOptions options;
 			options.count = world_count;
 			options.fov = fov;
@@ -337,6 +349,10 @@ namespace DXHook {
 				ApplyPostprocess(WIDTH, HEIGHT, blocks, threads, denoiseImage);
 			}
 
+			MEASURE_END(pathtraceTime, pathtraceTimeDouble);
+
+			// printf("[host]: Time took to render in ms: %.4f\n", pathtraceTimeDouble);
+
 		}
 		// std::chrono::steady_clock::time_point endTime = std::chrono::high_resolution_clock::now();
 		// double timeSpent = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
@@ -344,6 +360,8 @@ namespace DXHook {
 		// std::cout << "Finished rendering in " << timeSpent << " milliseconds, saving to tex\n";
 
 		if (pathtraceOutput) {
+			MEASURE_START(texTransfer);
+
 			D3DLOCKED_RECT memRegion;
 			pathtraceOutput->LockRect(0, &memRegion, NULL, D3DLOCK_DISCARD);
 			// std::cout << "Updating texture pt 1\n";
@@ -360,14 +378,14 @@ namespace DXHook {
 				DWORD* row = (DWORD*)data;
 				for (int x = 0; x < WIDTH; ++x) {
 					int pixel_index = y * WIDTH * 3 + x * 3;
-					int r = int(postFB[pixel_index] * 255.99);
-					int g = int(postFB[pixel_index + 1] * 255.99);
-					int b = int(postFB[pixel_index + 2] * 255.99);
+					int r = static_cast<int>(postFB[pixel_index] * 255.99);
+					int g = static_cast<int>(postFB[pixel_index + 1] * 255.99);
+					int b = static_cast<int>(postFB[pixel_index + 2] * 255.99);
 
 					if (!denoiserEnabled) {
-						r = int(fb[pixel_index] * 255.99);
-						g = int(fb[pixel_index + 1] * 255.99);
-						b = int(fb[pixel_index + 2] * 255.99);
+						r = static_cast<int>(fb[pixel_index] * 255.99);
+						g = static_cast<int>(fb[pixel_index + 1] * 255.99);
+						b = static_cast<int>(fb[pixel_index + 2] * 255.99);
 					}
 
 					*row++ = D3DCOLOR_XRGB(r, g, b);
@@ -376,6 +394,9 @@ namespace DXHook {
 			}
 
 			pathtraceOutput->UnlockRect(0);
+
+			MEASURE_END(texTransfer, texTransferTime);
+			// printf("[host]: Time took to transfer render in ms: %.4f\n", texTransferTime);
 
 			if (pathtraceObject) {
 				D3DXMATRIX transformation;
