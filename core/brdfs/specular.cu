@@ -177,6 +177,7 @@ namespace SpecularBRDF {
 		float F0 = (f * f);
 		vec3 finalSchlicksInput = lerpVectors(vec3(F0), res.HitAlbedo, metalness);
 		vec3 fresnelTerm = coloredSchlick(finalSchlicksInput, dot(wo, m), target->lighting.ior);
+
 		vec3 numerator = fresnelTerm * GGXDistribution(alpha, thetaM, res.HitNormal, m) * GGXGeometry(targetRay.direction, res.HitNormal, m, alpha);
 		attenuation = numerator;
 

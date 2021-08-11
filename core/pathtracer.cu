@@ -225,7 +225,7 @@ static __device__ PathtraceResult depthColor(DXHook::RenderOptions* options, con
             }
 
             Ray new_ray(vec3(0, 0, 0), vec3(0, 0, 0));
-            vec3 attenuation = currentLight;
+            vec3 attenuation(1, 1, 1);
             float pdf = 1.f;
 
             LightHit thisHit;
