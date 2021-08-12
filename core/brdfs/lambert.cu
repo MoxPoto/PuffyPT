@@ -12,39 +12,12 @@
 #include <flags/montecarlo.cuh>
 #include <bluenoise.cuh>
 
+#include <math/basic.cuh>
+
 #define RANDVEC3 vec3(fmodf(curand_uniform(local_rand_state) + extraRand, 1.f),fmodf(curand_uniform(local_rand_state) + extraRand, 1.f),fmodf(curand_uniform(local_rand_state) + extraRand, 1.f))
 //#define RANDVEC3 vec3(curand_uniform(local_rand_state),curand_uniform(local_rand_state),curand_uniform(local_rand_state))
 
 static constexpr float M_1_PI = 0.318309886183790671538f;
-
-__device__ static inline vec3 lerpVectors(vec3 a, vec3 b, float f)
-{
-	return (a * (1.0f - f)) + (b * f);
-}
-
-// from: https://computergraphics.stackexchange.com/questions/4979/what-is-importance-sampling/4993
-__device__ static vec3 TransformToWorld(const float& x, const float& y, const float& z, const vec3& normal)
-{
-	// Find an axis that is not parallel to normal
-	vec3 majorAxis;
-	if (fabsf(normal.x()) < 0.57735026919f /* 1 / sqrt(3) */) {
-		majorAxis = vec3(1, 0, 0);
-	}
-	else if (fabsf(normal.y()) < 0.57735026919f /* 1 / sqrt(3) */) {
-		majorAxis = vec3(0, 1, 0);
-	}
-	else {
-		majorAxis = vec3(0, 0, 1);
-	}
-
-	// Use majorAxis to create a coordinate system relative to world space
-	vec3 u = unit_vector(cross(normal, majorAxis));
-	vec3 v = cross(normal, u);
-	vec3 w = normal;
-
-	// Transform from local coordinates to world coordinates
-	return u * x + v * y + w * z;
-}
 
 // from: https://computergraphics.stackexchange.com/questions/4979/what-is-importance-sampling/4993
 __device__ static float getLambertPDF(vec3 inputDir, vec3 normal) {
