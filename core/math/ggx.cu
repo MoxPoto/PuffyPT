@@ -28,7 +28,7 @@ __device__ float GGXDistribution(float width, float thetaM, const vec3& hitNorma
 }
 
 // G1(v, m)
-__device__ float GGXGeometry(const vec3& v, const vec3& n, const vec3& m, float width) {
+__device__ static float GGXMonoGeometry(const vec3& v, const vec3& n, const vec3& m, float width) {
 	float vdotm = dot(v, m);
 	float vdotn = dot(v, n);
 
@@ -39,4 +39,10 @@ __device__ float GGXGeometry(const vec3& v, const vec3& n, const vec3& m, float 
 	float denominator = 1.f + sqrtf(1.f + (alphaSquared * (tanPart * tanPart)));
 
 	return chiOfDot * (2.f / denominator);
+}
+
+// G(i, o, m) 
+// Approximation using smith G
+__device__ float GGXGeometry(const vec3& i, const vec3& o, const vec3& m, const vec3& n, float width) {
+	return GGXMonoGeometry(i, n, m, width) * GGXMonoGeometry(o, n, m, width);
 }

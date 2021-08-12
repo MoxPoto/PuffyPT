@@ -145,7 +145,7 @@ namespace RefractBRDF {
 
 			// term 2
 			float noSquared = nT * nT;
-
+			/*
 			float numerator = noSquared * (1.0f - schlick(dot(wo, ht), currentIOR) * GGXGeometry(wo, normal, m, alpha) * GGXDistribution(alpha, thetaM, normal, m));
 			float denominator = nI * (dot(wo, ht)) + nT * (dot(newDir, ht));
 			denominator = denominator * denominator; // Square the denominator
@@ -156,6 +156,7 @@ namespace RefractBRDF {
 
 			pdf = 1.f;// GGXDistribution(alpha, thetaM, res.HitNormal, m)* fabsf(dot(m, res.HitNormal));
 			attenuation = vec3(0, 0, 1);
+			*/
 		}
 
 		/*

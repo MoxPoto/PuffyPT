@@ -1,7 +1,7 @@
 ﻿#include <classes/vec3.cuh>
 #include <math/basic.cuh>
 
-__device__ inline float sign(const float& value) {
+__device__ float sign(const float& value) {
 	if (value < 0.f) return -1.f;
 
 	return 1.f;
@@ -30,7 +30,7 @@ __device__ vec3 TransformToWorld(const float& x, const float& y, const float& z,
 	return u * x + v * y + w * z;
 }
 
-__device__ inline vec3 lerpVectors(vec3 a, vec3 b, float f)
+__device__ vec3 lerpVectors(vec3 a, vec3 b, float f)
 {
 	return (a * (1.0f - f)) + (b * f);
 }
