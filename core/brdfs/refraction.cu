@@ -7,6 +7,8 @@
 #include <brdfs/specular.cuh>
 #include <brdfs/refraction.cuh>
 
+#include <math/basic.cuh>
+#include <math/ggx.cuh>
 #include "math_constants.h"
 
 /*
@@ -26,24 +28,6 @@ local function refract(I, N, ior)
 	return k < 0 and 0 or eta * I + (eta * cosI - math.sqrt(k)) * N
 end
 */
-
-__device__ static inline float lerp(float a, float b, float f)
-{
-	return (a * (1.0f - f)) + (b * f);
-}
-
-__device__ static inline vec3 lerpVectors(vec3 a, vec3 b, float f) {
-	return vec3(
-		lerp(a.x(), b.x(), f),
-		lerp(a.y(), b.y(), f),
-		lerp(a.z(), b.z(), f)
-	);
-}
-
-__device__ static float clamp(float d, float min, float max) {
-	const float t = d < min ? min : d;
-	return t > max ? max : t;
-}
 
 __device__ static vec3 calculateBeersLaw(vec3 color, float distanceInsideObject) {
 	// multiplier = e^(-color * distanceInsideObject)
@@ -77,72 +61,6 @@ __device__ static bool refract(vec3 incidence, vec3 normal, float ior, vec3& out
 	}
 }
 
-
-__device__ static float thetaFromVec(vec3 vec) {
-	return atanf(sqrtf(vec.x() * vec.x() + vec.y() * vec.y()) / vec.z());
-}
-
-// χ+(a)
-__device__ static float chi(float num) {
-	return num > 0.f ? 1.f : 0.f;
-}
-
-// D(m)
-__device__ static float GGXDistribution(float width, float thetaM, const vec3& hitNormal, const vec3& microfacet) {
-	float alphaSquared = (width * width);
-
-	float numerator = alphaSquared * chi(dot(microfacet, hitNormal));
-	float tanThetaM = tanf(thetaM);
-	float term2 = (alphaSquared + powf(tanThetaM, 2));
-
-	float denominator = (static_cast<float>(CUDART_PI) * powf(cosf(thetaM), 4.f) * (term2 * term2));
-
-	return numerator / denominator;
-}
-
-// G1(v, m)
-__device__ static float GGXGeometry(const vec3& v, const vec3& n, const vec3& m, float width) {
-	float vdotm = dot(v, m);
-	float vdotn = dot(v, n);
-
-	float chiOfDot = chi(vdotm / vdotn);
-	float alphaSquared = (width * width);
-	float thetaOfV = thetaFromVec(v);
-	float tanPart = tanf(thetaOfV);
-	float denominator = 1.f + sqrtf(1.f + (alphaSquared * (tanPart * tanPart)));
-
-	return chiOfDot * (2.f / denominator);
-}
-
-// from: https://computergraphics.stackexchange.com/questions/4979/what-is-importance-sampling/4993
-__device__ static vec3 TransformToWorld(const float& x, const float& y, const float& z, const vec3& normal)
-{
-	// Find an axis that is not parallel to normal
-	vec3 majorAxis;
-	if (fabsf(normal.x()) < 0.57735026919f /* 1 / sqrt(3) */) {
-		majorAxis = vec3(1, 0, 0);
-	}
-	else if (fabsf(normal.y()) < 0.57735026919f /* 1 / sqrt(3) */) {
-		majorAxis = vec3(0, 1, 0);
-	}
-	else {
-		majorAxis = vec3(0, 0, 1);
-	}
-
-	// Use majorAxis to create a coordinate system relative to world space
-	vec3 u = unit_vector(cross(normal, majorAxis));
-	vec3 v = cross(normal, u);
-	vec3 w = normal;
-
-	// Transform from local coordinates to world coordinates
-	return u * x + v * y + w * z;
-}
-
-__device__ static inline float sign(const float& value) {
-	if (value < 0.f) return -1.f;
-
-	return 1.f;
-}
 
 namespace RefractBRDF {
 	__device__ void SampleWorld(const HitResult& res, curandState* local_rand_state, float& pdf, float extraRand, const Ray& previousRay, vec3& attenuation, Ray& targetRay, Object* target, BRDF& brdfChosen) {

@@ -11,78 +11,9 @@
 
 #include <util/macros.h>
 
+#include <math/ggx.cuh>
+#include <math/basic.cuh>
 #define PROTECTZERO(statement) fmaxf(0.001f, statement)
-
-// from: https://computergraphics.stackexchange.com/questions/4979/what-is-importance-sampling/4993
-__device__ static vec3 TransformToWorld(const float& x, const float& y, const float& z, const vec3& normal)
-{
-	// Find an axis that is not parallel to normal
-	vec3 majorAxis;
-	if (fabsf(normal.x()) < 0.57735026919f /* 1 / sqrt(3) */) {
-		majorAxis = vec3(1, 0, 0);
-	}
-	else if (fabsf(normal.y()) < 0.57735026919f /* 1 / sqrt(3) */) {
-		majorAxis = vec3(0, 1, 0);
-	}
-	else {
-		majorAxis = vec3(0, 0, 1);
-	}
-
-	// Use majorAxis to create a coordinate system relative to world space
-	vec3 u = unit_vector(cross(normal, majorAxis));
-	vec3 v = cross(normal, u);
-	vec3 w = normal;
-
-	// Transform from local coordinates to world coordinates
-	return u * x + v * y + w * z;
-}
-
-__device__ static inline float lerp(float a, float b, float f)
-{
-	return (a * (1.0f - f)) + (b * f);
-}
-
-__device__ static inline vec3 lerpVectors(vec3 a, vec3 b, float f)
-{
-	return (a * (1.0f - f)) + (b * f);
-}
-
-__device__ static float thetaFromVec(vec3 vec) {
-	return atanf(sqrtf(vec.x() * vec.x() + vec.y() * vec.y()) / vec.z());
-}
-
-// χ+(a)
-__device__ static float chi(float num) {
-	return num > 0.f ? 1.f : 0.f;
-}
-
-// D(m)
-__device__ static float GGXDistribution(float width, float thetaM, const vec3& hitNormal, const vec3& microfacet) {
-	float alphaSquared = (width * width);
-
-	float numerator = alphaSquared * chi(dot(microfacet, hitNormal));
-	float tanThetaM = tanf(thetaM);
-	float term2 = (alphaSquared + powf(tanThetaM, 2));
-
-	float denominator = (static_cast<float>(CUDART_PI) * powf(cosf(thetaM), 4.f) * (term2 * term2));
-
-	return numerator / denominator;
-}
-
-// G1(v, m)
-__device__ static float GGXGeometry(const vec3& v, const vec3& n, const vec3& m, float width) {
-	float vdotm = dot(v, m);
-	float vdotn = dot(v, n);
-
-	float chiOfDot = chi(vdotm / vdotn);
-	float alphaSquared = (width * width);
-	float thetaOfV = thetaFromVec(v);
-	float tanPart = tanf(thetaOfV);
-	float denominator = 1.f + sqrtf(1.f + (alphaSquared * (tanPart * tanPart)));
-
-	return chiOfDot * (2.f / denominator);
-}
-
 
 __device__ static vec3 coloredSchlick(vec3 r0, float cosine, float ref_idx) {
 	return r0 + (vec3(1.0f) - r0) * powf(fmaxf((1.0f - cosine), 0), 5.0f);

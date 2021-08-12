@@ -2,6 +2,7 @@
 #include <classes/vec3.cuh>
 #include <util/macros.h>
 
+#include <math/basic.cuh>
 #include "math_constants.h"
 #include "cuda_runtime.h"
 #include <stdio.h>
@@ -9,13 +10,6 @@
 // so i'm jerryrigging some typedefs from the original file
 typedef float stbi_uc;
 static constexpr float M_2_PI = 0.636619772367581343076f;
-
-// this killed HDRIs once cause I forgot to put __device__
-__device__ static inline float sign(const float& value) {
-	if (value < 0.f) return -1.f;
-
-	return 1.f;
-}
 
 __device__ HDRI::HDRI() {
 	resX = 0;
