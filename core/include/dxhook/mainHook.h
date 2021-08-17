@@ -36,6 +36,8 @@ namespace DXHook {
 	extern float* bloomFB; // Bloom Frame buffer
 	extern float* blurFB; // Pre-blur FB
 
+	extern float whiteBalance; // White Balance Dumbass
+
 	extern Camera mainCam; // Main camera
 	extern SkyInfo skyInfo;
 

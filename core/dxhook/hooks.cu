@@ -77,6 +77,8 @@ namespace DXHook {
 	float azimuth[3] = { 1, 1, 1 };
 	float zenith[3] = { 0.5f, 0.7f, 1.0f };
 
+	float whiteBalance = 5706.f;
+
 	vec3* origin;
 	float curX = 0, curY = 0, curZ = 0;
 	float curPitch = 0, curYaw = 0, curRoll = 0;
@@ -213,6 +215,8 @@ namespace DXHook {
 			max_depth -= 1;
 		}
 
+		ImGui::SliderFloat("White Balance", &whiteBalance, 1668.f, 24999.f, "%.3f");
+
 		PUFF_INCREMENT("Exposure Increase", mainCam.exposure);
 		PUFF_DECREMENT("Exposure Decrease", mainCam.exposure);
 		ImGui::TextColored(ImVec4(1, 0, 0, 1), "HDRI Index: %d", curHDRI);
@@ -346,7 +350,7 @@ namespace DXHook {
 			frameCount++;
 
 			if (denoiserEnabled) {
-				ApplyPostprocess(WIDTH, HEIGHT, blocks, threads, denoiseImage);
+				ApplyPostprocess(WIDTH, HEIGHT, blocks, threads, denoiseImage, whiteBalance);
 			}
 
 			MEASURE_END(pathtraceTime, pathtraceTimeDouble);
@@ -376,6 +380,7 @@ namespace DXHook {
 
 			for (int y = 0; y < HEIGHT; ++y) {
 				DWORD* row = (DWORD*)data;
+
 				for (int x = 0; x < WIDTH; ++x) {
 					int pixel_index = y * WIDTH * 3 + x * 3;
 					int r = static_cast<int>(postFB[pixel_index] * 255.99);

@@ -7,6 +7,8 @@
 #include <classes/object.cuh>
 #include <classes/camera.cuh>
 
+#include <glm/mat3x3.hpp>
+#include <glm/gtx/matrix_operation.hpp>
 #define checkCudaErrors(val) DXHook::check_cuda( (val), #val, __FILE__, __LINE__ )
 
 static constexpr float POW_ARG = 1.0f / 2.4f;
@@ -76,6 +78,117 @@ static __global__ void copy(float* srcBuffer, float* dstBuffer, int width, int h
 
 }
 
+// WHITE BALANCE
+// Much of this is from Falcor: https://github.com/NVIDIAGameWorks/Falcor/blob/5236495554f57a734cc815522d95ae9a7dfe458a/Source/Falcor/Utils/Color/ColorUtils.h
+__device__ static glm::mat3x3 kColorTransform_XYZtoLMS_CAT02;
+
+__device__ static glm::mat3x3 kColorTransform_RGBtoXYZ_Rec709;
+
+__device__ static glm::mat3x3 kColorTransform_XYZtoRGB_Rec709;
+
+__device__ static glm::mat3x3 kColorTransform_LMStoXYZ_CAT02;
+
+__device__ static vec3 xyYtoXYZ(float x, float y, float Y)
+{
+	return vec3(x * Y / y, Y, (1.f - x - y) * Y / y);
+}
+
+__device__ static vec3 colorTemperatureToXYZ(float T, float Y = 1.f)
+{
+	if (T < 1667.f || T > 25000.f)
+	{
+		return vec3(0, 0, 0);
+	}
+
+	// We do the computations in double
+	double t = T;
+	double t2 = t * t;
+	double t3 = t * t * t;
+
+	double xc = 0.0;
+	if (T < 4000.f)
+	{
+		xc = -0.2661239e9 / t3 - 0.2343580e6 / t2 + 0.8776956e3 / t + 0.179910;
+	}
+	else
+	{
+		xc = -3.0258469e9 / t3 + 2.1070379e6 / t2 + 0.2226347e3 / t + 0.240390;
+	}
+
+	double x = xc;
+	double x2 = x * x;
+	double x3 = x * x * x;
+
+	double yc = 0.0;
+	if (T < 2222.f)
+	{
+		yc = -1.1063814 * x3 - 1.34811020 * x2 + 2.18555832 * x - 0.20219683;
+	}
+	else if (T < 4000.f)
+	{
+		yc = -0.9549476 * x3 - 1.37418593 * x2 + 2.09137015 * x - 0.16748867;
+	}
+	else
+	{
+		yc = +3.0817580 * x3 - 5.87338670 * x2 + 3.75112997 * x - 0.37001483;
+	}
+
+	// Return as XYZ color.
+	return xyYtoXYZ((float)xc, (float)yc, Y);
+}
+
+__device__ static glm::mat3x3 calculateWhiteBalanceTransformRGB_Rec709(float T)
+{
+	const glm::mat3x3 MA = kColorTransform_XYZtoLMS_CAT02 * kColorTransform_RGBtoXYZ_Rec709;    // RGB -> LMS
+	const glm::mat3x3 invMA = kColorTransform_XYZtoRGB_Rec709 * kColorTransform_LMStoXYZ_CAT02; // LMS -> RGB
+
+	// Compute destination reference white in LMS space.
+	const glm::vec3 wd = kColorTransform_XYZtoLMS_CAT02 * colorTemperatureToXYZ(6500.f).toGLM();
+
+	// Compute source reference white in LMS space.
+	const glm::vec3 ws = kColorTransform_XYZtoLMS_CAT02 * colorTemperatureToXYZ(T).toGLM();
+
+	// Derive final 3x3 transform in RGB space.
+	glm::vec3 scale = wd / ws;
+	glm::mat3x3 D = glm::diagonal3x3(scale);
+
+	return invMA * D * MA;
+}	
+
+__device__ static glm::mat3x3 currentWhiteTransform;
+__device__ static float curTemp = 6000.f;
+__device__ static bool initializedWhiteBal = false;
+
+__device__ static void initWhiteBalance() {
+	currentWhiteTransform = calculateWhiteBalanceTransformRGB_Rec709(6000.f);
+
+	kColorTransform_LMStoXYZ_CAT02 = {
+		1.096123820835514, 0.454369041975359, -0.009627608738429,
+		-0.278869000218287, 0.473533154307412, -0.005698031216113,
+		0.182745179382773, 0.072097803717229, 1.015325639954543
+	};
+
+	kColorTransform_XYZtoRGB_Rec709 =
+	{
+		3.2409699419045213, -0.9692436362808798, 0.0556300796969936,
+		-1.5373831775700935, 1.8759675015077206, -0.2039769588889765,
+		-0.4986107602930033, 0.0415550574071756, 1.0569715142428784
+	};
+
+	kColorTransform_RGBtoXYZ_Rec709 =
+	{
+		0.4123907992659595, 0.2126390058715104, 0.0193308187155918,
+		0.3575843393838780, 0.7151686787677559, 0.1191947797946259,
+		0.1804807884018343, 0.0721923153607337, 0.9505321522496608
+	};
+
+	kColorTransform_XYZtoLMS_CAT02 =
+	{
+		0.7328, -0.7036, 0.0030,
+		0.4296, 1.6975, 0.0136,
+		-0.1624, 0.0061, 0.9834
+	};
+}
 namespace Post {
 	__device__ vec3 LinearTosRGB(vec3 color)
 	{
@@ -99,7 +212,19 @@ namespace Post {
 		return dot(rgb, vec3(0.2126f, 0.7152f, 0.0722f));
 	}
 
-	__global__ void tonemap(float* framebuffer, Camera mainCam, float* postFB, float* bloomFB, int width, int height) {
+	__global__ void tonemap(float* framebuffer, Camera mainCam, float* postFB, float* bloomFB, int width, int height, float whiteBalance) {
+		// FIRSTLY!! CHECK IF OUR WHITE BALANCE HAS BEEN INVALIDATED
+		if (!initializedWhiteBal) {
+			initWhiteBalance();
+			initializedWhiteBal = true;
+		}
+
+		if (whiteBalance != curTemp) {
+			// Rebuild the transform
+			currentWhiteTransform = calculateWhiteBalanceTransformRGB_Rec709(whiteBalance);
+			curTemp = whiteBalance;
+		}
+
 		/*
 		ACES Approximation by Krzysztof Narkowicz
 		https://64.github.io/tonemapping/#aces
@@ -113,7 +238,12 @@ namespace Post {
 		vec3 bloomColor = vec3(bloomFB[pixel_index], bloomFB[pixel_index + 1], bloomFB[pixel_index + 2]);
 
 		//frameColor = (frameColor + bloomColor) / 2;
-			
+		// TODO: ADD WHITE BALANCE CONFIG
+
+		// apply white balance
+		glm::vec3 newColor = frameColor.toGLM() * currentWhiteTransform;
+		frameColor = vec3(newColor.x, newColor.y, newColor.z);
+
 		frameColor *= 0.5f;
 		float a = 2.51f;
 		float b = 0.03f;
@@ -198,7 +328,7 @@ __global__ void ClearFramebuffer(float* framebuffer, int width, int height) {
 	framebuffer[pixel_index + 2] = 0.0f;
 }
 
-__host__ void ApplyPostprocess(int width, int height, dim3 blocks, dim3 threads, bool denoiseImage) {
+__host__ void ApplyPostprocess(int width, int height, dim3 blocks, dim3 threads, bool denoiseImage, float whiteBalance) {
 	using namespace Post;
 		
 	/*
@@ -221,7 +351,7 @@ __host__ void ApplyPostprocess(int width, int height, dim3 blocks, dim3 threads,
 	checkCudaErrors(cudaDeviceSynchronize());
 	*/	
 
-	tonemap << <blocks, threads >> > (DXHook::fb, DXHook::mainCam, DXHook::postFB, DXHook::bloomFB, width, height);
+	tonemap << <blocks, threads >> > (DXHook::fb, DXHook::mainCam, DXHook::postFB, DXHook::bloomFB, width, height, whiteBalance);
 	checkCudaErrors(cudaGetLastError());
 	checkCudaErrors(cudaDeviceSynchronize());
 

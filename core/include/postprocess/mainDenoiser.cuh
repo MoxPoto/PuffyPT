@@ -47,13 +47,13 @@ namespace Post {
 	__device__ extern float luminance(vec3 rgb);
 
 	__global__ extern void denoise(GBuffer* gbufferData, float* realFB, float* framebuffer, int width, int height);
-	__global__ extern void tonemap(float* framebuffer, Camera mainCam, float* postFB, float* bloomFB, int width, int height);
+	__global__ extern void tonemap(float* framebuffer, Camera mainCam, float* postFB, float* bloomFB, int width, int height, float whiteBalance);
 	__global__ extern void bloom(float* framebuffer, float* postFB, int width, int height);
 
 	__device__ extern vec3 LinearTosRGB(vec3 color);
 }
 
 __global__ extern void ClearFramebuffer(float* framebuffer, int width, int height);
-__host__ extern void ApplyPostprocess(int width, int height, dim3 blocks, dim3 threads, bool denoiseImage);
+__host__ extern void ApplyPostprocess(int width, int height, dim3 blocks, dim3 threads, bool denoiseImage, float whiteBalance);
 
 #endif

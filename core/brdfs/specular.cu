@@ -111,13 +111,13 @@ namespace SpecularBRDF {
 		// in my schlick's function, f0 is represented as r0
 		float F0 = (f * f);
 		vec3 finalSchlicksInput = lerpVectors(vec3(F0), res.HitAlbedo, metalness);
-		vec3 fresnelTerm = coloredSchlick(finalSchlicksInput, dot(wi, hr), target->lighting.ior);
+		vec3 fresnelTerm = coloredSchlick(finalSchlicksInput, dot(wi, m), target->lighting.ior);
 
 
-		vec3 numerator = fresnelTerm * GGXDistribution(alpha, thetaM, res.HitNormal, hr) * GGXGeometry(wi, wo, hr, res.HitNormal, alpha);
-		float denominator = 4.f * (dot(wi, res.HitNormal)) * (dot(wo, res.HitNormal));
-
-		attenuation = numerator / denominator;
+		vec3 numerator = fresnelTerm * GGXDistribution(alpha, thetaM, res.HitNormal, m) * GGXGeometry(wi, wo, m, res.HitNormal, alpha);
+		// float denominator = 4.f * (dot(wi, res.HitNormal)) * (dot(wo, res.HitNormal));
+		
+		attenuation = numerator;
 
 
 		
