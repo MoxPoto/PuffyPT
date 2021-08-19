@@ -32,6 +32,7 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <vendor/stb_image.h>
+#include <mutex>
 
 #define GLM_FORCE_CUDA
 #include <glm/glm.hpp>
@@ -62,18 +63,18 @@ static __device__ float remapFloat(float value, float low1, float low2, float hi
     return low2 + (value - low1) * (high2 - low2) / (high1 - low1);
 }
 
-__global__ void DXHook::render(DXHook::RenderOptions options) {
+__global__ void DXHook::render(DXHook::RenderOptions* options) {
     int i = threadIdx.x + blockIdx.x * blockDim.x;
     int j = threadIdx.y + blockIdx.y * blockDim.y;
-    if ((i >= options.max_x) || (j >= options.max_y)) return;
-    int pixel_index = j * options.max_x * 3 + i * 3;
-    int random_idx = j * options.max_x + i;
+    if ((i >= options->max_x) || (j >= options->max_y)) return;
+    int pixel_index = j * options->max_x * 3 + i * 3;
+    int random_idx = j * options->max_x + i;
 
-    curandState local_rand_state = options.rand_state[random_idx];
+    curandState local_rand_state = options->rand_state[random_idx];
 
-    curand_init(options.frameCount * options.max_x * options.max_y + j * options.max_x + i, 1, 0, &local_rand_state);
+    curand_init(options->frameCount * options->max_x * options->max_y + j * options->max_x + i, 1, 0, &local_rand_state);
 
-    Post::GBuffer* gbuffer = ((options.gbufferPtr + random_idx)); // serves as a gbuffer access index too!!
+    Post::GBuffer* gbuffer = ((options->gbufferPtr + random_idx)); // serves as a gbuffer access index too!!
 
     vec3 frameColor(0, 0, 0);
 
@@ -82,11 +83,11 @@ __global__ void DXHook::render(DXHook::RenderOptions options) {
     float jitteredI = i + remapFloat(curand_uniform(&local_rand_state), 0.f, -1.f, 1.f, 1.f) * 0.58f;
     float jitteredJ = j + remapFloat(curand_uniform(&local_rand_state), 0.f, -1.f, 1.f, 1.f) * 0.58f;
 
-    float coeff = DISTANCE * tan((options.fov / 2.f) * (M_PI / 180.0f)) * 2.f;
+    float coeff = DISTANCE * tan((options->fov / 2.f) * (M_PI / 180.0f)) * 2.f;
     vec3 camOrigin = vec3(
         DISTANCE,
-        (static_cast<float>(options.max_x - jitteredI) / static_cast<float>(options.max_x - 1.f) - 0.5f) * coeff,
-        (coeff / static_cast<float>(options.max_x)) * static_cast<float>(options.max_y - jitteredJ) - 0.5f * (coeff / static_cast<double>(options.max_x)) * static_cast<double>(options.max_y - 1.f)
+        (static_cast<float>(options->max_x - jitteredI) / static_cast<float>(options->max_x - 1.f) - 0.5f) * coeff,
+        (coeff / static_cast<float>(options->max_x)) * static_cast<float>(options->max_y - jitteredJ) - 0.5f * (coeff / static_cast<double>(options->max_x)) * static_cast<double>(options->max_y - 1.f)
     );
     vec3 dir = unit_vector(camOrigin);
     // NOT MY CODE!! https://github.com/100PXSquared/public-starfalls/tree/master/raytracer
@@ -97,37 +98,37 @@ __global__ void DXHook::render(DXHook::RenderOptions options) {
     // Z is yaw
     // so Y is pitch!! YAY!! SOMETHING SORT OF SENSIBLE!!
 
-    rotationMat = glm::rotate(rotationMat, glm::radians(-options.cameraDir.x()), glm::vec3(0, 1, 0));
-    rotationMat = glm::rotate(rotationMat, glm::radians(options.cameraDir.y()), glm::vec3(0, 0, 1));
+    rotationMat = glm::rotate(rotationMat, glm::radians(-options->cameraDir.x()), glm::vec3(0, 1, 0));
+    rotationMat = glm::rotate(rotationMat, glm::radians(options->cameraDir.y()), glm::vec3(0, 0, 1));
 
     glm::vec4 preVec = rotationMat * glm::vec4(dir.x(), dir.y(), dir.z(), 0);
 
     dir = vec3(preVec.x, preVec.y, preVec.z);
 
-    vec3 origin(options.x, options.y, options.z);
+    vec3 origin(options->x, options->y, options->z);
 
     Ray ourRay(origin, dir);
 
     HitResult result;
-    Object* hitObject = traceScene(options.count, options.world, ourRay, result);
+    Object* hitObject = traceScene(options->count, options->world, ourRay, result);
 
-    int samples = options.samples;
-    int max_depth = options.max_depth;
+    int samples = options->samples;
+    int max_depth = options->max_depth;
 
     // while we're here, let's update our HDRI's brightness as told to by the Host
-    options.hdri->brightness = options.hdriBrightness;
+    options->hdri->brightness = options->hdriBrightness;
 
     bool gbufferOverride = false;
     Post::GBuffer newGBuffer;
 
-    Bluenoise::frameNumber = options.frameCount;
+    Bluenoise::frameNumber = options->frameCount;
 
     if (hitObject != NULL) {
         Ray newRay = ourRay;
         newRay.origin = newRay.origin + (result.HitNormal * 0.001f);
 
-        if (options.renderer == DXHook::RendererTypes::PuffyPT) {
-            PathtraceResult indirect = pathtrace(&options, newRay, &local_rand_state, i, j);
+        if (options->renderer == DXHook::RendererTypes::PuffyPT) {
+            PathtraceResult indirect = pathtrace(options, newRay, &local_rand_state, i, j);
 
             if (indirect.specularOverride) {
                 newGBuffer = indirect.gbufferOverride;
@@ -138,19 +139,19 @@ __global__ void DXHook::render(DXHook::RenderOptions options) {
 #endif
             frameColor = indirect.color;
         }
-        else if (options.renderer == DXHook::RendererTypes::PuffySimpleRT) {
+        else if (options->renderer == DXHook::RendererTypes::PuffySimpleRT) {
             // Random sun dir
             const vec3 SUN_DIR = vec3(1.f, 0.7f, 0.3f);
 
             frameColor = result.HitAlbedo * ((dot(result.HitNormal, SUN_DIR) + 1) / 2);
         }
-        else if (options.renderer == DXHook::RendererTypes::PuffyMLT) {
-            frameColor = metropolis(&options, newRay, &local_rand_state);
+        else if (options->renderer == DXHook::RendererTypes::PuffyMLT) {
+            frameColor = metropolis(options, newRay, &local_rand_state);
         }
     }
     else {
-        if (options.doSky) {
-            vec3 skyColor = genSkyColor(options.hdri, options.skyInfo, options.hdriData, dir);
+        if (options->doSky) {
+            vec3 skyColor = genSkyColor(options->hdri, options->skyInfo, options->hdriData, dir);
 
             frameColor = skyColor;
         }
@@ -180,8 +181,8 @@ __global__ void DXHook::render(DXHook::RenderOptions options) {
 
     gbuffer->diffuse = frameColor;
     
-    vec3 previousFrame = vec3(options.frameBuffer[pixel_index + 0], options.frameBuffer[pixel_index + 1], options.frameBuffer[pixel_index + 2]);
-    vec3 accumulated = (frameColor + previousFrame * options.frameCount) / (options.frameCount + 1);
+    vec3 previousFrame = vec3(options->frameBuffer[pixel_index + 0], options->frameBuffer[pixel_index + 1], options->frameBuffer[pixel_index + 2]);
+    vec3 accumulated = (frameColor + previousFrame * options->frameCount) / (options->frameCount + 1);
 
     // Accumulation can give way to NaN frames which result in black dots
     // so, check if our new pixel is nan--if it is, then restore old frame
@@ -189,9 +190,9 @@ __global__ void DXHook::render(DXHook::RenderOptions options) {
     if (isnan(accumulated.x()) || isnan(accumulated.y()) || isnan(accumulated.z()))
         accumulated = previousFrame;
 
-    options.frameBuffer[pixel_index + 0] = accumulated.r();
-    options.frameBuffer[pixel_index + 1] = accumulated.g();
-    options.frameBuffer[pixel_index + 2] = accumulated.b();
+    options->frameBuffer[pixel_index + 0] = accumulated.r();
+    options->frameBuffer[pixel_index + 1] = accumulated.g();
+    options->frameBuffer[pixel_index + 2] = accumulated.b();
 }
 
 __global__ void DXHook::registerRands(int max_x, int max_y, curandState* rand_state, Post::GBuffer* gbufferData) {
@@ -217,6 +218,7 @@ __global__ void freeMem(Object** world, vec3* origin, int worldCount) {
 
 GMOD_MODULE_OPEN()
 {
+    DXHook::renderMutex = new std::mutex();
     cudaDeviceSetLimit(cudaLimitPrintfFifoSize, 1024000 * 10);
 
     AllocConsole();
@@ -252,6 +254,7 @@ GMOD_MODULE_OPEN()
     size_t gbuffer_size = num_pixels * sizeof(Post::GBuffer);
     size_t imageSize = 3 * (HDRI_RESX * HDRI_RESY) * sizeof(float);
     size_t hdriSize = sizeof(HDRI*);
+    size_t renderOpt_size = sizeof(DXHook::RenderOptions);
 
     HOST_DEBUG("Calculated sizes..");
 
@@ -267,6 +270,25 @@ GMOD_MODULE_OPEN()
     checkCudaErrors(cudaMalloc((void**)&DXHook::d_rand_state, num_pixels * sizeof(curandState)));
     checkCudaErrors(cudaMallocManaged((void**)&DXHook::hdriData, imageSize));
     checkCudaErrors(cudaMallocManaged((void**)&DXHook::mainHDRI, hdriSize));
+
+    checkCudaErrors(cudaMallocManaged((void**)&DXHook::renderOptDevPtr, renderOpt_size));
+
+    // Fill out some for sure static information
+
+    DXHook::renderOptDevPtr->frameBuffer = DXHook::fb;
+    DXHook::renderOptDevPtr->gbufferPtr = DXHook::gbufferData;
+    DXHook::renderOptDevPtr->rand_state = DXHook::d_rand_state;
+    DXHook::renderOptDevPtr->hdri = DXHook::mainHDRI;
+    DXHook::renderOptDevPtr->max_x = WIDTH;
+    DXHook::renderOptDevPtr->max_y = HEIGHT;
+    DXHook::renderOptDevPtr->world = DXHook::world;
+    DXHook::renderOptDevPtr->hdriData = DXHook::hdriData;
+    DXHook::renderOptDevPtr->hdriBrightness = 1.f;
+    DXHook::renderOptDevPtr->renderer = DXHook::RendererTypes::PuffyPT;
+    DXHook::renderOptDevPtr->curPass = 1;
+    DXHook::renderOptDevPtr->doSky = true;
+    DXHook::renderOptDevPtr->samples = 1;
+    DXHook::renderOptDevPtr->max_depth = 6;
 
     HOST_DEBUG("Allocated all memory");
 
@@ -337,6 +359,8 @@ GMOD_MODULE_OPEN()
 
 GMOD_MODULE_CLOSE() 
 {
+    DXHook::renderMutex->lock();
+
     HOST_DEBUG("Closing module!");
     HOST_DEBUG("Closing DXHook..");
     DXHook::Cleanup(LUA);
@@ -347,7 +371,6 @@ GMOD_MODULE_CLOSE()
 
     HOST_DEBUG("Freeing GPU memory, closing CUDA context..");
    
-    Sleep(2000);
 
     freeMem << <1, 1 >> > (DXHook::world, DXHook::origin, DXHook::world_count);
     checkCudaErrors(cudaGetLastError());
@@ -360,6 +383,7 @@ GMOD_MODULE_CLOSE()
     checkCudaErrors(cudaFree(DXHook::blurFB));
     checkCudaErrors(cudaFree(DXHook::bloomFB));
     checkCudaErrors(cudaFree(DXHook::postFB));
+    checkCudaErrors(cudaFree(DXHook::renderOptDevPtr));
 
     for (std::pair<std::string, Pixel*> devPtr : deviceTextures) {
         HOST_DEBUG("Cleaning %s", devPtr.first.c_str());
@@ -380,6 +404,9 @@ GMOD_MODULE_CLOSE()
     HOST_DEBUG("Cuda context freed, module down!");
     HOST_DEBUG("You can close this window now!");
     FreeConsole();
+
+    DXHook::renderMutex->unlock();
+    delete DXHook::renderMutex;
         
     return 0;
 }

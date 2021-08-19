@@ -67,6 +67,7 @@ namespace SpecularBRDF {
 
 		vec3 wo = -previousRay.direction;
 		vec3 wi = reflect(previousRay.direction, res.HitNormal);
+
 		float u1 = curand_uniform(local_rand_state);
 		float u2 = curand_uniform(local_rand_state);
 		// random 1 and 2 in the cook-torrance paper

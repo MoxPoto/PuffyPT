@@ -17,6 +17,8 @@
 #include <images/hdri.cuh>
 #include <classes/camera.cuh>
 
+#include <mutex>
+
 namespace DXHook {
 	typedef HRESULT(__stdcall* EndScene)(LPDIRECT3DDEVICE9);
 	typedef int RendererType;
@@ -88,6 +90,7 @@ namespace DXHook {
 	extern int samples, max_depth;
 
 	extern float hdriBrightness;
+	extern std::mutex* renderMutex;
 
 	struct RenderOptions {
 		float* frameBuffer;
@@ -119,7 +122,9 @@ namespace DXHook {
 		RendererType renderer;
 	};
 
-	extern __global__ void render(RenderOptions options);
+	extern RenderOptions* renderOptDevPtr;
+
+	extern __global__ void render(RenderOptions* options);
 	extern __global__ void initMem(Object** world, vec3* origin);
 	extern __global__ void registerRands(int max_x, int max_y, curandState* rand_state, Post::GBuffer* gbufferData);
 	extern void check_cuda(cudaError_t result, char const* const func, const char* const file, int const line);

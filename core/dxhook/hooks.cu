@@ -21,6 +21,7 @@
 
 #include <chrono>
 #include <random>
+#include <mutex>
 
 #include <images/hdriUtility.cuh>
 
@@ -31,8 +32,8 @@
 #define PUFF_INCREMENT(name, variable) ImGui::Button(name); if (ImGui::IsItemActive()) { variable += 0.1f; }
 #define PUFF_DECREMENT(name, variable) ImGui::Button(name); if (ImGui::IsItemActive()) { variable -= 0.1f; }
 
-#define PUFF_INCREMENT_RESET(name, variable) ImGui::Button(name); if (ImGui::IsItemActive()) { variable += 0.1f; frameCount = 0;}
-#define PUFF_DECREMENT_RESET(name, variable) ImGui::Button(name); if (ImGui::IsItemActive()) { variable -= 0.1f; frameCount = 0;}
+#define PUFF_INCREMENT_RESET(name, variable) ImGui::Button(name); if (ImGui::IsItemActive()) { variable += 0.1f; frameCount = 0; renderOptDevPtr->hdriBrightness = hdriBrightness;}
+#define PUFF_DECREMENT_RESET(name, variable) ImGui::Button(name); if (ImGui::IsItemActive()) { variable -= 0.1f; frameCount = 0; renderOptDevPtr->hdriBrightness = hdriBrightness;}
 
 #define VERSION "PUFFY PT - 2.3"
 
@@ -106,6 +107,9 @@ namespace DXHook {
 
 	bool denoiseImage = true;
 
+	RenderOptions* renderOptDevPtr = nullptr;
+	std::mutex* renderMutex;
+
 	HRESULT __stdcall EndSceneHook(LPDIRECT3DDEVICE9 pDevice) {
 		if (!gotDevice) {
 			gotDevice = true;
@@ -153,6 +157,7 @@ namespace DXHook {
 			ImGui_ImplDX9_Init(device);
 		}
 
+		renderMutex->lock();
 
 		HRESULT result = oldFunc(pDevice);
 
@@ -179,12 +184,14 @@ namespace DXHook {
 
 		if (ImGui::IsItemActive()) {
 			fov += 1.f;
+			frameCount = 0;
 		};
 
 		ImGui::Button("Decrease FOV");
 
 		if (ImGui::IsItemActive()) {
 			fov -= 1.f;
+			frameCount = 0;
 		}
 		
 		ImGui::Text("Current FOV: %.2f", fov);
@@ -200,19 +207,25 @@ namespace DXHook {
 		ImGui::Text("Current Max Depth: %d", max_depth);
 		
 		if (ImGui::Button("Increase Samples")) {
-			samples += 5;
+			samples += 1;
+
+			renderOptDevPtr->samples = samples;
 		}
 		
 		if (ImGui::Button("Decrease Samples")) {
-			samples -= 5;
+			samples -= 1;
+
+			renderOptDevPtr->samples = samples;
 		}
 
 		if (ImGui::Button("Increase Depth")) {
 			max_depth += 1;
+			renderOptDevPtr->max_depth = max_depth;
 		}
 
 		if (ImGui::Button("Decrease Depth")) {
 			max_depth -= 1;
+			renderOptDevPtr->max_depth = max_depth;
 		}
 
 		ImGui::SliderFloat("White Balance", &whiteBalance, 1668.f, 24999.f, "%.3f");
@@ -257,7 +270,10 @@ namespace DXHook {
 		ImGui::Checkbox("Denoise Image?", &denoiseImage);
 		ImGui::Checkbox("Enable Postprocessing?", &denoiserEnabled);
 		ImGui::Checkbox("Show Output?", &showPathtracer);
-		ImGui::Checkbox("Show Sky?", &showSky);
+		if (ImGui::Checkbox("Show Sky?", &showSky)) {
+			renderOptDevPtr->doSky = showSky;
+		}
+
 		// ImGui::Checkbox("Override AABB Accel?", &aabbOverride);
 
 		/*
@@ -287,12 +303,15 @@ namespace DXHook {
 			"Puffy Simple RT"
 		};
 
-		if (ImGui::ListBox("Renderers", &curRender, renderers, 3)) 
+		if (ImGui::ListBox("Renderers", &curRender, renderers, 3)) {
 			frameCount = 0;
-		
+			renderOptDevPtr->renderer = curRender;
+		}
 
-		if (ImGui::ListBox("Passes", &currentPass, passes, 3))
+		if (ImGui::ListBox("Passes", &currentPass, passes, 3)) {
 			frameCount = 0;
+			renderOptDevPtr->curPass = currentPass;
+		}
 
 		ImGui::End();
 
@@ -314,36 +333,29 @@ namespace DXHook {
 
 		if (showPathtracer) {
 			MEASURE_START(pathtraceTime);
-			RenderOptions options;
-			options.count = world_count;
-			options.fov = fov;
-			options.x = curX;
-			options.y = curY;
-			options.z = curZ;
-			options.pitch = curPitch;
-			options.yaw = curYaw;
-			options.roll = curRoll;
-			options.frameBuffer = fb;
-			options.world = world;
-			options.max_x = WIDTH;
-			options.max_y = HEIGHT;
-			options.rand_state = d_rand_state;
-			options.samples = samples;
-			options.max_depth = max_depth;
-			options.gbufferPtr = gbufferData;
-			options.frameCount = frameCount;
-			options.curtime = curTime;
-			options.doSky = showSky;
-			options.hdri = mainHDRI;
-			options.hdriData = hdriData;
-			options.curPass = currentPass;
-			options.skyInfo = skyInfo;
-			options.cameraDir = camDir;
-			options.aabbOverride = aabbOverride;
-			options.hdriBrightness = hdriBrightness;
-			options.renderer = curRender;
+			renderOptDevPtr->count = world_count;
 
-			render << <blocks, threads >> > (options);
+			// Abuse the fact that the framecount is reset everytime the user moves
+			// 10 to make sure (aka, padding)
+			if (frameCount < 10) {
+				renderOptDevPtr->x = curX;
+				renderOptDevPtr->y = curY;
+				renderOptDevPtr->z = curZ;
+				renderOptDevPtr->pitch = curPitch;
+				renderOptDevPtr->yaw = curYaw;
+				renderOptDevPtr->roll = curRoll;
+
+				renderOptDevPtr->fov = fov;
+
+				renderOptDevPtr->cameraDir = camDir;
+			}
+
+			renderOptDevPtr->frameCount = frameCount;
+			renderOptDevPtr->curtime = curTime;
+
+			// printf("test: %d\n", renderOptDevPtr->max_x);
+			
+			render << <blocks, threads >> > (renderOptDevPtr);
 			checkCudaErrors(cudaGetLastError());
 			checkCudaErrors(cudaDeviceSynchronize());
 
@@ -434,6 +446,8 @@ namespace DXHook {
 			}
 
 		}
+
+		renderMutex->unlock();
 
 		return result;
 	}
