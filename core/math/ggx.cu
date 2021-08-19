@@ -44,5 +44,8 @@ __device__ static float GGXMonoGeometry(const vec3& v, const vec3& n, const vec3
 // G(i, o, m) 
 // Approximation using smith G
 __device__ float GGXGeometry(const vec3& i, const vec3& o, const vec3& m, const vec3& n, float width) {
-	return GGXMonoGeometry(i, n, m, width) * GGXMonoGeometry(o, n, m, width);
+	// G ~= G1(i, m) * G1(o, m)
+	// G1(o, m) produces a black streak that gets noticeable, images look the same
+	// aka, this is a bandaid-fix
+	return GGXMonoGeometry(i, n, m, width);
 }

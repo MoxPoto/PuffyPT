@@ -83,7 +83,7 @@ namespace SpecularBRDF {
 		}
 
 		float alpha = fmaxf(0.001f, roughness * roughness);
-		static const float kMinCosTheta = 1e-4f;
+		static const float kMinCosTheta = 1e-6f;
 
 		float thetaM = atanf((alpha * sqrtf(u1)) / sqrt(1.f - u1));
 		float phiM = (2.f * static_cast<float>(CUDART_PI) * u2);

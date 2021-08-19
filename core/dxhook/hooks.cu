@@ -322,8 +322,8 @@ namespace DXHook {
 		curTime = unif(randEngine); // hel p
 
 
-		int warpX = 16;
-		int warpY = 16; // technically can be ruled out as tiled rendering
+		int warpX = 6;
+		int warpY = 6; // technically can be ruled out as tiled rendering
 
 		dim3 blocks(WIDTH / warpX + 1, HEIGHT / warpY + 1);
 		dim3 threads(warpX, warpY);
