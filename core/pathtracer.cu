@@ -327,7 +327,7 @@ static __device__ PathtraceResult depthColor(DXHook::RenderOptions* options, con
                 
                 thisHit.hitEntity = target;
                 thisHit.dir = cur_ray.direction;
-                const vec3 thisSkyColor = vec3(0.3, 0.3, 0.3);
+                const vec3 thisSkyColor = vec3(0, 0, 0);
                 
 
                 res.color = (currentLight * thisSkyColor);

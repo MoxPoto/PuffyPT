@@ -73,6 +73,7 @@ namespace SpecularBRDF {
 		// random 1 and 2 in the cook-torrance paper
 		float metalness = target->lighting.metalness;
 		float roughness = target->lighting.roughness;
+		vec3 normal = res.backface ? -res.HitNormal : res.HitNormal;
 
 		if (target->pbrMaps.mraoMap.initialized) {
 			metalness = res.MRAO.b();
@@ -82,40 +83,42 @@ namespace SpecularBRDF {
 			// MRAO format before just assuming that metalness = b and roughness = g
 		}
 
+		bool outside = dot(-wo, normal) < 0.f;
+
 		float alpha = fmaxf(0.001f, roughness * roughness);
-		static const float kMinCosTheta = 1e-6f;
+		static const float kMinCosTheta = 1e-4f;
 
 		float thetaM = atanf((alpha * sqrtf(u1)) / sqrt(1.f - u1));
 		float phiM = (2.f * static_cast<float>(CUDART_PI) * u2);
 
-		vec3 m = TransformToWorld(sinf(thetaM) * cosf(phiM), sinf(thetaM) * sinf(phiM), cosf(thetaM), res.HitNormal);
+		vec3 m = TransformToWorld(sinf(thetaM) * cosf(phiM), sinf(thetaM) * sinf(phiM), cosf(thetaM), normal);
 		m.make_unit_vector();
 
 		if (dot(wo, m) < kMinCosTheta) {
 			return false;
 		}
 
-		targetRay.origin = res.HitPos + (res.HitNormal * 0.01f);
+		targetRay.origin = outside ? res.HitPos + (normal * 0.01f) : res.HitPos - (normal * 0.01f);
 		targetRay.direction = (2.f * PROTECTZERO(fabsf(dot(wo, m))) * m - wo);
 
 		// pdf = D(m)|m * n|
 
 		
-		pdf = GGXDistribution(alpha, thetaM, res.HitNormal, m) * fabsf(dot(m, res.HitNormal));
+		pdf = GGXDistribution(alpha, thetaM, normal, m) * fabsf(dot(m, normal));
 			
 		// evaluate cook-torrance
 
-		vec3 hr = sign(dot(wi, res.HitNormal)) * (wi + wo);
+		vec3 hr = sign(dot(wi, normal)) * (wi + wo);
 		hr.make_unit_vector();
 
 		float f = fabsf((1.f - target->lighting.ior) / (1.f + target->lighting.ior));
 		// in my schlick's function, f0 is represented as r0
 		float F0 = (f * f);
 		vec3 finalSchlicksInput = lerpVectors(vec3(F0), res.HitAlbedo, metalness);
-		vec3 fresnelTerm = coloredSchlick(finalSchlicksInput, dot(wi, m), target->lighting.ior);
+		vec3 fresnelTerm = coloredSchlick(finalSchlicksInput, dot(wo, m), target->lighting.ior);
 
 
-		vec3 numerator = fresnelTerm * GGXDistribution(alpha, thetaM, res.HitNormal, m) * GGXGeometry(wi, wo, m, res.HitNormal, alpha);
+		vec3 numerator = fresnelTerm * GGXDistribution(alpha, thetaM, normal, m) * GGXGeometry(wi, wo, m, normal, alpha);
 		// float denominator = 4.f * (dot(wi, res.HitNormal)) * (dot(wo, res.HitNormal));
 		
 		attenuation = numerator;

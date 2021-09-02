@@ -28,6 +28,8 @@ namespace CPU {
 		int emissionResY;
 		Pixel* emissionData;
 
+		int normalResX;
+		int normalResY;
 		Pixel* normalMap;
 	};
 

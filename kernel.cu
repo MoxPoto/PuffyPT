@@ -45,8 +45,8 @@
 #define checkCudaErrors(val) DXHook::check_cuda( (val), #val, __FILE__, __LINE__ )
 #define HDRI_LOCATION "C:\\pathtracer\\hdrs\\shanghai_bund_1k.hdr"
 #define HDRI_FOLDER "C:\\pathtracer\\hdrs"
-#define HDRI_RESX 2048
-#define HDRI_RESY 1024
+#define HDRI_RESX 4096
+#define HDRI_RESY 2048
 #define BLUENOISE_TEX "C:\\pathtracer\\bluenoise512.png"
 
 
@@ -364,6 +364,8 @@ GMOD_MODULE_CLOSE()
     HOST_DEBUG("Closing module!");
     HOST_DEBUG("Closing DXHook..");
     DXHook::Cleanup(LUA);
+    DXHook::cleanedUp = true; // TODO: Should be in DXHook::Cleanup
+
     HOST_DEBUG("Finished!");
 
     Sync::Deinitialize(LUA);

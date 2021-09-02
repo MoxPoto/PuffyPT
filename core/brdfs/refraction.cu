@@ -35,31 +35,28 @@ __device__ static vec3 calculateBeersLaw(vec3 color, float distanceInsideObject)
 	return vec3(expf(result.x()), expf(result.y()), expf(result.z()));
 }
 
+__device__ static void swap(float& a, float& b) {
+	float temp = a;
+	a = b;
+	b = temp;
+}
 
-__device__ static bool refract(vec3 incidence, vec3 normal, float ior, vec3& outputVector) {
-	float cosI = clamp(-1.f, 1.f, dot(unit_vector(incidence), normal));
-	float etaI = 1.f;
-	float etaT = ior;
+__device__ static vec3 refract(vec3 incidence, vec3 normal, float ior) {
+	float cosi = clamp(-1, 1, dot(incidence, normal));
+	float etai = 1, etat = ior;
+	vec3 n = normal;
 
-	if (cosI < 0.f) {
-		cosI = -cosI;
-	}
-	else {
-		etaT = etaI;
-		etaI = ior;
-		normal = -normal;
+	if (cosi < 0.f) { 
+		cosi = -cosi; 
+	} else { 
+		swap(etai, etat);
+		n = -normal; 
 	}
 
-	float eta = etaI / etaT;
-	float k = 1.f - powf(eta, 2) * (1.f - powf(cosI, 2));
+	float eta = etai / etat;
+	float k = 1.f - eta * eta * (1.f - cosi * cosi);
 
-	if (k <= 0.f) {
-		return false;
-	}
-	else {
-		outputVector = eta * unit_vector(incidence) + (eta * cosI - sqrtf(k)) * normal;
-		return true;
-	}
+	return k < 0.f ? vec3(0, 0, 0) : eta * incidence + (eta * cosi - sqrtf(k)) * n;
 }
 
 
@@ -68,153 +65,31 @@ namespace RefractBRDF {
 		using SpecularBRDF::schlick;
 		using SpecularBRDF::reflect;
 
+		vec3 wo = -previousRay.direction;
 
 		float uniform = curand_uniform(local_rand_state);
-		float currentIOR = target->lighting.ior;
+		float currentIOR = target->lighting.ior; //res.backface ? 1.00f : target->lighting.ior;
 		vec3 normal = res.backface ? -res.HitNormal : res.HitNormal;
 
-		// float fresnel = schlick(dot(wo, res.HitNormal), currentIOR);
-
-		// Generation for a cook torrance BTDF direction relies on a microfacet, so we're going to generate one with spherical coordinates using the GGX format
-
-		vec3 wo = -previousRay.direction;
-		vec3 wi = reflect(previousRay.direction, res.HitNormal);
-
-		float u1 = curand_uniform(local_rand_state);
-		float u2 = curand_uniform(local_rand_state);
-		// random 1 and 2 in the cook-torrance paper
-		float roughness = target->lighting.roughness;
-
-		if (target->pbrMaps.mraoMap.initialized) {
-			roughness = res.MRAO.g();
-
-			// Might be a good idea in the future to choose a specific
-			// MRAO format before just assuming that metalness = b and roughness = g
-		}
-
-		float alpha = fmaxf(0.001f, roughness * roughness);
-		static const float kMinCosTheta = 1e-6f;
-
-		float thetaM = atanf((alpha * sqrtf(u1)) / sqrt(1.f - u1));
-		float phiM = (2.f * static_cast<float>(CUDART_PI) * u2);
-
-		vec3 m = TransformToWorld(sinf(thetaM) * cosf(phiM), sinf(thetaM) * sinf(phiM), cosf(thetaM), normal);
-		m.make_unit_vector();
-
-		float fresnel = schlick(dot(wi, m), currentIOR);
-
+		float fresnel = schlick(dot(wo, normal), currentIOR);
+		bool outside = dot(-wo, normal) < 0.f;
 
 		if (uniform <= fresnel) {
-			// Take reflection path
-
+			// Take reflection path, this is usually when we're experiencing total internal reflection or just, normal fresnel
 			SpecularBRDF::SampleWorld(res, local_rand_state, extraRand, pdf, previousRay, attenuation, targetRay, target);
 			brdfChosen = BRDF::Specular;
 		}
 		else {
-			if (dot(wo, m) < kMinCosTheta) {
-				// TODO:
-				// Make sure refraction can give out invalid samples (since it can)
-				//return false;
-			}
+			// Do some refraction
+			vec3 refractionDir = unit_vector(refract(-wo, normal, currentIOR));
+			vec3 refractionOrigin = outside ? res.HitPos - (normal * 0.01f) : res.HitPos + (normal * 0.01f);
 
-			// Generating the new out direction is noted in equation 40 at
-			// https://www.cs.cornell.edu/~srm/publications/EGSR07-btdf.pdf
+			targetRay.direction = refractionDir;
+			targetRay.origin = refractionOrigin;
 
-			float c = dot(wi, m);
-			float nI = 1.0;
-			float nT = currentIOR;
-			float cosI = clamp(-1.f, 1.f, dot(wi, normal));
-
-			if (cosI < 0.0f) {
-				cosI = -cosI;
-			}
-			else {
-				// Switch IORs before computing the final N
-
-				nI, nT = nT, nI;
-				normal = -normal;
-			}
-
-
-			float n = nI / nT;
-
-			vec3 newDir = (n * c - sign(cosI) * sqrtf(1.0f + n * (c * c - 1.0f))) * m - n * wi;
-
-			targetRay.origin = res.backface ? res.HitPos + normal * 0.01f : res.HitPos - normal * 0.01f;
-
-			vec3 ht = -(nI * wo + nT * newDir);
-			// ht is defined as a function that normalizes itself
-			ht.make_unit_vector();
-
-			// Refraction term
-			float term1 = (fabsf(dot(wi, ht)) * fabsf(dot(newDir, ht))) / (fabsf(cosI) * fabsf(dot(newDir, normal)));
-
-			// term 2
-			float noSquared = nT * nT;
-
-			float fresnelTerm = (1.0f - schlick(dot(wi, ht), currentIOR));
-			float numerator = noSquared * fresnelTerm * GGXGeometry(wi, wo, ht, res.HitNormal, alpha) * GGXDistribution(alpha, thetaM, normal, ht);
-			float denominator = nI * (dot(wi, ht)) + nT * (dot(newDir, ht));
-			denominator = denominator * denominator; // Square the denominator
-
-			float finalTerm = term1 * (numerator / denominator);
-
-			targetRay.direction = unit_vector(newDir);
-
-			pdf = 1.0f;//GGXDistribution(alpha, thetaM, res.HitNormal, m) * fabsf(dot(m, res.HitNormal));
-			attenuation = vec3(0, 1, 0);
-
+			// Calculate the color for this ray
+			attenuation = vec3(1, 1, 1); // calculateBeersLaw(1.f - res.HitAlbedo, res.t);
+			// pdf = (1.f - fresnel);
 		}
-
-
-
-		/*
-		if (uniform <= fresnel) {
-			// Take reflection path
-			SpecularBRDF::SampleWorld(res, local_rand_state, extraRand, pdf, previousRay, attenuation, targetRay, target);
-			brdfChosen = BRDF::Specular;
-		}
-		else {
-			// Take refraction path
-
-
-			targetRay.origin = res.backface ? res.HitPos + normal * 0.01f : res.HitPos - normal * 0.01f;
-
-			bool refracted = refract(previousRay.direction, normal, currentIOR, targetRay.direction);
-
-			if (!refracted) {
-				SpecularBRDF::SampleWorld(res, local_rand_state, extraRand, pdf, previousRay, attenuation, targetRay, target);
-				brdfChosen = BRDF::Specular;
-			}
-			else {
-				// Calculate roughness
-				vec3 roughnessDir = normal + vec3(curand_uniform(local_rand_state), curand_uniform(local_rand_state), curand_uniform(local_rand_state));
-				roughnessDir.make_unit_vector();
-
-				float roughness = target->lighting.roughness;
-				if (target->pbrMaps.mraoMap.initialized) {
-					roughness = res.MRAO.g();
-				}
-
-				if (roughness > 0.0f) {
-					targetRay.direction = lerpVectors(targetRay.direction, roughnessDir, roughness * roughness);
-				}
-
-				brdfChosen = BRDF::Refraction;
-			}
-
-			if (res.backface) {
-				attenuation = calculateBeersLaw(1.f - res.HitAlbedo, res.t);
-			}
-
-			float weight = (1.f - fresnel);
-			pdf = weight;
-
-		}
-
 	}
-	*/
-
-	}
-
 }

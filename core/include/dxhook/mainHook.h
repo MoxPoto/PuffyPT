@@ -123,6 +123,7 @@ namespace DXHook {
 	};
 
 	extern RenderOptions* renderOptDevPtr;
+	extern bool cleanedUp;
 
 	extern __global__ void render(RenderOptions* options);
 	extern __global__ void initMem(Object** world, vec3* origin);

@@ -106,6 +106,7 @@ namespace DXHook {
 	RendererType curRender = 0;
 
 	bool denoiseImage = true;
+	bool cleanedUp = false;
 
 	RenderOptions* renderOptDevPtr = nullptr;
 	std::mutex* renderMutex;
@@ -161,9 +162,14 @@ namespace DXHook {
 
 		HRESULT result = oldFunc(pDevice);
 
+		if (DXHook::cleanedUp) {
+			return result;
+		}
+
 		D3DRASTER_STATUS rasterStatus;
 		HRESULT statRes = pDevice->GetRasterStatus(0, &rasterStatus);
 
+		
 		ImGui_ImplWin32_NewFrame();
 		ImGui_ImplDX9_NewFrame();
 

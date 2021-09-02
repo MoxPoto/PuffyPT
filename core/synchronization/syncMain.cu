@@ -373,27 +373,31 @@ static struct PBRLoad {
 	std::string path;
 	Pixel** devPtr;
 	TextureRes* resolution;
+	bool fixGamma = false;
 };
 // TODO: maybe this should be in a different file?
 // something has to be done about the sheer size of this file already
 
 LUA_FUNCTION(SYNC_SetupPBR) {
-	LUA->CheckType(-4, Lua::Type::Number); // Object ID
-	LUA->CheckType(-3, Lua::Type::String); // MRAO Path
-	LUA->CheckType(-2, Lua::Type::String); // NormalMap Name (not path, this isn't a file, it's a texture)
-	LUA->CheckType(-1, Lua::Type::String); // Emission Path
+	LUA->CheckType(-5, Lua::Type::Number); // Object ID
+	LUA->CheckType(-4, Lua::Type::String); // MRAO Path
+	LUA->CheckType(-3, Lua::Type::String); // NormalMap Name (not path, this isn't a file, it's a texture, well depends on the last argument)
+	LUA->CheckType(-2, Lua::Type::String); // Emission Path
+	LUA->CheckType(-1, Lua::Type::Bool); // Is the Normal Map a filesystem texture?
 
-	int id = static_cast<int>(LUA->GetNumber(-4));
-	const char* mraoPath = LUA->GetString(-3);
-	const char* normalPath = LUA->GetString(-2);
-	const char* emissionPath = LUA->GetString(-1);
+	int id = static_cast<int>(LUA->GetNumber(-5));
+	const char* mraoPath = LUA->GetString(-4);
+	const char* normalPath = LUA->GetString(-3);
+	const char* emissionPath = LUA->GetString(-2);
+	bool isFilesystemPath = LUA->GetBool(-1);
 
-	Pixel* devNormalData = RetrieveCachedTexture(normalPath);
+	Pixel* devNormalData = isFilesystemPath ? nullptr : RetrieveCachedTexture(normalPath);
 	Pixel* devMraoData = nullptr;
 	Pixel* devEmissionData = nullptr;
 
 	TextureRes mraoRes{ 0, 0 };
 	TextureRes emissionRes{ 0, 0 };
+	TextureRes normalRes{ 256, 256 }; // Default value incase there is no filesystem normal map to load
 
 	// Create instructions on how to load a specific PBR texture
 	PBRLoad mraoLoad{ std::string(mraoPath), &devMraoData, &mraoRes};
@@ -402,6 +406,12 @@ LUA_FUNCTION(SYNC_SetupPBR) {
 	std::vector<PBRLoad> texturesToLoad;
 	texturesToLoad.push_back(mraoLoad);
 	texturesToLoad.push_back(emissionLoad);
+
+	// Check if the normal map is supposed to be loaded off the filesystem
+	if (isFilesystemPath) {
+		PBRLoad normalLoad{ std::string(normalPath), &devNormalData, &normalRes, true };
+		texturesToLoad.push_back(normalLoad);
+	}
 
 	for (PBRLoad load : texturesToLoad) {
 		bool doesTextureExist = CheckFileExists(load.path);
@@ -412,6 +422,14 @@ LUA_FUNCTION(SYNC_SetupPBR) {
 			int channelsInFile;
 
 			int channels = 3;
+
+			if (load.fixGamma) {
+				// Fix gamma (normal maps)
+				stbi_ldr_to_hdr_gamma(1.0f);
+			}
+			else {
+				stbi_ldr_to_hdr_gamma(2.2f);
+			}
 
 			Pixel* texData = stbi_loadf(load.path.c_str(), &width, &height, &channelsInFile, channels);
 
@@ -456,6 +474,9 @@ LUA_FUNCTION(SYNC_SetupPBR) {
 
 	uploadData.emissionResX = emissionRes.x;
 	uploadData.emissionResY = emissionRes.y;
+
+	uploadData.normalResX = normalRes.x;
+	uploadData.normalResY = normalRes.y;
 
 	uploadData.emissionData = devEmissionData;
 	uploadData.mraoData = devMraoData;

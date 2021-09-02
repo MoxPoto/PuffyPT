@@ -238,7 +238,7 @@ namespace CPU {
 		}
 
 		object->pbrMaps.mraoMap.Initialize(uploadData.mraoResX, uploadData.mraoResY, uploadData.mraoData);
-		object->pbrMaps.normalMap.Initialize(256, 256, uploadData.normalMap);
+		object->pbrMaps.normalMap.Initialize(uploadData.normalResX, uploadData.normalResY, uploadData.normalMap);
 		object->pbrMaps.emissionMap.Initialize(uploadData.emissionResX, uploadData.emissionResY, uploadData.emissionData);
 	}
 
