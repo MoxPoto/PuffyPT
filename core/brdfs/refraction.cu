@@ -41,7 +41,7 @@ __device__ static void swap(float& a, float& b) {
 	b = temp;
 }
 
-__device__ static vec3 refract(vec3 incidence, vec3 normal, float ior) {
+__device__ static vec3 refract(vec3 incidence, vec3 normal, float ior, bool& invalid) {
 	float cosi = clamp(-1, 1, dot(incidence, normal));
 	float etai = 1, etat = ior;
 	vec3 n = normal;
@@ -56,6 +56,8 @@ __device__ static vec3 refract(vec3 incidence, vec3 normal, float ior) {
 	float eta = etai / etat;
 	float k = 1.f - eta * eta * (1.f - cosi * cosi);
 
+	invalid = (k < 0.f);
+
 	return k < 0.f ? vec3(0, 0, 0) : eta * incidence + (eta * cosi - sqrtf(k)) * n;
 }
 
@@ -69,10 +71,10 @@ namespace RefractBRDF {
 
 		float uniform = curand_uniform(local_rand_state);
 		float currentIOR = target->lighting.ior; //res.backface ? 1.00f : target->lighting.ior;
-		vec3 normal = res.backface ? -res.HitNormal : res.HitNormal;
+		vec3 normal = res.backface ? -res.GeometricNormal : res.GeometricNormal;
 
-		float fresnel = schlick(dot(wo, normal), currentIOR);
-		bool outside = dot(-wo, normal) < 0.f;
+		float fresnel = schlick(dot(-previousRay.direction, res.HitNormal), currentIOR); 
+		bool outside = !res.backface;
 
 		if (uniform <= fresnel) {
 			// Take reflection path, this is usually when we're experiencing total internal reflection or just, normal fresnel
@@ -80,16 +82,35 @@ namespace RefractBRDF {
 			brdfChosen = BRDF::Specular;
 		}
 		else {
-			// Do some refraction
-			vec3 refractionDir = unit_vector(refract(-wo, normal, currentIOR));
-			vec3 refractionOrigin = outside ? res.HitPos - (normal * 0.01f) : res.HitPos + (normal * 0.01f);
+			bool invalidRefract = false;
 
+			// Do some refraction
+			vec3 refractionDir = unit_vector(refract(-wo, normal, currentIOR, invalidRefract));
+			vec3 refractionOrigin = res.backface ? res.HitPos + (normal * 0.01f) : res.HitPos - (normal * 0.01f);
+
+			if (invalidRefract) {
+				// 2nd case Total Internal Reflection
+				//SpecularBRDF::SampleWorld(res, local_rand_state, extraRand, pdf, previousRay, attenuation, targetRay, target);
+				
+				targetRay.direction = reflect(-wo, normal);
+				targetRay.origin = refractionOrigin;
+
+				attenuation = vec3(1, 1, 1);
+				pdf = 1;
+
+				brdfChosen = BRDF::Specular;
+
+				return;
+			}
+			
 			targetRay.direction = refractionDir;
 			targetRay.origin = refractionOrigin;
 
 			// Calculate the color for this ray
-			attenuation = vec3(1, 1, 1); // calculateBeersLaw(1.f - res.HitAlbedo, res.t);
-			// pdf = (1.f - fresnel);
+			attenuation = calculateBeersLaw(1.f - res.HitAlbedo, res.t);
+			pdf = 1;
+
+			brdfChosen = BRDF::Refraction;
 		}
 	}
 }
