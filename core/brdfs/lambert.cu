@@ -13,6 +13,7 @@
 #include <bluenoise.cuh>
 
 #include <math/basic.cuh>
+#include <brdfs/bxdf.cuh>
 
 #define RANDVEC3 vec3(fmodf(curand_uniform(local_rand_state) + extraRand, 1.f),fmodf(curand_uniform(local_rand_state) + extraRand, 1.f),fmodf(curand_uniform(local_rand_state) + extraRand, 1.f))
 //#define RANDVEC3 vec3(curand_uniform(local_rand_state),curand_uniform(local_rand_state),curand_uniform(local_rand_state))
@@ -44,10 +45,10 @@ namespace LambertBRDF {
 		pdf = getLambertPDF(wi, normal);
 	}
 
-	__device__ void SampleWorld(const HitResult& rec, curandState* local_rand_state, float extraRand, float& pdf, vec3& attenuation, Ray& targetRay, Object* target, vec3 thisUV, int sampleIndex) {
+	__device__ void SampleWorld(const HitResult& res, curandState* local_rand_state, float extraRand, float& pdf, vec3& attenuation, Ray& targetRay, Object* target, vec3 thisUV, int sampleIndex) {
 		vec3 BLACK = vec3(0.f);
 
-		targetRay.origin = rec.HitPos + (rec.HitNormal * 0.001f);
+		targetRay.origin = res.HitPos + (res.HitNormal * 0.001f);
 
 		float r1 = 0.0f; 
 		float r2 = 0.0f;
@@ -55,15 +56,6 @@ namespace LambertBRDF {
 		if (Flags::estimatorType == Flags::MonteCarlo::Normal) {
 			r1 = curand_uniform(local_rand_state);
 			r2 = curand_uniform(local_rand_state);
-		}
-		else if (Flags::estimatorType == Flags::MonteCarlo::Quasi) {
-			// blue noise sample
-
-			// TODO: give BxDFs an idea of what sample they are
-			vec3 sampleData = Bluenoise::CalculateSample(sampleIndex, thisUV);
-
-			r1 = sampleData.x();
-			r2 = sampleData.y();
 		}
 
 		float r = sqrtf(r1);
@@ -75,20 +67,20 @@ namespace LambertBRDF {
 		// Project z up to the unit hemisphere
 		float z = sqrt(1.0f - x * x - y * y);
 
-		vec3 sampleLocalized = TransformToWorld(x, y, z, rec.HitNormal);
+		vec3 sampleLocalized = TransformToWorld(x, y, z, res.HitNormal);
 		targetRay.direction = sampleLocalized;
 
 		// Specular metallics and diffuse metallics come from: https://github.com/NVIDIAGameWorks/Falcor/blob/master/Source/Falcor/Scene/Shading.slang#L185
 		float metalness = target->lighting.metalness;
 
 		if (target->pbrMaps.mraoMap.initialized) {
-			metalness = rec.MRAO.b();
+			metalness = res.MRAO.b();
 		}
 			
-		vec3 albedo = lerpVectors(rec.HitAlbedo, BLACK, metalness);
+		vec3 albedo = lerpVectors(res.HitAlbedo, BLACK, metalness);
 		vec3 wo = vec3(0, 0, 0); // not used
 
-		Eval(rec.HitNormal, wo, sampleLocalized, albedo, attenuation, pdf);
+		Eval(res.HitNormal, wo, sampleLocalized, albedo, attenuation, pdf);
 	}
 
 	__device__ float PDF(const HitResult& res, Object* target, const vec3& wo, const vec3& wi) {

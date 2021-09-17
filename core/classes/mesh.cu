@@ -65,7 +65,7 @@ __host__ __device__ Mesh::Mesh() {
     triBuffer = new Triangle*[MAX_TRIANGLES];
     minV = vec3(0, 0, 0);
     maxV = vec3(0, 0, 0);
-
+    
 }
 
 __host__ __device__ Mesh::~Mesh() {

@@ -63,6 +63,17 @@ static __device__ float remapFloat(float value, float low1, float low2, float hi
     return low2 + (value - low1) * (high2 - low2) / (high1 - low1);
 }
 
+// Applied to the framenumber when re-seeding the generator
+// https://github.com/straaljager/GPU-path-tracing-with-CUDA-tutorial-2/blob/5c3f611bbf1f9d0bae3602343278214b2de9acf3/tutorial2_cuda_pathtracer.cu#L297
+static __device__ unsigned int wangHash(unsigned int a) {
+    a = (a ^ 61) ^ (a >> 16);
+    a = a + (a << 3);
+    a = a ^ (a >> 4);
+    a = a * 0x27d4eb2d;
+    a = a ^ (a >> 15);
+    return a;
+}
+
 __global__ void DXHook::render(DXHook::RenderOptions* options) {
     int i = threadIdx.x + blockIdx.x * blockDim.x;
     int j = threadIdx.y + blockIdx.y * blockDim.y;
@@ -72,14 +83,14 @@ __global__ void DXHook::render(DXHook::RenderOptions* options) {
 
     curandState local_rand_state = options->rand_state[random_idx];
 
-    curand_init(options->frameCount * options->max_x * options->max_y + j * options->max_x + i, 1, 0, &local_rand_state);
+    curand_init(wangHash(options->frameCount) + random_idx, 1, 0, &local_rand_state);
 
     Post::GBuffer* gbuffer = ((options->gbufferPtr + random_idx)); // serves as a gbuffer access index too!!
 
     vec3 frameColor(0, 0, 0);
 
     float DISTANCE = 1.f;
-    
+
     float jitteredI = i + remapFloat(curand_uniform(&local_rand_state), 0.f, -1.f, 1.f, 1.f) * 0.58f;
     float jitteredJ = j + remapFloat(curand_uniform(&local_rand_state), 0.f, -1.f, 1.f, 1.f) * 0.58f;
 
@@ -117,6 +128,8 @@ __global__ void DXHook::render(DXHook::RenderOptions* options) {
 
     // while we're here, let's update our HDRI's brightness as told to by the Host
     options->hdri->brightness = options->hdriBrightness;
+    options->hdri->pitch = options->hdriPitch;
+    options->hdri->yaw = options->hdriYaw;
 
     bool gbufferOverride = false;
     Post::GBuffer newGBuffer;
@@ -156,7 +169,7 @@ __global__ void DXHook::render(DXHook::RenderOptions* options) {
             frameColor = skyColor;
         }
     }
-    
+
     if (!gbufferOverride) {
         if (hitObject != NULL) {
             gbuffer->albedo = hitObject->GetColor(result);
@@ -180,7 +193,7 @@ __global__ void DXHook::render(DXHook::RenderOptions* options) {
     }
 
     gbuffer->diffuse = frameColor;
-    
+
     vec3 previousFrame = vec3(options->frameBuffer[pixel_index + 0], options->frameBuffer[pixel_index + 1], options->frameBuffer[pixel_index + 2]);
     vec3 accumulated = (frameColor + previousFrame * options->frameCount) / (options->frameCount + 1);
 
@@ -289,11 +302,13 @@ GMOD_MODULE_OPEN()
     DXHook::renderOptDevPtr->doSky = true;
     DXHook::renderOptDevPtr->samples = 1;
     DXHook::renderOptDevPtr->max_depth = 6;
+    DXHook::renderOptDevPtr->hdriPitch = 0;
+    DXHook::renderOptDevPtr->hdriYaw = 0;
 
     HOST_DEBUG("Allocated all memory");
 
     HOST_DEBUG("Reading HDRI from disk..");
-    
+
     bool correctLoad = LoadHDRI(HDRI_LOCATION);
 
     if (!correctLoad) {
@@ -335,7 +350,7 @@ GMOD_MODULE_OPEN()
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
 
-    ClearFramebuffer << <blocks, threads >> > (DXHook::bloomFB , WIDTH, HEIGHT);
+    ClearFramebuffer << <blocks, threads >> > (DXHook::bloomFB, WIDTH, HEIGHT);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
 
@@ -357,7 +372,7 @@ GMOD_MODULE_OPEN()
     return 0;
 }
 
-GMOD_MODULE_CLOSE() 
+GMOD_MODULE_CLOSE()
 {
     DXHook::renderMutex->lock();
 
@@ -372,7 +387,7 @@ GMOD_MODULE_CLOSE()
     HOST_DEBUG("Closed Sync..");
 
     HOST_DEBUG("Freeing GPU memory, closing CUDA context..");
-   
+
 
     freeMem << <1, 1 >> > (DXHook::world, DXHook::origin, DXHook::world_count);
     checkCudaErrors(cudaGetLastError());
@@ -409,6 +424,6 @@ GMOD_MODULE_CLOSE()
 
     DXHook::renderMutex->unlock();
     delete DXHook::renderMutex;
-        
+
     return 0;
 }

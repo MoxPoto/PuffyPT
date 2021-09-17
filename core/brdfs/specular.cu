@@ -13,6 +13,8 @@
 
 #include <math/ggx.cuh>
 #include <math/basic.cuh>
+#include <brdfs/bxdf.cuh>
+
 #define PROTECTZERO(statement) fmaxf(0.001f, statement)
 
 __device__ static vec3 coloredSchlick(vec3 r0, float cosine, float ref_idx) {
@@ -26,16 +28,6 @@ __device__ static float FalcorNDFGGX(float alpha, float cosTheta) {
 }
 
 namespace SpecularBRDF {
-	__device__ vec3 reflect(const vec3& direction, const vec3& normal) {
-		return direction - 2.0f * dot(direction, normal) * normal;
-	}
-	
-	__device__ float schlick(float cosine, float ref_idx) {
-		float r0 = (ref_idx - 1.0f) / (ref_idx + 1.0f);
-		r0 = r0 * r0;
-		return r0 + (1.0f - r0) * powf((1.0f - cosine), 5.0f);
-	}
-
 	__device__ void Eval(float alpha, float metalness, Object* target, const vec3& normal, const vec3& wo, const vec3& wi, const vec3& albedo, vec3& attenuation, float& pdf) {
 		vec3 m = unit_vector((wi + wo));
 
@@ -151,5 +143,4 @@ namespace SpecularBRDF {
 		return pdf / (4.0 * woDotH);
 	}
 }
-
 

@@ -12,29 +12,8 @@
 #include <glm/mat3x3.hpp>
 #include <glm/vec3.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-
-enum BRDF {
-	Lambertian,
-	Specular,
-	Refraction
-};
-
-struct LightingOptions {
-	float roughness = 1.0f;
-	float ior = 1.5f;
-	float transmission = 0.f;
-	float metalness = 0.f;
-};
-
-// TODO:
-// add futureproofing support for transmission maps
-// aka, look for maps ending with "_transmission"
-// there isnt any avaliable so its a low priority for now
-struct PBRMap {
-	Texture normalMap;
-	Texture mraoMap;
-	Texture emissionMap;
-};
+#include <classes/lighting.cuh>
+#include <brdfs/bxdf.cuh>
 
 class Object {
 public:
@@ -42,6 +21,8 @@ public:
 	vec3 position = vec3(0, 0, 0);
 	int objectID = 0;
 	float emission = 1.f;
+	BxDF* shading = nullptr;
+
 	// TODO:
 	// deprecate the usage of specific BRDFs, this isn't even considered in the pathtracer anymore
 	// all lighting choices are selected via the Mixed BxDF

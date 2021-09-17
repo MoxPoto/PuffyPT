@@ -1,6 +1,17 @@
 ﻿#include <classes/vec3.cuh>
 #include <math/basic.cuh>
 
+__device__ vec3 reflect(const vec3& direction, const vec3& normal) {
+	return direction - 2.0f * dot(direction, normal) * normal;
+}
+
+__device__ float schlick(float cosine, float ref_idx) {
+	float r0 = (ref_idx - 1.0f) / (ref_idx + 1.0f);
+	r0 = r0 * r0;
+	return r0 + (1.0f - r0) * powf((1.0f - cosine), 5.0f);
+}
+
+
 __device__ float sign(const float& value) {
 	if (value < 0.f) return -1.f;
 

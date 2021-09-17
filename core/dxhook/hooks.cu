@@ -235,6 +235,11 @@ namespace DXHook {
 		}
 
 		ImGui::SliderFloat("White Balance", &whiteBalance, 1668.f, 24999.f, "%.3f");
+		// ImGui::SliderFloat("HDRI Pitch", &renderOptDevPtr->hdriPitch, -360, 360, "%.2f");
+		
+		if (ImGui::SliderFloat("HDRI Yaw", &renderOptDevPtr->hdriYaw, -360, 360, "%.2f")) {
+			frameCount = 0;
+		}
 
 		PUFF_INCREMENT("Exposure Increase", mainCam.exposure);
 		PUFF_DECREMENT("Exposure Decrease", mainCam.exposure);

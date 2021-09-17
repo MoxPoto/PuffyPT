@@ -120,6 +120,9 @@ namespace DXHook {
 		Post::GBuffer* gbufferPtr;
 		float hdriBrightness; // This is just to communicate wanted HDRI brightness from host to device quicker
 		RendererType renderer;
+
+		float hdriPitch;
+		float hdriYaw;
 	};
 
 	extern RenderOptions* renderOptDevPtr;

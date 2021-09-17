@@ -9,6 +9,9 @@ public:
 	int resY = 0;
 	float brightness = 1.f;
 
+	float pitch = 0;
+	float yaw = 0;
+
 	__device__ HDRI();
 	__device__ float getPitch(const vec3& N);
 	__device__ float getYaw(const vec3& N);

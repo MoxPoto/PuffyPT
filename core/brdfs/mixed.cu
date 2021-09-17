@@ -9,11 +9,10 @@
 #include <brdfs/lambert.cuh>
 #include <brdfs/specular.cuh>
 #include <brdfs/refraction.cuh>
+#include <math/basic.cuh>
 
 namespace MixedBxDF {
 	__device__ bool SampleWorld(const HitResult& res, curandState* local_rand_state, float extraRand, float& pdf, vec3& attenuation, Ray& previousRay, Ray& targetRay, Object* target, BRDF& brdfChosen, vec3 uv, int sampleIndex) {
-		using SpecularBRDF::reflect;
-
 		float specularProbablilty = 1.f - target->lighting.roughness;
 		float diffuseProbability = target->lighting.roughness;
 
