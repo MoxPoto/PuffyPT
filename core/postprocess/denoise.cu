@@ -9,9 +9,11 @@
 #define GBUFFER_AT(x, y) (gbufferData + (y * width + x));
 #define GET_COLOR(i, j, colName) int _pixelIdx = j * width * 3 + i * 3; vec3 colName = vec3(realFB[_pixelIdx + 0], realFB[_pixelIdx + 1], realFB[_pixelIdx + 2]);
 
+typedef DWORD D3DCOLOR;
+#define CUDA_COLOR_TO_DX(r, g, b) ((((0xff) & 0xff) << 24) | (((r) & 0xff) << 16) | (((g) & 0xff) << 8) | ((b) & 0xff));
 
 namespace Post {
-	__global__ void denoise(GBuffer* gbufferData, float* realFB, float* framebuffer, int width, int height) {
+	__global__ void denoise(GBuffer* gbufferData, float* realFB, DWORD* dxFB, float* framebuffer, int width, int height) {
 		int i = threadIdx.x + blockIdx.x * blockDim.x;
 		int j = threadIdx.y + blockIdx.y * blockDim.y;
 		if ((i >= width) || (j >= height)) return;
@@ -63,6 +65,13 @@ namespace Post {
 			denoisedResult = blurredArea;
 		}
 
+		int r = static_cast<int>(denoisedResult.r() * 255.99);
+		int g = static_cast<int>(denoisedResult.g() * 255.99);
+		int Xb = static_cast<int>(denoisedResult.b() * 255.99);
+
+		// gbuffer_idx is the same index we need..
+
+		dxFB[gbuffer_idx] = CUDA_COLOR_TO_DX(r, g, Xb);
 		framebuffer[pixel_index + 0] = denoisedResult.r();
 		framebuffer[pixel_index + 1] = denoisedResult.g();
 		framebuffer[pixel_index + 2] = denoisedResult.b();

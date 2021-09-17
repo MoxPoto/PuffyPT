@@ -189,6 +189,10 @@ __device__ static void initWhiteBalance() {
 		-0.1624, 0.0061, 0.9834
 	};
 }
+
+typedef DWORD D3DCOLOR;
+#define CUDA_COLOR_TO_DX(r, g, b) ((((0xff) & 0xff) << 24) | (((r) & 0xff) << 16) | (((g) & 0xff) << 8) | ((b) & 0xff));
+
 namespace Post {
 	__device__ vec3 LinearTosRGB(vec3 color)
 	{
@@ -212,7 +216,7 @@ namespace Post {
 		return dot(rgb, vec3(0.2126f, 0.7152f, 0.0722f));
 	}
 
-	__global__ void tonemap(float* framebuffer, Camera mainCam, float* postFB, float* bloomFB, int width, int height, float whiteBalance) {
+	__global__ void tonemap(float* framebuffer, Camera mainCam, float* postFB, DWORD* dxFB, float* bloomFB, int width, int height, float whiteBalance) {
 		// FIRSTLY!! CHECK IF OUR WHITE BALANCE HAS BEEN INVALIDATED
 		if (!initializedWhiteBal) {
 			initWhiteBalance();
@@ -233,6 +237,7 @@ namespace Post {
 		int j = threadIdx.y + blockIdx.y * blockDim.y;
 		if ((i >= width) || (j >= height)) return;
 		int pixel_index = j * width * 3 + i * 3;
+		int dx_index = j * width + i;
 
 		vec3 frameColor = vec3(framebuffer[pixel_index], framebuffer[pixel_index + 1], framebuffer[pixel_index + 2]) * mainCam.exposure;
 		vec3 bloomColor = vec3(bloomFB[pixel_index], bloomFB[pixel_index + 1], bloomFB[pixel_index + 2]);
@@ -255,7 +260,14 @@ namespace Post {
 		tonemapped.clamp();
 
 		tonemapped = LinearTosRGB(tonemapped);
+		
+		int r = static_cast<int>(tonemapped.r() * 255.99);
+		int g = static_cast<int>(tonemapped.g() * 255.99);
+		int Xb = static_cast<int>(tonemapped.b() * 255.99);
 
+		DWORD newColorDX = CUDA_COLOR_TO_DX(r, g, Xb);
+
+		dxFB[dx_index] = newColorDX;
 		
 		postFB[pixel_index] = tonemapped.r();
 		postFB[pixel_index + 1] = tonemapped.g();
@@ -351,12 +363,12 @@ __host__ void ApplyPostprocess(int width, int height, dim3 blocks, dim3 threads,
 	checkCudaErrors(cudaDeviceSynchronize());
 	*/	
 
-	tonemap << <blocks, threads >> > (DXHook::fb, DXHook::mainCam, DXHook::postFB, DXHook::bloomFB, width, height, whiteBalance);
+	tonemap << <blocks, threads >> > (DXHook::fb, DXHook::mainCam, DXHook::postFB, DXHook::dxFB, DXHook::bloomFB, width, height, whiteBalance);
 	checkCudaErrors(cudaGetLastError());
 	checkCudaErrors(cudaDeviceSynchronize());
 
 	if (denoiseImage) {
-		denoise << <blocks, threads >> > (DXHook::gbufferData, DXHook::postFB, DXHook::postFB, width, height);
+		denoise << <blocks, threads >> > (DXHook::gbufferData, DXHook::postFB, DXHook::dxFB, DXHook::postFB, width, height);
 		checkCudaErrors(cudaGetLastError());
 		checkCudaErrors(cudaDeviceSynchronize());
 	}

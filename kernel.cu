@@ -262,6 +262,7 @@ GMOD_MODULE_OPEN()
 
     int num_pixels = WIDTH * HEIGHT;
     size_t fb_size = 3 * num_pixels * sizeof(float);
+    size_t dxfb_size = num_pixels * sizeof(DWORD);
     size_t world_size = 260 * sizeof(Object*);
     size_t origin_size = sizeof(vec3*);
     size_t gbuffer_size = num_pixels * sizeof(Post::GBuffer);
@@ -275,6 +276,7 @@ GMOD_MODULE_OPEN()
     checkCudaErrors(cudaMallocManaged((void**)&DXHook::postFB, fb_size));
     checkCudaErrors(cudaMallocManaged((void**)&DXHook::bloomFB, fb_size));
     checkCudaErrors(cudaMallocManaged((void**)&DXHook::blurFB, fb_size));
+    checkCudaErrors(cudaMallocManaged((void**)&DXHook::dxFB, dxfb_size));
 
     checkCudaErrors(cudaMallocManaged((void**)&DXHook::world, world_size));
     checkCudaErrors(cudaMallocManaged((void**)&DXHook::origin, origin_size));
@@ -400,6 +402,7 @@ GMOD_MODULE_CLOSE()
     checkCudaErrors(cudaFree(DXHook::blurFB));
     checkCudaErrors(cudaFree(DXHook::bloomFB));
     checkCudaErrors(cudaFree(DXHook::postFB));
+    checkCudaErrors(cudaFree(DXHook::dxFB));
     checkCudaErrors(cudaFree(DXHook::renderOptDevPtr));
 
     for (std::pair<std::string, Pixel*> devPtr : deviceTextures) {

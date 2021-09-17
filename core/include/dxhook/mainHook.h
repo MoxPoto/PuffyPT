@@ -37,6 +37,7 @@ namespace DXHook {
 	extern float* postFB; // Post Frame buffer
 	extern float* bloomFB; // Bloom Frame buffer
 	extern float* blurFB; // Pre-blur FB
+	extern DWORD* dxFB; // DirectX Framebuffer
 
 	extern float whiteBalance; // White Balance Dumbass
 

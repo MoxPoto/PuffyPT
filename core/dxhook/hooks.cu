@@ -111,6 +111,9 @@ namespace DXHook {
 	RenderOptions* renderOptDevPtr = nullptr;
 	std::mutex* renderMutex;
 
+	// DX Framebuffer
+	DWORD* dxFB = nullptr;
+
 	HRESULT __stdcall EndSceneHook(LPDIRECT3DDEVICE9 pDevice) {
 		if (!gotDevice) {
 			gotDevice = true;
@@ -390,7 +393,7 @@ namespace DXHook {
 			MEASURE_START(texTransfer);
 
 			D3DLOCKED_RECT memRegion;
-			pathtraceOutput->LockRect(0, &memRegion, NULL, D3DLOCK_DISCARD);
+			pathtraceOutput->LockRect(0, &memRegion, NULL, 0);
 			// std::cout << "Updating texture pt 1\n";
 			int num_pixels = WIDTH * HEIGHT;
 			
@@ -399,8 +402,8 @@ namespace DXHook {
 			// SO GET THIS I WAS FUCKING MALLOC'ING THIS EVERY FRAME AND FORGETTING TO REMOVE IT
 			// AND MY SYSTEM BSODED AND MY GPU GOT STUCK IN A RANDOM STATE LMAOOOOOO
 
-			char* data = reinterpret_cast<char*>(memRegion.pBits);
-
+			DWORD* data = reinterpret_cast<DWORD*>(memRegion.pBits);
+			/*
 			for (int y = 0; y < HEIGHT; ++y) {
 				DWORD* row = (DWORD*)data;
 
@@ -420,6 +423,9 @@ namespace DXHook {
 				}
 				data += memRegion.Pitch;
 			}
+			*/
+
+			memcpy(data, (void*)DXHook::dxFB, WIDTH * HEIGHT * sizeof(DWORD));
 
 			pathtraceOutput->UnlockRect(0);
 

@@ -9,6 +9,7 @@
 #include "cuda_runtime.h"
 
 // originally this was denoising only
+typedef unsigned long DWORD;
 
 namespace Post {
 	struct GBuffer {
@@ -46,8 +47,8 @@ namespace Post {
 
 	__device__ extern float luminance(vec3 rgb);
 
-	__global__ extern void denoise(GBuffer* gbufferData, float* realFB, float* framebuffer, int width, int height);
-	__global__ extern void tonemap(float* framebuffer, Camera mainCam, float* postFB, float* bloomFB, int width, int height, float whiteBalance);
+	__global__ extern void denoise(GBuffer* gbufferData, float* realFB, DWORD* dxFB, float* framebuffer, int width, int height);
+	__global__ extern void tonemap(float* framebuffer, Camera mainCam, float* postFB, DWORD* dxFB, float* bloomFB, int width, int height, float whiteBalance);
 	__global__ extern void bloom(float* framebuffer, float* postFB, int width, int height);
 
 	__device__ extern vec3 LinearTosRGB(vec3 color);
