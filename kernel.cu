@@ -77,7 +77,12 @@ static __device__ unsigned int wangHash(unsigned int a) {
 __global__ void DXHook::render(DXHook::RenderOptions* options) {
     int i = threadIdx.x + blockIdx.x * blockDim.x;
     int j = threadIdx.y + blockIdx.y * blockDim.y;
-    if ((i >= options->max_x) || (j >= options->max_y)) return;
+
+    if ((i >= options->max_x) || (j >= options->max_y)) {
+        i = i % (options->max_x - 1);
+        j = j % (options->max_y - 1);
+    };
+
     int pixel_index = j * options->max_x * 3 + i * 3;
     int random_idx = j * options->max_x + i;
 

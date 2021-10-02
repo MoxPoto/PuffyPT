@@ -13,56 +13,7 @@
 
 static constexpr float POW_ARG = 1.0f / 2.4f;
 
-static __global__ void blur(float* framebuffer, float* blurFB, int width, int height) {
-	int i = threadIdx.x + blockIdx.x * blockDim.x;
-	int j = threadIdx.y + blockIdx.y * blockDim.y;
-	if ((i >= width) || (j >= height)) return;
-	int pixel_index = j * width * 3 + i * 3;
 
-
-	vec3 frameColor = vec3(framebuffer[pixel_index], framebuffer[pixel_index + 1], framebuffer[pixel_index + 2]);
-	const int FILTER_SIZE = 16;
-	const int REAL_SIZE = 10;
-	const vec3 ourPosition(i, j, 0);
-
-	vec3 blurred(0, 0, 0);
-	int passes = 0;
-
-	for (int fX = i - FILTER_SIZE; fX <= i + FILTER_SIZE; fX++) {
-		for (int fY = j - FILTER_SIZE; fY <= j + FILTER_SIZE; fY++) {
-			const vec3 thisPosition(fX, fY, 0);
-
-			if ((ourPosition - thisPosition).squared_length() > REAL_SIZE * REAL_SIZE)
-				continue;
-
-			if (fX > 0 && fX < width && fY > 0 && fY < height) {
-				int pixel_index = fY * width * 3 + fX * 3;
-
-				if (fX == i && fY == j)
-					continue;
-				vec3 frameColor = vec3(framebuffer[pixel_index], framebuffer[pixel_index + 1], framebuffer[pixel_index + 2]);
-
-				if (!isnan(frameColor.r()) && !isnan(frameColor.g()) && !isnan(frameColor.b())) {
-					blurred += frameColor;
-					passes++;
-				}
-				
-			}
-		}
-	}
-
-	if (passes <= 0) {
-		return;
-	}
-
-	blurred /= (fmaxf(passes, 1));
-
-
-	blurFB[pixel_index] = blurred.r();
-	blurFB[pixel_index + 1] = blurred.g();
-	blurFB[pixel_index + 2] = blurred.b();
-
-}
 
 static __global__ void copy(float* srcBuffer, float* dstBuffer, int width, int height) {
 	int i = threadIdx.x + blockIdx.x * blockDim.x;
