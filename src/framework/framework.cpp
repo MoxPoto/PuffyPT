@@ -10,16 +10,17 @@
 #include <backends/imgui_impl_dx9.h>
 
 // There should be some way to make this.. better
+static bool alive = true;
 static bool test = true;
 
 // TODO: Export this out of framework.cpp
-static void renderingFunc(LPDIRECT3DDEVICE9 device, std::mutex* renderMutex, bool* alive) {
-	while (*alive) {
+static void renderingFunc(LPDIRECT3DDEVICE9 device, std::mutex* renderMutex) {
+	while (alive) {
 		// Dont ask
 		renderMutex->lock();
 
 		// Double check since we may've just terminated
-		if (*alive == false) {
+		if (alive == false) {
 			// Terminate
 			renderMutex->unlock();
 			break;
@@ -91,36 +92,42 @@ Framework::Framework() {
 	// Set our alive
 	alive = true;
 
-	renderMutex = new std::mutex();
-	renderMutex->unlock();
-
-	renderer = std::thread(renderingFunc, device, renderMutex, &alive);
+	renderer = std::thread(renderingFunc, device, &renderMutex);
 	renderer.detach();
 }
 
-Framework::~Framework() {
-	renderMutex->lock(); // Lock real quick
+void Framework::Destroy() {
+	renderMutex.lock(); // Lock real quick
 
+	printf("Locking..\n");
 	// Close the main window
 	// And free the console
-	FreeConsole();
 
 	// Get ImGui closed too
 	ImGui_ImplDX9_Shutdown();
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
 
+	printf("Destroyed ImGui..\n");
+
 	// Cleanup D3D resources
+
 	device->Release();
 	d3d->Release();
+
+	printf("Cleaned D3D..\n");
 
 	if (window != NULL) {
 		DestroyWindow(window);
 	}
 
+	printf("Removed window..\n");
 	alive = false;
+	FreeConsole();
 	
-	renderMutex->unlock();
+	renderMutex.unlock();
+}
 
-	delete renderMutex;
+Framework::~Framework() {
+	Destroy();
 }

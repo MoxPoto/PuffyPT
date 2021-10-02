@@ -11,12 +11,11 @@ private:
 	IDirect3DDevice9* device;
 	IDirect3D9* d3d;
 	std::thread renderer;
-	std::mutex* renderMutex;
+	std::mutex renderMutex;
 	HWND window;
-
-	bool alive;
 public:
 	void InitWindow();
+	void Destroy();
 
 	Framework();
 	~Framework();

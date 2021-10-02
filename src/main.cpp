@@ -10,7 +10,7 @@ GMOD_MODULE_OPEN() {
 }
 
 GMOD_MODULE_CLOSE() {
-	// TODO: actually make the program..
-	framework.reset(); // Kill the framework
+	printf("Closing Puffy PT..\n");
+	framework->Destroy();
 	return 0;
 }
