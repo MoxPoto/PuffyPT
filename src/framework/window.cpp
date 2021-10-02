@@ -2,7 +2,21 @@
 #include <Windows.h>
 #include <globals.h>
 
+#include <imgui.h>
+#include <backends/imgui_impl_win32.h>
+
 HWND gmodHWND;
+
+// Get the WndProc handler in here
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
+LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+	if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam))
+		return true;
+
+	return DefWindowProc(hWnd, msg, wParam, lParam);
+}
 
 BOOL CALLBACK FindGModWindow(HWND handle, LPARAM lParam) {
 	DWORD processId;
@@ -23,7 +37,7 @@ HWND GetGModWindow() {
 
 void InitializePuffyClass() {
 	WNDCLASS ptClass = {};
-	ptClass.lpfnWndProc = DefWindowProc;
+	ptClass.lpfnWndProc = WndProc;
 	ptClass.hInstance = GetModuleHandle(NULL); // NULL returns the current process instance
 	ptClass.lpszClassName = PUFFYPT_CLASS;
 	ptClass.style = CS_HREDRAW | CS_VREDRAW;

@@ -5,7 +5,14 @@
 #include <Windows.h>
 #include <stdio.h>
 
+#include <imgui.h>
+#include <backends/imgui_impl_win32.h>
+#include <backends/imgui_impl_dx9.h>
+
 // There should be some way to make this.. better
+static bool test = true;
+
+// TODO: Export this out of framework.cpp
 static void renderingFunc(LPDIRECT3DDEVICE9 device, std::mutex* renderMutex, bool* alive) {
 	while (*alive) {
 		// Dont ask
@@ -20,6 +27,22 @@ static void renderingFunc(LPDIRECT3DDEVICE9 device, std::mutex* renderMutex, boo
 
 		device->Clear(0, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, 40, 100), 1.0f, 0);
 		device->BeginScene();
+
+		// Start a new ImGui frame
+		ImGui_ImplDX9_NewFrame();
+		ImGui_ImplWin32_NewFrame();
+		ImGui::NewFrame();
+
+		ImGui::ShowDemoWindow(&test);
+
+		// End it
+		ImGui::EndFrame();
+		device->SetRenderState(D3DRS_ZENABLE, FALSE);
+		device->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+		device->SetRenderState(D3DRS_SCISSORTESTENABLE, FALSE);
+
+		ImGui::Render();
+		ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
 
 		device->EndScene();
 		device->Present(NULL, NULL, NULL, NULL);
@@ -57,6 +80,13 @@ Framework::Framework() {
 	freopen_s(&pFile, "CONOUT$", "w", stdout); // cursed way to redirect stdout to our own console
 	
 	InitWindow();
+	// Sick, now let's create ImGui
+	ImGui::CreateContext();
+	ImGuiIO& io = ImGui::GetIO(); (void)io;
+
+	ImGui::StyleColorsDark();
+	ImGui_ImplWin32_Init(window);
+	ImGui_ImplDX9_Init(device);
 
 	// Set our alive
 	alive = true;
@@ -74,6 +104,11 @@ Framework::~Framework() {
 	// Close the main window
 	// And free the console
 	FreeConsole();
+
+	// Get ImGui closed too
+	ImGui_ImplDX9_Shutdown();
+	ImGui_ImplWin32_Shutdown();
+	ImGui::DestroyContext();
 
 	// Cleanup D3D resources
 	device->Release();
