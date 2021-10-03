@@ -10,6 +10,9 @@ private:
 	float* framebuffer; // Normal, 0-1 framebuffer
 	DWORD* dxFramebuffer; // DirectX, DWORD framebuffer
 
+	int width;
+	int height;
+
 	std::vector<void*> buffersToRelease; // Buffers to free when destructor is called
 public:
 	__host__ void Allocate(void* gpuMemory);
