@@ -11,6 +11,6 @@ GMOD_MODULE_OPEN() {
 
 GMOD_MODULE_CLOSE() {
 	printf("Closing Puffy PT..\n");
-	framework->Destroy();
+	framework.reset();
 	return 0;
 }

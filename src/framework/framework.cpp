@@ -22,7 +22,6 @@ static void renderingFunc(LPDIRECT3DDEVICE9 device, std::mutex* renderMutex) {
 		// Double check since we may've just terminated
 		if (alive == false) {
 			// Terminate
-			renderMutex->unlock();
 			break;
 		}
 
@@ -96,7 +95,7 @@ Framework::Framework() {
 	renderer.detach();
 }
 
-void Framework::Destroy() {
+Framework::~Framework() {
 	renderMutex.lock(); // Lock real quick
 
 	printf("Locking..\n");
@@ -121,13 +120,14 @@ void Framework::Destroy() {
 		DestroyWindow(window);
 	}
 
+	// Also, unregister the window class we created
+	UnregisterClass(PUFFYPT_CLASS, GetModuleHandle(NULL));
+	// The goal when closing, is to essentially act as if nothing ever happened, if we leave some type of trace (eg. memory leak or leftover resources),
+	// then those could actually result in a crash if we open the module more than once
+
 	printf("Removed window..\n");
 	alive = false;
 	FreeConsole();
 	
 	renderMutex.unlock();
-}
-
-Framework::~Framework() {
-	Destroy();
 }

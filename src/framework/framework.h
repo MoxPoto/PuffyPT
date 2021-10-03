@@ -15,7 +15,6 @@ private:
 	HWND window;
 public:
 	void InitWindow();
-	void Destroy();
 
 	Framework();
 	~Framework();
