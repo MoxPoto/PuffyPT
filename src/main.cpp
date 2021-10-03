@@ -2,7 +2,8 @@
 #include <framework/framework.h>
 #include <globals.h>
 
-std::shared_ptr<Framework> framework;
+bool alive = true;
+static std::shared_ptr<Framework> framework;
 
 GMOD_MODULE_OPEN() {
 	framework = std::make_shared<Framework>();

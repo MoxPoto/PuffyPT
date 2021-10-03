@@ -1,6 +1,6 @@
 #include <framework/framework.h>
 #include <framework/window.h>
-
+#include <framework/render.h>
 #include <d3d9.h>
 #include <Windows.h>
 #include <stdio.h>
@@ -8,48 +8,9 @@
 #include <imgui.h>
 #include <backends/imgui_impl_win32.h>
 #include <backends/imgui_impl_dx9.h>
+#include <globals.h>
 
-// There should be some way to make this.. better
-static bool alive = true;
-static bool test = true;
-
-// TODO: Export this out of framework.cpp
-static void renderingFunc(LPDIRECT3DDEVICE9 device, std::mutex* renderMutex) {
-	while (alive) {
-		// Dont ask
-		renderMutex->lock();
-
-		// Double check since we may've just terminated
-		if (alive == false) {
-			// Terminate
-			break;
-		}
-
-		device->Clear(0, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, 40, 100), 1.0f, 0);
-		device->BeginScene();
-
-		// Start a new ImGui frame
-		ImGui_ImplDX9_NewFrame();
-		ImGui_ImplWin32_NewFrame();
-		ImGui::NewFrame();
-
-		ImGui::ShowDemoWindow(&test);
-
-		// End it
-		ImGui::EndFrame();
-		device->SetRenderState(D3DRS_ZENABLE, FALSE);
-		device->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
-		device->SetRenderState(D3DRS_SCISSORTESTENABLE, FALSE);
-
-		ImGui::Render();
-		ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
-
-		device->EndScene();
-		device->Present(NULL, NULL, NULL, NULL);
-
-		renderMutex->unlock();
-	}
-}
+// renderingFunc is located in framework/render.h
 
 void Framework::InitWindow() {
 	// Create a window from the gmod process
@@ -62,7 +23,6 @@ void Framework::InitWindow() {
 
 	d3d = Direct3DCreate9(D3D_SDK_VERSION);
 	// Create a rendering context
-	D3DPRESENT_PARAMETERS presentParams;
 	ZeroMemory(&presentParams, sizeof(presentParams)); // Clear it out for our usage
 
 	presentParams.Windowed = true;
@@ -83,6 +43,17 @@ Framework::Framework() {
 	// Sick, now let's create ImGui
 	ImGui::CreateContext();
 	ImGuiIO& io = ImGui::GetIO(); (void)io;
+	
+	ImGuiStyle& style = ImGui::GetStyle();
+
+	style.FrameRounding = 5.0f;
+	style.ChildRounding = 5.0f;
+	style.WindowRounding = 5.0f;
+	style.WindowTitleAlign = ImVec2(0.5, 0.5);
+	style.Colors[ImGuiCol_TitleBg] = ImVec4(0.592, 0.090, 0.090, 1);
+	style.Colors[ImGuiCol_TitleBgActive] = ImVec4(0.392, 0.020, 0.020, 1);
+
+	font = io.Fonts->AddFontFromFileTTF("C:\\Windows\\Fonts\\micross.ttf", 15);
 
 	ImGui::StyleColorsDark();
 	ImGui_ImplWin32_Init(window);
@@ -91,7 +62,7 @@ Framework::Framework() {
 	// Set our alive
 	alive = true;
 
-	renderer = std::thread(renderingFunc, device, &renderMutex);
+	renderer = std::thread(renderingFunc, device, &renderMutex, font);
 	renderer.detach();
 }
 

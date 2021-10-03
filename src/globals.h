@@ -7,6 +7,6 @@
 #include <memory>
 
 const LPCSTR PUFFYPT_WINDOW_NAME = "Puffy PT - 3.0";
-extern std::shared_ptr<Framework> framework;
+extern bool alive;
 
 #endif

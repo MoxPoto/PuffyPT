@@ -49,7 +49,7 @@ void InitializePuffyClass() {
 
 HWND CreatePuffyWindow() {
 	InitializePuffyClass(); // Caller shouldn't have to call this themselves
-	HWND ptWindow = CreateWindowEx(0, PUFFYPT_CLASS, PUFFYPT_WINDOW_NAME, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, NULL, NULL, GetModuleHandle(NULL), NULL);
+	HWND ptWindow = CreateWindowEx(0, PUFFYPT_CLASS, PUFFYPT_WINDOW_NAME, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 1728, 972, NULL, NULL, GetModuleHandle(NULL), NULL);
 	// None of this Win32 API code should never be touched again
 
 	ShowWindow(ptWindow, SW_SHOW);
