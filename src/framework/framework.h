@@ -7,6 +7,9 @@
 #include <mutex>
 #include <imgui.h>
 
+#include <pathtracer/pathtracer.cuh>
+#include <memory>
+
 class Framework {
 private:
 	IDirect3DDevice9* device;
@@ -18,8 +21,11 @@ private:
 
 	HWND window;
 	ImFont* font;
+
+	std::shared_ptr<Pathtracer> pathtracer;
 public:
 	void InitWindow();
+	void SetPathtracer(std::shared_ptr<Pathtracer> pathtracerPtr);
 
 	Framework();
 	~Framework();

@@ -1,6 +1,8 @@
 #include <framework/framework.h>
 #include <framework/window.h>
 #include <framework/render.h>
+#include <pathtracer/pathtracer.cuh>
+
 #include <d3d9.h>
 #include <Windows.h>
 #include <stdio.h>
@@ -32,6 +34,10 @@ void Framework::InitWindow() {
 	d3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, window, D3DCREATE_HARDWARE_VERTEXPROCESSING, &presentParams, &device);
 }
 
+void Framework::SetPathtracer(std::shared_ptr<Pathtracer> pathtracerPtr) {
+	pathtracer = pathtracerPtr;
+}
+
 Framework::Framework() {
 	// Initialize some critical services
 	AllocConsole();
@@ -59,10 +65,12 @@ Framework::Framework() {
 	ImGui_ImplWin32_Init(window);
 	ImGui_ImplDX9_Init(device);
 
+	pathtracer = std::make_shared<Pathtracer>();
+
 	// Set our alive
 	alive = true;
 
-	renderer = std::thread(renderingFunc, device, &renderMutex, font);
+	renderer = std::thread(renderingFunc, device, &renderMutex, font, pathtracer);
 	renderer.detach();
 }
 
@@ -90,6 +98,9 @@ Framework::~Framework() {
 	if (window != NULL) {
 		DestroyWindow(window);
 	}
+
+	// Remove pathtracer
+	pathtracer.reset();
 
 	// Also, unregister the window class we created
 	UnregisterClass(PUFFYPT_CLASS, GetModuleHandle(NULL));

@@ -1,13 +1,16 @@
 #include <framework/render.h>
+#include <pathtracer/pathtracer.cuh>
+
 #include <d3d9.h>
 #include <mutex>
+#include <memory>
 #include <globals.h> // alive
 
 #include <backends/imgui_impl_dx9.h>
 #include <backends/imgui_impl_win32.h>
 #include <imgui.h>
 
-void renderingFunc(LPDIRECT3DDEVICE9 device, std::mutex* renderMutex, ImFont* font) {
+void renderingFunc(LPDIRECT3DDEVICE9 device, std::mutex* renderMutex, ImFont* font, std::shared_ptr<Pathtracer> pathtracer) {
 	while (alive) {
 		// Dont ask
 		renderMutex->lock();
@@ -29,7 +32,14 @@ void renderingFunc(LPDIRECT3DDEVICE9 device, std::mutex* renderMutex, ImFont* fo
 		ImGui::Begin("Renderer");
 		ImGui::PushFont(font);
 
-		ImGui::Text("Yay!!");
+		ImGui::Text("Yay!! (from Framework)");
+		
+		if (pathtracer != nullptr) {
+			pathtracer->ImGuiUpdate();
+		}
+		else {
+			ImGui::TextColored(ImVec4(1, 0, 0, 1), "The pathtracer was never initialized! This should never be reached!");
+		}
 
 		ImGui::PopFont();
 		ImGui::End();

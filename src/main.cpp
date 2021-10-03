@@ -1,8 +1,11 @@
 #include <GarrysMod/Lua/Interface.h>
 #include <framework/framework.h>
+#include <pathtracer/pathtracer.cuh>
+
 #include <globals.h>
 
 bool alive = true;
+
 static std::shared_ptr<Framework> framework;
 
 GMOD_MODULE_OPEN() {
@@ -13,5 +16,6 @@ GMOD_MODULE_OPEN() {
 GMOD_MODULE_CLOSE() {
 	printf("Closing Puffy PT..\n");
 	framework.reset();
+
 	return 0;
 }
