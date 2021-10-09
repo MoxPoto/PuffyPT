@@ -16,6 +16,9 @@ private:
 	IDirect3D9* d3d;
 	D3DPRESENT_PARAMETERS presentParams;
 
+	IDirect3DTexture9* renderTexture;
+	ID3DXSprite* renderSprite;
+
 	std::thread renderer;
 	std::mutex renderMutex;
 

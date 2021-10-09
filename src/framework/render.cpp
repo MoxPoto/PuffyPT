@@ -10,7 +10,7 @@
 #include <backends/imgui_impl_win32.h>
 #include <imgui.h>
 
-void renderingFunc(LPDIRECT3DDEVICE9 device, std::mutex* renderMutex, ImFont* font, std::shared_ptr<Pathtracer> pathtracer) {
+void renderingFunc(LPDIRECT3DDEVICE9 device, std::mutex* renderMutex, ImFont* font, std::shared_ptr<Pathtracer> pathtracer, ID3DXSprite* sprite, IDirect3DTexture9* renderTex) {
 	while (alive) {
 		// Dont ask
 		renderMutex->lock();
@@ -24,6 +24,11 @@ void renderingFunc(LPDIRECT3DDEVICE9 device, std::mutex* renderMutex, ImFont* fo
 		device->Clear(0, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, 40, 100), 1.0f, 0);
 		device->BeginScene();
 
+		// Update the pathtracer
+		if (pathtracer != nullptr) {
+			pathtracer->Update();
+		}
+
 		// Start a new ImGui frame
 		ImGui_ImplDX9_NewFrame();
 		ImGui_ImplWin32_NewFrame();
@@ -31,8 +36,6 @@ void renderingFunc(LPDIRECT3DDEVICE9 device, std::mutex* renderMutex, ImFont* fo
 
 		ImGui::Begin("Renderer");
 		ImGui::PushFont(font);
-
-		ImGui::Text("Yay!! (from Framework)");
 		
 		if (pathtracer != nullptr) {
 			pathtracer->ImGuiUpdate();

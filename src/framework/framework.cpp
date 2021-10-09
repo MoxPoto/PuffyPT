@@ -65,7 +65,7 @@ Framework::Framework() {
 	ImGui_ImplWin32_Init(window);
 	ImGui_ImplDX9_Init(device);
 
-	pathtracer = std::make_shared<Pathtracer>();
+	pathtracer = std::make_shared<Pathtracer>(1728, 972);
 
 	// Set our alive
 	alive = true;
