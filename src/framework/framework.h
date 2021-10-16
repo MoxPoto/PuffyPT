@@ -2,6 +2,8 @@
 #define FRAMEWORK_H
 
 #include <d3d9.h>
+#include <d3dx9.h>
+
 #include <Windows.h>
 #include <thread>
 #include <mutex>
@@ -16,7 +18,6 @@ private:
 	IDirect3D9* d3d;
 	D3DPRESENT_PARAMETERS presentParams;
 
-	IDirect3DTexture9* renderTexture;
 	ID3DXSprite* renderSprite;
 
 	std::thread renderer;

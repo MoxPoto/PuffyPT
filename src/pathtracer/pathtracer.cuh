@@ -4,6 +4,7 @@
 #include <Windows.h>
 #include <cuda_runtime.h>
 #include <vector>
+#include <d3d9.h>
 
 #include <mutex>
 
@@ -24,6 +25,7 @@ private:
 	std::vector<void*> buffersToRelease; // Buffers to free when destructor is called
 public:
 	DWORD* dxFramebuffer; // DirectX, DWORD framebuffer
+	IDirect3DTexture9* renderTexture; // FB as a DX Texture
 
 	__host__ void Update();
 
@@ -31,7 +33,7 @@ public:
 	__host__ void ImGuiUpdate();
 	__host__ void ErrorCheck(cudaError_t err, char const* const func, const char* const file, int const line);
 
-	__host__ Pathtracer(int _width, int _height);
+	__host__ Pathtracer(int _width, int _height, LPDIRECT3DDEVICE9 device);
 	__host__ ~Pathtracer();
 };
 

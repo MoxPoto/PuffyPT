@@ -2,6 +2,8 @@
 #include <pathtracer/pathtracer.cuh>
 
 #include <d3d9.h>
+#include <d3dx9.h>
+
 #include <mutex>
 #include <memory>
 #include <globals.h> // alive
@@ -10,7 +12,7 @@
 #include <backends/imgui_impl_win32.h>
 #include <imgui.h>
 
-void renderingFunc(LPDIRECT3DDEVICE9 device, std::mutex* renderMutex, ImFont* font, std::shared_ptr<Pathtracer> pathtracer, ID3DXSprite* sprite, IDirect3DTexture9* renderTex) {
+void renderingFunc(LPDIRECT3DDEVICE9 device, std::mutex* renderMutex, ImFont* font, std::shared_ptr<Pathtracer> pathtracer, std::shared_ptr<ID3DXSprite> sprite) {
 	while (alive) {
 		// Dont ask
 		renderMutex->lock();
@@ -27,6 +29,23 @@ void renderingFunc(LPDIRECT3DDEVICE9 device, std::mutex* renderMutex, ImFont* fo
 		// Update the pathtracer
 		if (pathtracer != nullptr) {
 			pathtracer->Update();
+
+			// Then, display!!
+			/*
+			D3DXMATRIX transform;
+			D3DXMatrixIdentity(&transform);
+			D3DXMatrixScaling(&transform, 1, 1, 1); // TODO: Add differing resolution based on pathtracer (NOT ON WINDOW SIZE!)
+			*/
+
+			if (sprite != nullptr) {
+				sprite->Begin(D3DXSPRITE_SORT_DEPTH_FRONTTOBACK);
+				//sprite->SetTransform(&transform);
+				sprite->Draw(pathtracer->renderTexture, NULL, NULL, NULL, D3DCOLOR_RGBA(255, 255, 255, 255));
+				sprite->End();
+			}
+			else {
+				printf("NO SPRITE!! NOT GOOD!!\n");
+			}
 		}
 
 		// Start a new ImGui frame

@@ -4,6 +4,8 @@
 #include <pathtracer/pathtracer.cuh>
 
 #include <d3d9.h>
+#include <d3dx9.h>
+
 #include <Windows.h>
 #include <stdio.h>
 
@@ -65,12 +67,22 @@ Framework::Framework() {
 	ImGui_ImplWin32_Init(window);
 	ImGui_ImplDX9_Init(device);
 
-	pathtracer = std::make_shared<Pathtracer>(1728, 972);
+	renderSprite = NULL;
+	HRESULT code = D3DXCreateSprite(device, &renderSprite);
+	
+	if (!renderSprite) {
+		printf("Couldn't generate renderSprite!\nCode: %u\n", static_cast<unsigned int>(code));
+		return;
+	}
+
+	pathtracer = std::make_shared<Pathtracer>(1728, 972, device);
 
 	// Set our alive
 	alive = true;
 
-	renderer = std::thread(renderingFunc, device, &renderMutex, font, pathtracer);
+	std::shared_ptr<ID3DXSprite> ptr(renderSprite);
+
+	renderer = std::thread(renderingFunc, device, &renderMutex, font, pathtracer, ptr);
 	renderer.detach();
 }
 
