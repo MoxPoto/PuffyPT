@@ -1,35 +1,34 @@
 #ifndef FRAMEWORK_H
 #define FRAMEWORK_H
 
-#include <d3d9.h>
-#include <d3dx9.h>
-
 #include <Windows.h>
 #include <thread>
 #include <mutex>
 #include <imgui.h>
+#include <wrl/client.h>
 
-#include <pathtracer/pathtracer.cuh>
 #include <memory>
+
+#include <d3d11.h>
+#include <d3d10.h>
+
+using Microsoft::WRL::ComPtr;
 
 class Framework {
 private:
-	IDirect3DDevice9* device;
-	IDirect3D9* d3d;
-	D3DPRESENT_PARAMETERS presentParams;
+	ComPtr<IDXGISwapChain> swapChain;
+	ComPtr<ID3D11Device> device;
+	ComPtr<ID3D11DeviceContext> devContext;
 
-	ID3DXSprite* renderSprite;
+	ComPtr<ID3D11RenderTargetView> backBuffer;
 
 	std::thread renderer;
 	std::mutex renderMutex;
 
 	HWND window;
 	ImFont* font;
-
-	std::shared_ptr<Pathtracer> pathtracer;
 public:
 	void InitWindow();
-	void SetPathtracer(std::shared_ptr<Pathtracer> pathtracerPtr);
 
 	Framework();
 	~Framework();

@@ -1,15 +1,20 @@
 #ifndef RENDER_H
 #define RENDER_H
 
-#include <pathtracer/pathtracer.cuh>
-
-#include <d3d9.h>
-#include <d3dx9.h>
-
+#include <Windows.h>
+#include <thread>
 #include <mutex>
 #include <imgui.h>
+#include <wrl.h>
+
 #include <memory>
 
-extern void renderingFunc(LPDIRECT3DDEVICE9 device, std::mutex* renderMutex, ImFont* font, std::shared_ptr<Pathtracer> pathtracer, std::shared_ptr<ID3DXSprite> sprite);
+#include <d3dx11.h>
+#include <d3d11.h>
+#include <d3d10.h>
+
+using Microsoft::WRL::ComPtr;
+
+extern void renderingFunc(ComPtr<ID3D11Device> device, ComPtr<IDXGISwapChain> swapChain, ComPtr<ID3D11DeviceContext> devContext, ComPtr<ID3D11RenderTargetView> backbuffer, std::mutex* renderMutex, ImFont* font);
 
 #endif

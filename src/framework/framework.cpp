@@ -1,7 +1,6 @@
 #include <framework/framework.h>
 #include <framework/window.h>
 #include <framework/render.h>
-#include <pathtracer/pathtracer.cuh>
 
 #include <d3d9.h>
 #include <d3dx9.h>
@@ -11,9 +10,13 @@
 
 #include <imgui.h>
 #include <backends/imgui_impl_win32.h>
-#include <backends/imgui_impl_dx9.h>
+#include <backends/imgui_impl_dx11.h>
 #include <globals.h>
 
+#include <wrl/client.h>
+
+
+using Microsoft::WRL::ComPtr;
 // renderingFunc is located in framework/render.h
 
 void Framework::InitWindow() {
@@ -25,19 +28,23 @@ void Framework::InitWindow() {
 		printf("Couldn't create the Puffy PT window!");
 	}
 
-	d3d = Direct3DCreate9(D3D_SDK_VERSION);
-	// Create a rendering context
-	ZeroMemory(&presentParams, sizeof(presentParams)); // Clear it out for our usage
+	DXGI_SWAP_CHAIN_DESC description;
+	ZeroMemory(&description, sizeof(DXGI_SWAP_CHAIN_DESC));
 
-	presentParams.Windowed = true;
-	presentParams.SwapEffect = D3DSWAPEFFECT_DISCARD;
-	presentParams.hDeviceWindow = window;
-
-	d3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, window, D3DCREATE_HARDWARE_VERTEXPROCESSING, &presentParams, &device);
-}
-
-void Framework::SetPathtracer(std::shared_ptr<Pathtracer> pathtracerPtr) {
-	pathtracer = pathtracerPtr;
+	description.BufferCount = 1; // Just one
+	description.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	description.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+	description.OutputWindow = window;
+	description.SampleDesc.Count = 4; // 4 AA samples
+	description.Windowed = TRUE;
+	description.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+	
+	// Create our device and swapchain
+	HRESULT code = D3D11CreateDeviceAndSwapChain(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, NULL, NULL, NULL, D3D11_SDK_VERSION, &description, swapChain.GetAddressOf(), device.GetAddressOf(), NULL, devContext.GetAddressOf());
+	if (code != S_OK) {
+		// Something went really wrong
+		printf("Couldn't create D3D11 Device and Swapchain!!!\n");
+	}
 }
 
 Framework::Framework() {
@@ -48,6 +55,27 @@ Framework::Framework() {
 	freopen_s(&pFile, "CONOUT$", "w", stdout); // cursed way to redirect stdout to our own console
 	
 	InitWindow();
+	// Setup the backbuffer
+	ComPtr<ID3D11Texture2D> backbufferTex;
+	swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(backbufferTex.GetAddressOf()));
+
+	device->CreateRenderTargetView(backbufferTex.Get(), NULL, backBuffer.GetAddressOf());
+	backbufferTex->Release();
+
+	// Set the rendertarget to our backbuffer
+	devContext->OMSetRenderTargets(1, backBuffer.GetAddressOf(), NULL);
+
+	// And finally, setup the viewport
+	D3D11_VIEWPORT viewport;
+	ZeroMemory(&viewport, sizeof(D3D11_VIEWPORT));
+
+	viewport.TopLeftX = 0;
+	viewport.TopLeftY = 0;
+	viewport.Width = 1728;
+	viewport.Height = 972;
+
+	devContext->RSSetViewports(1, &viewport); // Done, ready for rendering
+
 	// Sick, now let's create ImGui
 	ImGui::CreateContext();
 	ImGuiIO& io = ImGui::GetIO(); (void)io;
@@ -65,24 +93,22 @@ Framework::Framework() {
 
 	ImGui::StyleColorsDark();
 	ImGui_ImplWin32_Init(window);
-	ImGui_ImplDX9_Init(device);
-
-	renderSprite = NULL;
-	HRESULT code = D3DXCreateSprite(device, &renderSprite);
-	
-	if (!renderSprite) {
-		printf("Couldn't generate renderSprite!\nCode: %u\n", static_cast<unsigned int>(code));
-		return;
-	}
-
-	pathtracer = std::make_shared<Pathtracer>(1728, 972, device);
+	ImGui_ImplDX11_Init(device.Get(), devContext.Get());
 
 	// Set our alive
 	alive = true;
+	// Validate we have compute shader support
+	if (device->GetFeatureLevel() < D3D_FEATURE_LEVEL_11_0) {
+		D3D11_FEATURE_DATA_D3D10_X_HARDWARE_OPTIONS hwopts = { 0 };
+		(void)device->CheckFeatureSupport(D3D11_FEATURE_D3D10_X_HARDWARE_OPTIONS, &hwopts, sizeof(hwopts));
+		if (!hwopts.ComputeShaders_Plus_RawAndStructuredBuffers_Via_Shader_4_x)
+		{
+			printf("DirectCompute is not supported! Not running the framework..");
+			alive = false;
+		}
+	}
 
-	std::shared_ptr<ID3DXSprite> ptr(renderSprite);
-
-	renderer = std::thread(renderingFunc, device, &renderMutex, font, pathtracer, ptr);
+	renderer = std::thread(renderingFunc, device, swapChain, devContext, backBuffer, &renderMutex, font);
 	renderer.detach();
 }
 
@@ -94,25 +120,26 @@ Framework::~Framework() {
 	// And free the console
 
 	// Get ImGui closed too
-	ImGui_ImplDX9_Shutdown();
+	ImGui_ImplDX11_Shutdown();
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
 
 	printf("Destroyed ImGui..\n");
 
 	// Cleanup D3D resources
+	// And switch out of fullscreen
+	swapChain->SetFullscreenState(FALSE, NULL);
 
+	swapChain->Release();
+	backBuffer->Release();
 	device->Release();
-	d3d->Release();
+	devContext->Release();
 
 	printf("Cleaned D3D..\n");
 
 	if (window != NULL) {
 		DestroyWindow(window);
 	}
-
-	// Remove pathtracer
-	pathtracer.reset();
 
 	// Also, unregister the window class we created
 	UnregisterClass(PUFFYPT_CLASS, GetModuleHandle(NULL));
