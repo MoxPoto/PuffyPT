@@ -36,7 +36,7 @@ void renderingFunc(ComPtr<ID3D11Device> device, ComPtr<IDXGISwapChain> swapChain
 		ImGui::Begin("Puffy PT");
 		ImGui::PushFont(font);
 		
-		ImGui::Text("HI!!");
+		ImGui::Text("FPS: %.2f", ImGui::GetIO().Framerate);
 
 		ImGui::PopFont();
 		ImGui::End();
