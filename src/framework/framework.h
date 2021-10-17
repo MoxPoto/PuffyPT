@@ -32,8 +32,10 @@ private:
 
 	HWND window;
 	ImFont* font;
+
 public:
 	void InitWindow();
+	void CompilePuffyPT();
 	void Error(const char* title, const char* errorMsg, UINT type);
 
 	Framework();

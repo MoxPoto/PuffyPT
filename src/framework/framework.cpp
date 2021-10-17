@@ -21,6 +21,28 @@
 using Microsoft::WRL::ComPtr;
 // renderingFunc is located in framework/render.h
 
+void Framework::CompilePuffyPT() {
+	if (std::filesystem::exists("C:/puffypt/main.slang")) {
+		ComPtr<ID3DBlob> puffyPT = shaderService->Compile("main", "computeMain");
+
+		if (!puffyPT) {
+			Error("Compilation Error", "Couldn't compile Puffy PT!", MB_OK);
+		}
+		else {
+			HRESULT compileCode = device->CreateComputeShader(puffyPT->GetBufferPointer(), puffyPT->GetBufferSize(), NULL, pathtracer.GetAddressOf());
+
+			if (compileCode != S_OK) {
+				printf("Error code: %u\n", static_cast<unsigned int>(compileCode));
+
+				Error("Compilation Error", "D3D11 failed to compile Puffy PT!", MB_OK);
+			}
+		}
+	}
+	else {
+		Error("File Error", "Couldn't find Puffy PT! (no main.slang file in renderer/)", MB_OK);
+	}
+}
+
 void Framework::Error(const char* title, const char* errorMsg, UINT type) {
 	MessageBox(window, errorMsg, title, type);
 }
@@ -109,7 +131,7 @@ Framework::Framework() {
 		(void)device->CheckFeatureSupport(D3D11_FEATURE_D3D10_X_HARDWARE_OPTIONS, &hwopts, sizeof(hwopts));
 		if (!hwopts.ComputeShaders_Plus_RawAndStructuredBuffers_Via_Shader_4_x)
 		{
-			printf("DirectCompute is not supported! Not running the framework..");
+			printf("DirectCompute is not supported! Not running the framework..\n");
 			alive = false;
 		}
 	}
@@ -117,23 +139,7 @@ Framework::Framework() {
 	// Then finally create our shaders service
 	shaderService = std::make_unique<Shaders>();
 
-	if (std::filesystem::exists("src/renderer/main.slang")) {
-		Slang::ComPtr<slang::IBlob> puffyPT = shaderService->Compile("main", "computeMain");
-
-		if (!puffyPT) {
-			Error("Compilation Error", "Couldn't compile Puffy PT!", MB_OK);
-		}
-		else {
-			HRESULT compileCode = device->CreateComputeShader(puffyPT->getBufferPointer(), puffyPT->getBufferSize(), NULL, pathtracer.GetAddressOf());
-
-			if (compileCode != S_OK) {
-				Error("Compilation Error", "D3D11 failed to compile Puffy PT!", MB_OK);
-			}
-		}
-	}
-	else {
-		Error("File Error", "Couldn't find Puffy PT! (no main.slang file in renderer/)", MB_OK);
-	}
+	CompilePuffyPT();
 
 	renderer = std::thread(renderingFunc, device, swapChain, devContext, backBuffer, &renderMutex, font);
 	renderer.detach();

@@ -38,6 +38,10 @@ void renderingFunc(ComPtr<ID3D11Device> device, ComPtr<IDXGISwapChain> swapChain
 		
 		ImGui::Text("FPS: %.2f", ImGui::GetIO().Framerate);
 
+		if (ImGui::Button("Recompile Puffy PT")) {
+			framework->CompilePuffyPT();
+		}
+
 		ImGui::PopFont();
 		ImGui::End();
 		

@@ -4,12 +4,16 @@
 #include <slang.h>
 #include <slang-com-ptr.h>
 
+#include <wrl/client.h>
+#include <d3d11.h>
+
+
 class Shaders {
 private:
 	Slang::ComPtr<slang::IGlobalSession> globalSession;
 	Slang::ComPtr<slang::ISession> mainSession;
 public:
-	Slang::ComPtr<slang::IBlob> Compile(const char* module, const char* entryPoint);
+	Microsoft::WRL::ComPtr<ID3DBlob> Compile(const char* module, const char* entryPoint);
 
 	Shaders();
 	~Shaders();

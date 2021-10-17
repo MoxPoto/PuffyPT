@@ -8,7 +8,7 @@
 #pragma comment (lib, "d3dx10.lib")
 
 bool alive = true;
-static std::shared_ptr<Framework> framework;
+std::shared_ptr<Framework> framework;
 
 GMOD_MODULE_OPEN() {
 	framework = std::make_shared<Framework>();
