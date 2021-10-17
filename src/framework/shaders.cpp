@@ -41,7 +41,7 @@ WRL::ComPtr<ID3DBlob> Shaders::Compile(const char* module, const char* entryPoin
 
 	if (slangModule == nullptr || slangEntry == nullptr) {
 		if (diagnosticBlob) {
-			printf("[%s - %s] Shader diagnostic: %s\n", module, entryPoint, reinterpret_cast<const char*>(diagnosticBlob->getBufferPointer()));
+			printf("[%s - %s] Shader diagnostic:\n%s\n", module, entryPoint, reinterpret_cast<const char*>(diagnosticBlob->getBufferPointer()));
 		}
 
 		return compiledBytecode;
@@ -62,7 +62,7 @@ WRL::ComPtr<ID3DBlob> Shaders::Compile(const char* module, const char* entryPoin
 	program->release();
 
 	if (diagnosticBlob) {
-		printf("[%s - %s] Shader diagnostic: %s\n", module, entryPoint, reinterpret_cast<const char*>(diagnosticBlob->getBufferPointer()));
+		printf("[%s - %s] Shader diagnostic:\n%s\n", module, entryPoint, reinterpret_cast<const char*>(diagnosticBlob->getBufferPointer()));
 	}
 	
 	// Now, it may look like we're done, but this is actually returning slang -> hlsl, not slang -> hlsl bytecode obviously
