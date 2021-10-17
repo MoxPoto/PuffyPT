@@ -1,7 +1,7 @@
 #include <framework/render.h>
 
-#include <d3d9.h>
-#include <d3dx9.h>
+#include <d3d11.h>
+#include <d3d10.h>
 
 #include <mutex>
 #include <memory>
@@ -26,7 +26,9 @@ void renderingFunc(ComPtr<ID3D11Device> device, ComPtr<IDXGISwapChain> swapChain
 			break;
 		}
 
-		devContext->ClearRenderTargetView(backbuffer.Get(), D3DXCOLOR(0.0f, 0.2f, 0.4f, 1.0f));
+		float newColor[4] = { 0.0f, 0.2f, 0.4f, 1.0f };
+
+		devContext->ClearRenderTargetView(backbuffer.Get(), newColor);
 
 		// Start a new ImGui frame
 		ImGui_ImplDX11_NewFrame();

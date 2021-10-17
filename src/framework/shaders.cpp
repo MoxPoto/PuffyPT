@@ -18,7 +18,7 @@ Shaders::Shaders() {
 	slang::SessionDesc sessionDesc;
 	slang::TargetDesc targets;
 	targets.format = SLANG_HLSL;
-	targets.profile = globalSession->findProfile("cs_4_0");
+	targets.profile = globalSession->findProfile("cs_5_0");
 
 	sessionDesc.targets = &targets;
 	sessionDesc.targetCount = 1;
@@ -39,7 +39,7 @@ WRL::ComPtr<ID3DBlob> Shaders::Compile(const char* module, const char* entryPoin
 	Slang::ComPtr<slang::IModule> slangModule(mainSession->loadModule(module, diagnosticBlob.writeRef()));
 	Slang::ComPtr<slang::IEntryPoint> slangEntry;
 
-	if (slangModule == nullptr || slangEntry == nullptr) {
+	if (!slangModule) {
 		if (diagnosticBlob) {
 			printf("[%s - %s] Shader diagnostic:\n%s\n", module, entryPoint, reinterpret_cast<const char*>(diagnosticBlob->getBufferPointer()));
 		}
@@ -48,6 +48,14 @@ WRL::ComPtr<ID3DBlob> Shaders::Compile(const char* module, const char* entryPoin
 	}
 
 	slangModule->findEntryPointByName(entryPoint, slangEntry.writeRef());
+	
+	if (!slangEntry) {
+		if (diagnosticBlob) {
+			printf("[%s - %s] Shader diagnostic:\n%s\n", module, entryPoint, reinterpret_cast<const char*>(diagnosticBlob->getBufferPointer()));
+		}
+
+		return compiledBytecode;
+	}
 
 	slang::IComponentType* components[] = { slangModule, slangEntry };
 	Slang::ComPtr<slang::IComponentType> program;
@@ -56,6 +64,14 @@ WRL::ComPtr<ID3DBlob> Shaders::Compile(const char* module, const char* entryPoin
 
 	Slang::ComPtr<slang::IBlob> kernelBlob;
 	program->getEntryPointCode(0, 0, kernelBlob.writeRef(), diagnosticBlob.writeRef());
+
+	if (!kernelBlob) {
+		if (diagnosticBlob) {
+			printf("[%s - %s] FATAL KERNELBLOB ERROR:\n%s\n", module, entryPoint, reinterpret_cast<const char*>(diagnosticBlob->getBufferPointer()));
+		}
+
+		return compiledBytecode;
+	}
 
 	slangModule->release();
 	slangEntry->release();
@@ -66,8 +82,7 @@ WRL::ComPtr<ID3DBlob> Shaders::Compile(const char* module, const char* entryPoin
 	}
 	
 	// Now, it may look like we're done, but this is actually returning slang -> hlsl, not slang -> hlsl bytecode obviously
-
-	HRESULT compileCode = D3DCompile(kernelBlob->getBufferPointer(), kernelBlob->getBufferSize(), NULL, NULL, NULL, entryPoint, "cs_4_0", D3DCOMPILE_OPTIMIZATION_LEVEL2, 0, compiledBytecode.GetAddressOf(), compilerErrors.GetAddressOf());
+	HRESULT compileCode = D3DCompile(kernelBlob->getBufferPointer(), kernelBlob->getBufferSize(), NULL, NULL, NULL, entryPoint, "cs_5_0", D3DCOMPILE_OPTIMIZATION_LEVEL2, 0, compiledBytecode.GetAddressOf(), compilerErrors.GetAddressOf());
 
 	if (compilerErrors) {
 		printf("[%s - %s] !! ERROR FROM D3D11 !!\n%s\n", module, entryPoint, reinterpret_cast<const char*>(compilerErrors->GetBufferPointer()));

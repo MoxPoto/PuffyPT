@@ -3,8 +3,11 @@
 #include <framework/render.h>
 #include <framework/shaders.h>
 
-#include <d3d9.h>
-#include <d3dx9.h>
+#include <d3d11.h>
+#include <d3d10.h>
+// #include <d3dx11.h>
+
+#include <d3dcommon.h>
 
 #include <Windows.h>
 #include <stdio.h>
@@ -26,9 +29,10 @@ void Framework::CompilePuffyPT() {
 		ComPtr<ID3DBlob> puffyPT = shaderService->Compile("main", "computeMain");
 
 		if (!puffyPT) {
-			Error("Compilation Error", "Couldn't compile Puffy PT!", MB_OK);
-		}
+			Error("Compilation Error", "Couldn't compile Puffy PT! (NULL D3DBlob)", MB_OK);
+		} 
 		else {
+			// ReleaseAndGetAddressOf so we can safely discard the old pathtracer shader
 			HRESULT compileCode = device->CreateComputeShader(puffyPT->GetBufferPointer(), puffyPT->GetBufferSize(), NULL, pathtracer.GetAddressOf());
 
 			if (compileCode != S_OK) {
@@ -67,8 +71,15 @@ void Framework::InitWindow() {
 	description.Windowed = TRUE;
 	description.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 	
+	D3D_FEATURE_LEVEL featuresWanted[4] = {
+		D3D_FEATURE_LEVEL_11_1,
+		D3D_FEATURE_LEVEL_11_0,
+		D3D_FEATURE_LEVEL_10_1,
+		D3D_FEATURE_LEVEL_10_0,
+	};
+
 	// Create our device and swapchain
-	HRESULT code = D3D11CreateDeviceAndSwapChain(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, NULL, NULL, NULL, D3D11_SDK_VERSION, &description, swapChain.GetAddressOf(), device.GetAddressOf(), NULL, devContext.GetAddressOf());
+	HRESULT code = D3D11CreateDeviceAndSwapChain(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, NULL, featuresWanted, 4, D3D11_SDK_VERSION, &description, swapChain.GetAddressOf(), device.GetAddressOf(), NULL, devContext.GetAddressOf());
 	if (code != S_OK) {
 		// Something went really wrong
 		printf("Couldn't create D3D11 Device and Swapchain!!!\n");
@@ -135,6 +146,9 @@ Framework::Framework() {
 			alive = false;
 		}
 	}
+	else {
+		printf("Enabling D3D11.1!!\n");
+	}
 
 	// Then finally create our shaders service
 	shaderService = std::make_unique<Shaders>();
@@ -167,6 +181,9 @@ Framework::~Framework() {
 	backBuffer = nullptr;
 	device = nullptr;
 	devContext = nullptr; // if ur confused, this is just ComPtr handling my resource releasing for me
+
+	// Close shaders
+	shaderService.reset();
 
 	printf("Cleaned D3D..\n");
 
