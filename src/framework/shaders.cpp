@@ -23,10 +23,12 @@ Shaders::Shaders() {
 	sessionDesc.targets = &targets;
 	sessionDesc.targetCount = 1;
 
-	const char* searchPaths[] = { "C:/puffypt/" };
+	// Hardcoded paths... but this is in an insanely experimental version
+	const char* searchPaths[] = { "C:/puffypt/" }; 
 	sessionDesc.searchPaths = searchPaths;
 	sessionDesc.searchPathCount = 1;
 
+	// Create the main session
 	globalSession->createSession(sessionDesc, mainSession.writeRef());
 }
 
@@ -63,24 +65,30 @@ WRL::ComPtr<ID3DBlob> Shaders::Compile(const char* module, const char* entryPoin
 	mainSession->createCompositeComponentType(components, 2, program.writeRef());
 
 	Slang::ComPtr<slang::IBlob> kernelBlob;
-	program->getEntryPointCode(0, 0, kernelBlob.writeRef(), diagnosticBlob.writeRef());
+	SlangResult code = program->getEntryPointCode(0, 0, kernelBlob.writeRef(), diagnosticBlob.writeRef());
 
 	if (!kernelBlob) {
 		if (diagnosticBlob) {
 			printf("[%s - %s] FATAL KERNELBLOB ERROR:\n%s\n", module, entryPoint, reinterpret_cast<const char*>(diagnosticBlob->getBufferPointer()));
 		}
 
+		printf("[%s - %s] Slang error code: %d\n", module, entryPoint, code);
+
 		return compiledBytecode;
 	}
 
-	slangModule->release();
-	slangEntry->release();
-	program->release();
+	slangModule = nullptr;
+	slangEntry = nullptr;
+	program = nullptr;
 
 	if (diagnosticBlob) {
 		printf("[%s - %s] Shader diagnostic:\n%s\n", module, entryPoint, reinterpret_cast<const char*>(diagnosticBlob->getBufferPointer()));
 	}
 	
+	if (kernelBlob) {
+		printf("[%s - %s] Shader in HLSL:\n%s\n", module, entryPoint, reinterpret_cast<const char*>(kernelBlob->getBufferPointer()));
+	}
+
 	// Now, it may look like we're done, but this is actually returning slang -> hlsl, not slang -> hlsl bytecode obviously
 	HRESULT compileCode = D3DCompile(kernelBlob->getBufferPointer(), kernelBlob->getBufferSize(), NULL, NULL, NULL, entryPoint, "cs_5_0", D3DCOMPILE_OPTIMIZATION_LEVEL2, 0, compiledBytecode.GetAddressOf(), compilerErrors.GetAddressOf());
 
@@ -91,6 +99,8 @@ WRL::ComPtr<ID3DBlob> Shaders::Compile(const char* module, const char* entryPoin
 	if (compileCode != S_OK) {
 		printf("[%s - %s] Couldn't compile slang output!\n", module, entryPoint);
 	}
+
+	kernelBlob = nullptr;
 
 	return compiledBytecode;
 }

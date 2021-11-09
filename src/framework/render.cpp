@@ -30,6 +30,13 @@ void renderingFunc(ComPtr<ID3D11Device> device, ComPtr<IDXGISwapChain> swapChain
 
 		devContext->ClearRenderTargetView(backbuffer.Get(), newColor);
 
+		if (framework->fbBuffer && framework->fbUAV && framework->pathtracer) {
+			devContext->CSSetShader(framework->pathtracer.Get(), NULL, 0);
+			devContext->CSGetUnorderedAccessViews(0, 1, framework->fbUAV.GetAddressOf());
+
+			devContext->Dispatch(1, 1, 1);
+		}
+
 		// Start a new ImGui frame
 		ImGui_ImplDX11_NewFrame();
 		ImGui_ImplWin32_NewFrame();

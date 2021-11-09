@@ -23,7 +23,6 @@ private:
 	ComPtr<ID3D11DeviceContext> devContext;
 
 	ComPtr<ID3D11RenderTargetView> backBuffer;
-	ComPtr<ID3D11ComputeShader> pathtracer;
 
 	std::thread renderer;
 	std::mutex renderMutex;
@@ -32,11 +31,19 @@ private:
 
 	HWND window;
 	ImFont* font;
-
 public:
+	int width;
+	int height;
+
+	ComPtr<ID3D11ComputeShader> pathtracer;
+
+	ComPtr<ID3D11Buffer> fbBuffer;
+	ComPtr<ID3D11UnorderedAccessView> fbUAV;
+
 	void InitWindow();
 	void CompilePuffyPT();
 	void Error(const char* title, const char* errorMsg, UINT type);
+	void PrepareFramebuffer();
 
 	Framework();
 	~Framework();

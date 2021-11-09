@@ -33,7 +33,7 @@ void Framework::CompilePuffyPT() {
 		} 
 		else {
 			// ReleaseAndGetAddressOf so we can safely discard the old pathtracer shader
-			HRESULT compileCode = device->CreateComputeShader(puffyPT->GetBufferPointer(), puffyPT->GetBufferSize(), NULL, pathtracer.GetAddressOf());
+			HRESULT compileCode = device->CreateComputeShader(puffyPT->GetBufferPointer(), puffyPT->GetBufferSize(), NULL, pathtracer.ReleaseAndGetAddressOf());
 
 			if (compileCode != S_OK) {
 				printf("Error code: %u\n", static_cast<unsigned int>(compileCode));
@@ -94,6 +94,11 @@ Framework::Framework() {
 	freopen_s(&pFile, "CONOUT$", "w", stdout); // cursed way to redirect stdout to our own console
 	
 	InitWindow();
+
+	// terrible.. i know..
+	width = 1728;
+	height = 972;
+
 	// Setup the backbuffer
 	ComPtr<ID3D11Texture2D> backbufferTex;
 	swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(backbufferTex.GetAddressOf()));
@@ -153,6 +158,7 @@ Framework::Framework() {
 	// Then finally create our shaders service
 	shaderService = std::make_unique<Shaders>();
 
+	PrepareFramebuffer();
 	CompilePuffyPT();
 
 	renderer = std::thread(renderingFunc, device, swapChain, devContext, backBuffer, &renderMutex, font);
@@ -179,6 +185,8 @@ Framework::~Framework() {
 
 	swapChain = nullptr;
 	backBuffer = nullptr;
+	fbBuffer = nullptr;
+	fbUAV = nullptr;
 	device = nullptr;
 	devContext = nullptr; // if ur confused, this is just ComPtr handling my resource releasing for me
 
