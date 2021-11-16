@@ -40,8 +40,8 @@
 #include <glm/vec3.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-#define WIDTH 480
-#define HEIGHT 270
+#define WIDTH 960
+#define HEIGHT 540
 #define checkCudaErrors(val) DXHook::check_cuda( (val), #val, __FILE__, __LINE__ )
 #define HDRI_LOCATION "C:\\pathtracer\\hdrs\\shanghai_bund_1k.hdr"
 #define HDRI_FOLDER "C:\\pathtracer\\hdrs"
@@ -91,8 +91,8 @@ __global__ void DXHook::render(DXHook::RenderOptions* options) {
 
     float DISTANCE = 1.f;
 
-    float jitteredI = i + remapFloat(curand_uniform(&local_rand_state), 0.f, -1.f, 1.f, 1.f) * 0.58f;
-    float jitteredJ = j + remapFloat(curand_uniform(&local_rand_state), 0.f, -1.f, 1.f, 1.f) * 0.58f;
+    float jitteredI = i;// + remapFloat(curand_uniform(&local_rand_state), 0.f, -1.f, 1.f, 1.f) * 0.58f;
+    float jitteredJ = j;// + remapFloat(curand_uniform(&local_rand_state), 0.f, -1.f, 1.f, 1.f) * 0.58f;
 
     float coeff = DISTANCE * tan((options->fov / 2.f) * (M_PI / 180.0f)) * 2.f;
     vec3 camOrigin = vec3(

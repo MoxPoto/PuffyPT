@@ -25,8 +25,8 @@
 
 #include <images/hdriUtility.cuh>
 
-#define WIDTH 480
-#define HEIGHT 270
+#define WIDTH 960
+#define HEIGHT 540
 #define checkCudaErrors(val) DXHook::check_cuda( (val), #val, __FILE__, __LINE__ )
 #define HDRI_FOLDER "C:\\pathtracer\\hdrs"
 #define PUFF_INCREMENT(name, variable) ImGui::Button(name); if (ImGui::IsItemActive()) { variable += 0.1f; }
